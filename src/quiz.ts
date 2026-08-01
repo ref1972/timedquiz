@@ -38,7 +38,7 @@ export type QuizState =
   | { state: "prestart"; questionCount: number; closesAt: string | null; intro: IntroCopy }
   | { state: "closed" }
   | { state: "ready"; nextPosition: number }
-  | { state: "question"; position: number; category: string; prompt: string; nonce: string; deadlineAt: string; draft: string }
+  | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; draft: string }
   | { state: "complete" };
 
 export function questionCount(): number {
@@ -194,6 +194,7 @@ export function getStatus(player: Player): QuizState {
       position: question.position,
       category: question.category,
       prompt: question.prompt,
+      highlightedText: question.highlighted_text,
       nonce: exposure.nonce,
       deadlineAt: exposure.deadline_at,
       draft: exposure.draft_text,
@@ -249,6 +250,7 @@ export function serveNext(player: Player): QuizState {
       position: question.position,
       category: question.category,
       prompt: question.prompt,
+      highlightedText: question.highlighted_text,
       nonce: existing.nonce,
       deadlineAt: existing.deadline_at,
       draft: existing.draft_text,
@@ -271,7 +273,7 @@ export function serveNext(player: Player): QuizState {
   );
   logEvent(refreshed.id, "question_served", { position });
 
-  return { state: "question", position, category: question.category, prompt: question.prompt, nonce, deadlineAt, draft: "" };
+  return { state: "question", position, category: question.category, prompt: question.prompt, highlightedText: question.highlighted_text, nonce, deadlineAt, draft: "" };
 }
 
 /** Marks any exposure abandoned since the last check as finalized, across all in-progress attempts. Safe to run on an interval. */

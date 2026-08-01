@@ -31,6 +31,45 @@
     });
   }
 
+  function formattedPrompt(prompt, highlightedText) {
+    var source = String(prompt || "");
+    var phrase = String(highlightedText || "");
+    var chars = [];
+    var italic = false;
+    for (var i = 0; i < source.length; i++) {
+      if (source[i] === "*" && (italic || source.indexOf("*", i + 1) !== -1)) { italic = !italic; continue; }
+      chars.push({ value: source[i], italic: italic, highlighted: false });
+    }
+    var text = chars.map(function (char) { return char.value; }).join("");
+    var lowerText = text.toLocaleLowerCase("en-US");
+    var lowerPhrase = phrase.toLocaleLowerCase("en-US");
+    if (lowerPhrase) {
+      var from = 0;
+      var at;
+      while ((at = lowerText.indexOf(lowerPhrase, from)) !== -1) {
+        for (var j = at; j < at + phrase.length; j++) chars[j].highlighted = true;
+        from = at + phrase.length;
+      }
+    }
+    var html = "";
+    var openItalic = false;
+    var openHighlight = false;
+    chars.forEach(function (char) {
+      if (char.highlighted !== openHighlight || char.italic !== openItalic) {
+        if (openItalic) html += "</em>";
+        if (openHighlight) html += "</span>";
+        openHighlight = char.highlighted;
+        openItalic = char.italic;
+        if (openHighlight) html += '<span class="highlighted-text">';
+        if (openItalic) html += "<em>";
+      }
+      html += escapeHtml(char.value);
+    });
+    if (openItalic) html += "</em>";
+    if (openHighlight) html += "</span>";
+    return html;
+  }
+
   function api(url, body) {
     return fetch(url, {
       method: body ? "POST" : "GET",
@@ -117,7 +156,7 @@
       ' of 50</span><strong id="clock">20.0</strong></div>' +
       '<p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p>' +
       '<h1 class="prompt">' +
-      escapeHtml(state.prompt) +
+      formattedPrompt(state.prompt, state.highlightedText) +
       '</h1><form id="answerForm"><label for="answer">Your answer</label>' +
       '<input id="answer" maxlength="500" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="' +
       escapeHtml(state.draft || "") +

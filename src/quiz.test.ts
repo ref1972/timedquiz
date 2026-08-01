@@ -438,9 +438,10 @@ test("administrator password changes are salted, hashed, and immediately replace
 });
 
 test("question CSV round-trips quoted punctuation, newlines, and aliases", () => {
-  const questions = [{ position: 1, category: "Movies, TV & More", prompt: "Who said \"Hello\"?\nName the character.", answer: "A, B", aliases: ["A", "B"] }];
+  const questions = [{ position: 1, category: "Movies, TV & More", prompt: "Who said *\"Hello\"*?\nName the character.", highlightedText: "Name the character", answer: "A, B", aliases: ["A", "B"] }];
   const csv = questionImport.questionsToCsv(questions);
   assert.deepEqual(questionImport.parseQuestionImport(csv), questions);
+  assert.equal(questionImport.visiblePromptText(questions[0]!.prompt), "Who said \"Hello\"?\nName the character.");
 });
 
 test("player CSV round-trips names with commas and test flags", () => {

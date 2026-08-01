@@ -8,7 +8,7 @@ import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mai
 import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
 import { adminLoginPage, adminPage, page } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
-import { parseQuestionImport, questionsToCsv } from "./question-import.ts";
+import { parseQuestionImport, questionsToCsv, visiblePromptText } from "./question-import.ts";
 import { parsePlayerImport, playersToCsv } from "./player-import.ts";
 import { getIntroCopy, setIntroCopy, type IntroCopy } from "./intro-copy.ts";
 
@@ -54,6 +54,7 @@ export interface AdminQuestionRow {
   position: number;
   category: string;
   prompt: string;
+  highlighted_text: string;
   canonical_answer: string;
   aliases_json: string;
 }
@@ -76,7 +77,7 @@ export function invitationStats(): InvitationStats {
 }
 
 export function adminQuestions(): AdminQuestionRow[] {
-  return db.prepare("SELECT id, position, category, prompt, canonical_answer, aliases_json FROM questions ORDER BY position").all() as unknown as AdminQuestionRow[];
+  return db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json FROM questions ORDER BY position").all() as unknown as AdminQuestionRow[];
 }
 
 function questionBankLocked(): boolean {
@@ -337,7 +338,7 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
     return;
   }
 
-  let parsed: Array<{ position: number; category?: string; prompt: string; answer: string; aliases?: string[] }>;
+  let parsed: Array<{ position: number; category?: string; prompt: string; highlightedText?: string; answer: string; aliases?: string[] }>;
   try {
     parsed = parseQuestionImport(String(req.body.questions ?? ""));
   } catch (error) {
@@ -350,20 +351,20 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
   const valid =
     parsed.length === 50 &&
     positions.size === 50 &&
-    parsed.every((q) => q.position >= 1 && q.position <= 50 && q.prompt?.trim() && q.answer?.trim());
+    parsed.every((q) => q.position >= 1 && q.position <= 50 && q.prompt?.trim() && q.answer?.trim() && (!q.highlightedText?.trim() || visiblePromptText(q.prompt).toLocaleLowerCase("en-US").includes(q.highlightedText.trim().toLocaleLowerCase("en-US"))));
   if (!valid) {
     res
       .status(400)
-      .send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>Provide exactly 50 unique positions from 1 through 50, each with a non-blank prompt and answer.</p><a href="/admin">Return</a></main>`));
+      .send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>Provide exactly 50 unique positions from 1 through 50, each with a non-blank question and answer. Any highlighted text must occur in that question.</p><a href="/admin">Return</a></main>`));
     return;
   }
 
   db.exec("BEGIN");
   try {
     db.exec("DELETE FROM questions");
-    const insert = db.prepare("INSERT INTO questions (position, category, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?)");
+    const insert = db.prepare("INSERT INTO questions (position, category, prompt, highlighted_text, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?, ?)");
     for (const q of [...parsed].sort((a, b) => a.position - b.position)) {
-      insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt.trim(), q.answer.trim(), JSON.stringify(q.aliases ?? []));
+      insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt.trim(), q.highlightedText?.trim() || "", q.answer.trim(), JSON.stringify(q.aliases ?? []));
     }
     db.exec("COMMIT");
   } catch (error) {
@@ -379,6 +380,7 @@ adminRouter.get("/admin/questions.csv", requireAdmin, (_req: Request, res: Respo
     position: q.position,
     category: q.category,
     prompt: q.prompt,
+    highlightedText: q.highlighted_text,
     answer: q.canonical_answer,
     aliases: JSON.parse(q.aliases_json) as string[],
   }));
@@ -395,13 +397,18 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
   const id = Number(req.params.id);
   const category = String(req.body.category ?? "").trim();
   const prompt = String(req.body.prompt ?? "").trim();
+  const highlightedText = String(req.body.highlightedText ?? "").trim();
   const answer = String(req.body.answer ?? "").trim();
   const aliases = String(req.body.aliases ?? "").split(/\r?\n|,/).map((alias) => alias.trim()).filter(Boolean);
   if (!Number.isInteger(id) || !category || !prompt || !answer) {
     res.status(400).send(page("Invalid question", `<main class="card"><h1>Question not saved</h1><p>Category, question, and answer are required.</p><a href="/admin#questions">Return to questions</a></main>`));
     return;
   }
-  const result = db.prepare("UPDATE questions SET category = ?, prompt = ?, canonical_answer = ?, aliases_json = ? WHERE id = ?").run(category, prompt, answer, JSON.stringify(aliases), id);
+  if (highlightedText && !visiblePromptText(prompt).toLocaleLowerCase("en-US").includes(highlightedText.toLocaleLowerCase("en-US"))) {
+    res.status(400).send(page("Invalid highlight", `<main class="card"><h1>Question not saved</h1><p>The highlighted text must appear exactly in the question (capitalization may differ).</p><a href="/admin#question-${id}">Return to question</a></main>`));
+    return;
+  }
+  const result = db.prepare("UPDATE questions SET category = ?, prompt = ?, highlighted_text = ?, canonical_answer = ?, aliases_json = ? WHERE id = ?").run(category, prompt, highlightedText, answer, JSON.stringify(aliases), id);
   if (!result.changes) {
     res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
     return;

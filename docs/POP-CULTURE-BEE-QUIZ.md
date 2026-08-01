@@ -152,7 +152,7 @@ tab dies mid-question.
 | Table | Contents |
 |---|---|
 | `players` | email (unique, lowercased), display name, token hash, invited/started/finished timestamps, status, current position, current `served_at` |
-| `questions` | position 1–50, prompt, canonical answer, accepted aliases (JSON) |
+| `questions` | position 1–50, category, prompt, optional highlighted text, canonical answer, accepted aliases (JSON) |
 | `answers` | player, question, raw text, `served_at`, `submitted_at`, elapsed ms, auto-submitted flag, auto verdict, final verdict, reviewer, reviewed timestamp |
 | `events` | append-only log: served, drafted, submitted, resumed, tab-hidden — the record to consult if a result is disputed |
 
@@ -198,7 +198,7 @@ The player is never shown their score. Results are the owner's to announce.
 
 ## Admin surfaces
 
-- **Question import** — CSV/JSON: position, prompt, canonical answer, aliases.
+- **Question import** — CSV/JSON: position, category, prompt, optional highlighted text, canonical answer, aliases. Question text supports constrained `*italic*` markup only.
 - **Player import** — paste or upload email addresses; generate per-player
   tokens.
 - **Invites** — one magic link per player, single attempt each.

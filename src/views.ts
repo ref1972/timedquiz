@@ -106,7 +106,8 @@ export function adminPage(data: AdminPageData): string {
     return `<form class="question-editor" id="question-${q.id}" method="post" action="/admin/question/${q.id}">
       <div class="question-number">${q.position}</div>
       <label>Category<input name="category" value="${esc(q.category)}" required ${data.questionsLocked ? "disabled" : ""}></label>
-      <label>Question<textarea name="prompt" rows="3" required ${data.questionsLocked ? "disabled" : ""}>${esc(q.prompt)}</textarea></label>
+      <label>Question <span class="muted">(*italics*)</span><textarea class="question-prompt" name="prompt" rows="3" required ${data.questionsLocked ? "disabled" : ""}>${esc(q.prompt)}</textarea>${data.questionsLocked ? "" : '<button class="small secondary italic-button" type="button">Italicize selection</button>'}</label>
+      <label>Highlighted text <span class="muted">(optional)</span><input name="highlightedText" value="${esc(q.highlighted_text)}" ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Answer<input name="answer" value="${esc(q.canonical_answer)}" required ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Aliases <span class="muted">(comma or line separated)</span><input name="aliases" value="${esc(aliases)}" ${data.questionsLocked ? "disabled" : ""}></label>
       ${data.questionsLocked ? "" : '<button class="small">Save question</button>'}
@@ -142,11 +143,11 @@ export function adminPage(data: AdminPageData): string {
 
       <section class="panel">
         <h2>Import questions</h2>
-        <p>Download the current question bank, edit it in Excel or Google Sheets, and upload the CSV. Keep the header row; separate multiple accepted aliases with <code>|</code>. Import locks after the first attempt starts.</p>
+        <p>Download the current question bank, edit it in Excel or Google Sheets, and upload the CSV. Keep the header row; wrap titles in <code>*asterisks*</code> for italics, use <code>highlighted_text</code> for an optional gold phrase, and separate multiple accepted aliases with <code>|</code>. Import locks after the first attempt starts.</p>
         <p><a class="button secondary" href="/admin/questions.csv">Download current questions CSV</a></p>
         <form method="post" action="/admin/questions">
           <label>Question CSV<input id="questionCsvFile" type="file" accept=".csv,text/csv"></label>
-          <label>CSV preview or pasted CSV<textarea id="questionImportData" name="questions" rows="7" required placeholder="position,category,question,answer,aliases"></textarea></label>
+          <label>CSV preview or pasted CSV<textarea id="questionImportData" name="questions" rows="7" required placeholder="position,category,question,highlighted_text,answer,aliases"></textarea></label>
           <button>Validate and import 50 questions</button>
         </form>
         <p class="muted">JSON imports are still accepted for compatibility.</p>
@@ -154,7 +155,7 @@ export function adminPage(data: AdminPageData): string {
 
       <section class="panel" id="questions">
         <h2>Edit questions</h2>
-        <p>${data.questionsLocked ? "Question editing is locked because an attempt exists." : "Edit the category header, question, canonical answer, or accepted aliases."}</p>
+        <p>${data.questionsLocked ? "Question editing is locked because an attempt exists." : "Edit the category, question, optional gold-highlighted phrase, canonical answer, or accepted aliases."}</p>
         <div class="question-list">${questionForms}</div>
       </section>
 
@@ -222,6 +223,16 @@ export function adminPage(data: AdminPageData): string {
           var file = this.files && this.files[0];
           if (!file) return;
           file.text().then(function (text) { document.querySelector('#playerImportData').value = text; });
+        });
+        document.querySelectorAll('.italic-button').forEach(function (button) {
+          button.addEventListener('click', function () {
+            var textarea = button.parentElement.querySelector('.question-prompt');
+            var start = textarea.selectionStart;
+            var end = textarea.selectionEnd;
+            if (start === end) { textarea.focus(); return; }
+            textarea.setRangeText('*' + textarea.value.slice(start, end) + '*', start, end, 'select');
+            textarea.focus();
+          });
         });
       </script>
     </main>`,

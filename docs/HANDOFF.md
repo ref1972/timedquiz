@@ -2,6 +2,16 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Question emphasis
+
+- Added optional Highlighted text to the question editor and CSV. Every
+  case-insensitive literal match in the visible question renders in gold; saves
+  reject a phrase that does not occur in the question.
+- Added safe italic formatting for titles. Selecting question text and clicking
+  **Italicize selection** wraps it in portable `*asterisk*` markup, which is
+  supported in CSV and rendered as `<em>` after escaping all question text.
+- Added `questions.highlighted_text` through a backward-compatible migration.
+
 ## 2026-08-01 — Editable player intro
 
 - Added a Player intro panel near the top of admin for the opening eyebrow,

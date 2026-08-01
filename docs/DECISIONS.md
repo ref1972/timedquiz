@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-08-01 — Question emphasis uses constrained text markup
+
+Questions allow only `*italic*` markup and one optional literal highlighted
+phrase, rendered gold wherever it occurs ignoring capitalization. Arbitrary
+HTML is not accepted. This keeps CSV portable and prevents question authors
+from introducing executable or unsafe markup.
+
 ## 2026-08-01 — Intro wording is data; quiz rules remain code
 
 Opening-screen copy is editable in admin and stored in SQLite. It is rendered

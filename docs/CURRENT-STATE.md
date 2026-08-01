@@ -15,7 +15,9 @@ Last updated: 2026-08-01.
   not enforced, at the owner's direction. Only a salted scrypt hash is stored in
   SQLite, and a successful change invalidates every existing admin session.
 - Question-bank import supports a CSV download/edit/upload round trip with
-  position, category, question, answer, and pipe-separated aliases. JSON remains
+  position, category, question, optional highlighted text, answer, and
+  pipe-separated aliases. Questions support safe `*italic*` title formatting;
+  the optional literal highlighted phrase renders in gold. JSON remains
   accepted for compatibility.
 - Player management supports a CSV download/edit/upload round trip with email,
   name, and test status. The invitation interface presents counts and a safe

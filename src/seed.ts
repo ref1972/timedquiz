@@ -8,6 +8,7 @@ interface SeedQuestion {
   position: number;
   category?: string;
   prompt: string;
+  highlightedText?: string;
   answer: string;
   aliases: string[];
 }
@@ -22,9 +23,9 @@ if (questions.length !== 50) {
 db.exec("BEGIN");
 try {
   db.exec("DELETE FROM questions");
-  const insert = db.prepare("INSERT INTO questions (position, category, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?)");
+  const insert = db.prepare("INSERT INTO questions (position, category, prompt, highlighted_text, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?, ?)");
   for (const q of questions) {
-    insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt, q.answer, JSON.stringify(q.aliases ?? []));
+    insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt, q.highlightedText?.trim() || "", q.answer, JSON.stringify(q.aliases ?? []));
   }
   db.exec("COMMIT");
 } catch (error) {

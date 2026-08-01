@@ -2,8 +2,13 @@ export interface ImportedQuestion {
   position: number;
   category?: string;
   prompt: string;
+  highlightedText?: string;
   answer: string;
   aliases?: string[];
+}
+
+export function visiblePromptText(prompt: string): string {
+  return prompt.replace(/\*([^*\r\n]+)\*/g, "$1");
 }
 
 export function parseCsvRows(input: string): string[][] {
@@ -54,6 +59,7 @@ export function parseQuestionImport(input: string): ImportedQuestion[] {
   const position = column(["position", "number", "#"]);
   const category = column(["category"]);
   const prompt = column(["question", "prompt"]);
+  const highlightedText = column(["highlighted_text", "highlighted text", "highlight"]);
   const answer = column(["answer", "canonical_answer", "canonical answer"]);
   const aliases = column(["aliases", "accepted answers", "accepted_answers"]);
   if (position < 0 || prompt < 0 || answer < 0) {
@@ -64,6 +70,7 @@ export function parseQuestionImport(input: string): ImportedQuestion[] {
     position: Number(row[position]?.trim()),
     category: category >= 0 ? row[category]?.trim() : undefined,
     prompt: row[prompt]?.trim() ?? "",
+    highlightedText: highlightedText >= 0 ? row[highlightedText]?.trim() : undefined,
     answer: row[answer]?.trim() ?? "",
     aliases: aliases >= 0 ? (row[aliases] ?? "").split("|").map((value) => value.trim()).filter(Boolean) : [],
   }));
@@ -75,6 +82,6 @@ export function csvCell(value: unknown): string {
 }
 
 export function questionsToCsv(questions: ImportedQuestion[]): string {
-  const rows = questions.map((q) => [q.position, q.category ?? "", q.prompt, q.answer, (q.aliases ?? []).join("|")].map(csvCell).join(","));
-  return ["position,category,question,answer,aliases", ...rows].join("\r\n") + "\r\n";
+  const rows = questions.map((q) => [q.position, q.category ?? "", q.prompt, q.highlightedText ?? "", q.answer, (q.aliases ?? []).join("|")].map(csvCell).join(","));
+  return ["position,category,question,highlighted_text,answer,aliases", ...rows].join("\r\n") + "\r\n";
 }

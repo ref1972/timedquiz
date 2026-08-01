@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS questions (
   position INTEGER NOT NULL UNIQUE CHECK (position BETWEEN 1 AND 50),
   category TEXT NOT NULL DEFAULT 'Pop Culture',
   prompt TEXT NOT NULL,
+  highlighted_text TEXT NOT NULL DEFAULT '',
   canonical_answer TEXT NOT NULL,
   aliases_json TEXT NOT NULL DEFAULT '[]',
   included_in_score INTEGER NOT NULL DEFAULT 1
@@ -117,6 +118,9 @@ CREATE TABLE IF NOT EXISTS app_settings (
 const questionColumns = db.prepare("PRAGMA table_info(questions)").all() as unknown as Array<{ name: string }>;
 if (!questionColumns.some((column) => column.name === "category")) {
   db.exec("ALTER TABLE questions ADD COLUMN category TEXT NOT NULL DEFAULT 'Pop Culture'");
+}
+if (!questionColumns.some((column) => column.name === "highlighted_text")) {
+  db.exec("ALTER TABLE questions ADD COLUMN highlighted_text TEXT NOT NULL DEFAULT ''");
 }
 
 const playerColumns = db.prepare("PRAGMA table_info(players)").all() as unknown as Array<{ name: string }>;

@@ -7,6 +7,7 @@ export interface QuestionRow {
   position: number;
   category: string;
   prompt: string;
+  highlighted_text: string;
   canonical_answer: string;
   aliases_json: string;
   included_in_score: number;

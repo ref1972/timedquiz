@@ -127,6 +127,8 @@ button:disabled { opacity: .55; }
   letter-spacing: -.02em;
   margin: 18px 0 28px;
 }
+.highlighted-text { color: #b36b00; }
+[data-theme="dark"] .highlighted-text { color: #ffd166; }
 .quiz label { margin-top: 0; }
 .quiz input { min-height: 58px; font-size: 1.3rem; }
 .submit-answer { width: 100%; min-height: 64px; margin-top: 16px; font-size: 1.25rem; border-radius: 14px; }
@@ -157,7 +159,7 @@ code { color: var(--cass-purple); }
 .send-real { background: var(--cass-orange); }
 .question-editor {
   display: grid;
-  grid-template-columns: 52px minmax(120px, .7fr) minmax(280px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  grid-template-columns: 52px minmax(110px, .6fr) minmax(260px, 1.8fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
   gap: 12px;
   align-items: end;
   padding: 16px;
@@ -168,6 +170,7 @@ code { color: var(--cass-purple); }
 .question-editor label { margin: 0; font-size: .8rem; }
 .question-editor input, .question-editor textarea { margin-top: 6px; padding: 10px; font-size: .9rem; }
 .question-editor button { margin: 0; }
+.question-editor .italic-button { margin-top: 6px; }
 .question-number { align-self: center; color: var(--cass-purple); font-size: 1.35rem; font-weight: 900; text-align: center; }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }
