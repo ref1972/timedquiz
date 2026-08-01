@@ -7,6 +7,8 @@ Last updated: 2026-08-01.
 - Test-player rows now say **Test account — use Step 3** instead of the
   misleading **not sent**. Real-player sent, paused, and unsent statuses are
   unchanged; test sends still do not mark a real invitation delivered.
+- Deployed as rc14 after verified backup `quiz-20260801T211418Z.sqlite.gz`;
+  public health/label were verified and CASS remains HTTP 200.
 
 ## 2026-08-01 — Brighter question highlight
 
