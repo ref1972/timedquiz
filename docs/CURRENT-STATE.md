@@ -9,7 +9,7 @@ Last updated: 2026-08-01.
 - Launch hardening includes encrypted/rotatable invitations, quota-safe email
   batches, server-measured timing tiebreaks, post-cutoff authorized restarts,
   admin login throttling, preflight, backups, and deployment packaging.
-- Automated verification passes 28 tests and TypeScript typechecking.
+- Automated verification passes 29 tests and TypeScript typechecking.
 - The live admin can change its own password by supplying the current password
   and a nonblank replacement of at most 256 characters. Length is recommended,
   not enforced, at the owner's direction. Only a salted scrypt hash is stored in
@@ -49,7 +49,7 @@ Last updated: 2026-08-01.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Release candidate `timed-quiz-v0.1.0-rc18` is deployed on the selected droplet
+- Release candidate `timed-quiz-v0.1.0-rc19` is deployed on the selected droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
 - Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS
@@ -103,6 +103,10 @@ Last updated: 2026-08-01.
   `quiz-20260801T213529Z.sqlite.gz`; public health reports rc18, the deployed
   individual-edit lock checks only real-player attempts, production has zero
   such attempts, and CASS remains HTTP 200.
+- The rc19 deployment was preceded by verified backup
+  `quiz-20260801T214416Z.sqlite.gz`; public health reports rc19, separate
+  real/test result routes and buttons are present, player counts were unchanged,
+  and CASS remains HTTP 200.
 - The shared Workspace relay is configured. Its newly deployed quota endpoint
   reported 97 available recipients; one explicitly authorized test invitation
   was accepted and the relay reported 96 remaining. The owner confirmed inbox

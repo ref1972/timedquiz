@@ -7,6 +7,9 @@ Last updated: 2026-08-01.
 - Added **Download test results CSV** beside the renamed **Download real
   results CSV** button. Both use the same columns and ranking calculation, but
   filter on opposite test flags so accounts never cross between files.
+- Deployed as rc19 after verified backup `quiz-20260801T214416Z.sqlite.gz`;
+  public health/routes/buttons and unchanged player counts were verified, and
+  CASS remains HTTP 200.
 
 ## 2026-08-01 — Question editing lock corrected for rehearsals
 
