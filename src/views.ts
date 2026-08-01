@@ -109,18 +109,20 @@ export function adminPage(data: AdminPageData): string {
     .join("");
   const unresolved = data.unresolved.length
     ? data.unresolved
-        .map(
-          (v) => `<form class="review" method="post" action="/admin/review">
+        .map((v) => {
+          const accepted = [v.canonical_answer, ...(JSON.parse(v.aliases_json) as string[])];
+          return `<form class="review" method="post" action="/admin/review">
         <input type="hidden" name="questionId" value="${v.question_id}">
         <input type="hidden" name="answer" value="${esc(v.normalized_answer)}">
         <strong>Q${v.position}</strong>
-        <span>“${esc(v.normalized_answer)}”</span>
+        <span class="submitted-answer"><small>Submitted</small>“${esc(v.normalized_answer)}”</span>
+        <span class="accepted-answers"><small>Counted correct</small>${accepted.map((answer) => `<strong>${esc(answer)}</strong>`).join('<span aria-hidden="true"> · </span>')}</span>
         <span>${v.n} player${v.n === 1 ? "" : "s"}</span>
         <input name="note" placeholder="Optional note">
         <button name="verdict" value="correct">Correct</button>
         <button class="secondary" name="verdict" value="incorrect">Incorrect</button>
-      </form>`,
-        )
+      </form>`;
+        })
         .join("")
     : "<p>No unresolved answers yet.</p>";
   const questionForms = data.questions.map((q) => {

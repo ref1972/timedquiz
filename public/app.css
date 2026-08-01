@@ -136,7 +136,10 @@ button:disabled { opacity: .55; }
 .table { overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.review { display: grid; grid-template-columns: 60px 1fr 100px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.review { display: grid; grid-template-columns: 60px minmax(150px, 1fr) minmax(190px, 1.2fr) 90px minmax(140px, 1fr) auto auto; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.review small { display: block; margin-bottom: 3px; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.submitted-answer { font-size: 1.05rem; }
+.accepted-answers { color: var(--cass-purple); }
 code { color: var(--cass-purple); }
 .question-list { display: grid; gap: 14px; }
 .admin-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }

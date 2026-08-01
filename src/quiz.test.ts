@@ -283,6 +283,9 @@ test("a reviewer's ruling applies immediately to a later player's identical answ
     questionId,
   ) as any;
   assert.equal(earlyStored.verdict, "unresolved", "unreviewed near-miss starts unresolved");
+  const reviewRow = admin.unresolvedAnswers().find((row) => row.question_id === questionId);
+  assert.equal(reviewRow?.canonical_answer, "answer5");
+  assert.equal(reviewRow?.aliases_json, "[]");
 
   grading.applyReviewRuling(questionId, grading.normalize("a near miss"), "correct", "accept this phrasing");
 

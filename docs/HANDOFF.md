@@ -2,6 +2,12 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Accepted answers in Review Queue
+
+- Each unresolved-answer row now shows **Counted correct** with the question's
+  canonical answer followed by all accepted aliases, beside the submitted
+  answer and player count. Grading behavior itself is unchanged.
+
 ## 2026-08-01 — Upcoming category on Ready
 
 - The between-question Ready state now includes and displays the next

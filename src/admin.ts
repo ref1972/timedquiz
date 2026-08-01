@@ -47,6 +47,8 @@ export interface UnresolvedRow {
   question_id: number;
   position: number;
   normalized_answer: string;
+  canonical_answer: string;
+  aliases_json: string;
   n: number;
 }
 
@@ -88,10 +90,10 @@ function questionBankLocked(): boolean {
 export function unresolvedAnswers(): UnresolvedRow[] {
   return db
     .prepare(
-      `SELECT q.id AS question_id, q.position, e.normalized_answer, COUNT(*) AS n
+      `SELECT q.id AS question_id, q.position, q.canonical_answer, q.aliases_json, e.normalized_answer, COUNT(*) AS n
        FROM exposures e JOIN questions q ON q.id = e.question_id
        WHERE e.verdict = 'unresolved'
-       GROUP BY q.id, q.position, e.normalized_answer
+       GROUP BY q.id, q.position, q.canonical_answer, q.aliases_json, e.normalized_answer
        ORDER BY q.position, n DESC`,
     )
     .all() as unknown as UnresolvedRow[];

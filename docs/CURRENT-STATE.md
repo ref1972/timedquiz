@@ -30,6 +30,8 @@ Last updated: 2026-08-01.
   but creates no player, attempt, timer, answer, invitation, or email activity.
 - Between questions, the Ready screen shows the upcoming category while keeping
   the prompt hidden until the player deliberately starts the 20-second window.
+- Each Review Queue row shows the canonical answer and all accepted aliases
+  beside the grouped submitted answer for rapid grading comparison.
 - Invitation email subject/body are editable in admin and stored in SQLite.
   Both test and real sends share the template; `{{name}}` and required
   `{{link}}` placeholders are safely substituted into plain-text and HTML mail.
