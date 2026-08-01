@@ -385,7 +385,11 @@ test("recoverable invitation tokens round-trip under authenticated encryption", 
   const encrypted = cryptoHelpers.encryptInvitationToken(token);
   assert.notEqual(encrypted, token);
   assert.equal(cryptoHelpers.decryptInvitationToken(encrypted), token);
-  assert.throws(() => cryptoHelpers.decryptInvitationToken(encrypted.slice(0, -1) + "x"));
+  const parts = encrypted.split(".");
+  const ciphertext = parts[2];
+  assert.ok(ciphertext);
+  parts[2] = `${ciphertext[0] === "A" ? "B" : "A"}${ciphertext.slice(1)}`;
+  assert.throws(() => cryptoHelpers.decryptInvitationToken(parts.join(".")));
 });
 
 test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {
