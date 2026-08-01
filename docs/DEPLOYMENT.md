@@ -18,6 +18,10 @@ Current deployed rehearsal release: `timed-quiz-v0.1.0-rc2`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
+`timed-quiz-backup.timer` creates a consistent compressed SQLite backup in
+`/var/backups/timed-quiz` daily around 04:15 UTC. Before a real invitation
+send, also trigger it manually and retain a verified off-host copy.
+
 The tracked `scripts/provision-droplet.sh` installs the pinned Node runtime
 under `/opt`, uploads a local Git archive of a tagged release (so deployment is
 independent of repository visibility and server credentials), creates the isolated user/data

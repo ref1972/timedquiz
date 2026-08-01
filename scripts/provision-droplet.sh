@@ -12,6 +12,8 @@ git -C "$PROJECT_DIR" archive --format=tar.gz --output="$release_archive" "$DEPL
 
 ssh "$DEPLOY_HOST" "mkdir -p /tmp/timed-quiz-provision"
 scp "$PROJECT_DIR/ops/timed-quiz.service" "$DEPLOY_HOST:/tmp/timed-quiz-provision/timed-quiz.service"
+scp "$PROJECT_DIR/ops/timed-quiz-backup.service" "$DEPLOY_HOST:/tmp/timed-quiz-provision/timed-quiz-backup.service"
+scp "$PROJECT_DIR/ops/timed-quiz-backup.timer" "$DEPLOY_HOST:/tmp/timed-quiz-provision/timed-quiz-backup.timer"
 scp "$PROJECT_DIR/ops/nginx-bee.conf" "$DEPLOY_HOST:/tmp/timed-quiz-provision/nginx-bee.conf"
 scp "$release_archive" "$DEPLOY_HOST:/tmp/timed-quiz-provision/release.tar.gz"
 
@@ -21,6 +23,11 @@ set -euo pipefail
 DEPLOY_REF="$1"
 NODE_VERSION="$2"
 NODE_ARCHIVE="node-${NODE_VERSION}-linux-x64.tar.xz"
+
+if ! command -v sqlite3 >/dev/null 2>&1; then
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y sqlite3
+fi
 
 if [[ ! -x "/opt/node-${NODE_VERSION}-linux-x64/bin/node" ]]; then
   work_dir="$(mktemp -d)"
@@ -89,6 +96,8 @@ if [[ ! -f /var/lib/timed-quiz/quiz.db ]]; then
 fi
 
 install -o root -g root -m 0644 /tmp/timed-quiz-provision/timed-quiz.service /etc/systemd/system/timed-quiz.service
+install -o root -g root -m 0644 /tmp/timed-quiz-provision/timed-quiz-backup.service /etc/systemd/system/timed-quiz-backup.service
+install -o root -g root -m 0644 /tmp/timed-quiz-provision/timed-quiz-backup.timer /etc/systemd/system/timed-quiz-backup.timer
 if [[ ! -f /etc/nginx/sites-available/bee.triviaworkshop.com ]]; then
   install -o root -g root -m 0644 /tmp/timed-quiz-provision/nginx-bee.conf /etc/nginx/sites-available/bee.triviaworkshop.com
 fi
@@ -97,6 +106,7 @@ ln -sfn /etc/nginx/sites-available/bee.triviaworkshop.com /etc/nginx/sites-enabl
 systemctl daemon-reload
 systemctl enable timed-quiz.service
 systemctl restart timed-quiz.service
+systemctl enable --now timed-quiz-backup.timer
 nginx -t
 systemctl reload nginx
 
@@ -111,4 +121,5 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 systemctl --no-pager --full status timed-quiz.service
+systemctl --no-pager --full status timed-quiz-backup.timer
 REMOTE

@@ -50,3 +50,5 @@ Last updated: 2026-08-01.
   the persisted `RELEASE_ID` stayed at rc2. No partial upgrade or outage
   occurred: production remained healthy on rc2. Provisioning now updates the
   release ID and explicitly restarts the service on every deploy.
+- rc4 confirmed the repeat-deploy fix end to end: the service restarted and
+  `/health` reported rc4 while preserving the rehearsal database and TLS.
