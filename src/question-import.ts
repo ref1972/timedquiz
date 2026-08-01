@@ -6,7 +6,7 @@ export interface ImportedQuestion {
   aliases?: string[];
 }
 
-function parseCsvRows(input: string): string[][] {
+export function parseCsvRows(input: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -69,7 +69,7 @@ export function parseQuestionImport(input: string): ImportedQuestion[] {
   }));
 }
 
-function csvCell(value: unknown): string {
+export function csvCell(value: unknown): string {
   const text = String(value ?? "");
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }

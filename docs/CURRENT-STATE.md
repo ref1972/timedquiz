@@ -17,6 +17,9 @@ Last updated: 2026-08-01.
 - Question-bank import supports a CSV download/edit/upload round trip with
   position, category, question, answer, and pipe-separated aliases. JSON remains
   accepted for compatibility.
+- Player management supports a CSV download/edit/upload round trip with email,
+  name, and test status. The invitation interface presents counts and a safe
+  check-quota/test-send/resumable-real-send sequence.
 
 ## Production
 

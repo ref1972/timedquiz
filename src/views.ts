@@ -1,4 +1,4 @@
-import type { AdminQuestionRow, ResultRow, UnresolvedRow } from "./admin.ts";
+import type { AdminQuestionRow, InvitationStats, ResultRow, UnresolvedRow } from "./admin.ts";
 
 function esc(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -59,6 +59,7 @@ export interface AdminPageData {
   questions: AdminQuestionRow[];
   questionsLocked: boolean;
   emailRelayConfigured: boolean;
+  invitationStats: InvitationStats;
 }
 
 export function adminPage(data: AdminPageData): string {
@@ -137,24 +138,34 @@ export function adminPage(data: AdminPageData): string {
         <div class="question-list">${questionForms}</div>
       </section>
 
-      <section class="panel">
-        <h2>Import players</h2>
-        <p>One per line: <code>email,name,test</code>. New personalized links appear after import. Links are stored encrypted for Workspace delivery and can be rotated if compromised or lost.</p>
+      <section class="panel" id="players">
+        <p class="step-label">Step 1</p>
+        <h2>Prepare the player list</h2>
+        <p>Download the current list, edit it in Excel or Google Sheets, then upload the CSV. Required column: <code>email</code>. Optional columns: <code>name</code> and <code>test</code> (<code>yes</code> or <code>no</code>).</p>
+        <p><a class="button secondary" href="/admin/players.csv">Download current players CSV</a></p>
         <form method="post" action="/admin/players">
-          <textarea name="players" rows="7" required></textarea>
-          <button>Create invitation links</button>
+          <label>Player CSV<input id="playerCsvFile" type="file" accept=".csv,text/csv"></label>
+          <label>CSV preview or pasted CSV<textarea id="playerImportData" name="players" rows="7" required placeholder="email,name,test"></textarea></label>
+          <button>Validate and import players</button>
         </form>
+        <p class="muted">Importing adds new players and updates the name/test flag for matching email addresses. It never deletes players, resets attempts, or sends email.</p>
       </section>
 
       <section class="panel" id="invitations">
-        <h2>Email invitations</h2>
-        <p>${data.emailRelayConfigured ? "The Google Workspace relay is configured. Sends are limited to five recipients per resumable batch and stop on the first failure." : "The Workspace relay is not configured. Set EMAIL_RELAY_URL and EMAIL_RELAY_SECRET on the server before attempting email."}</p>
-        <div class="admin-actions">
-          <form method="post" action="/admin/invitations/quota"><button ${data.emailRelayConfigured ? "" : "disabled"}>Check Workspace quota</button></form>
-          <form method="post" action="/admin/invitations/test"><label>Test recipient<input type="email" name="email" placeholder="you@example.com" required></label><button ${data.emailRelayConfigured ? "" : "disabled"}>Send test invitation</button></form>
-          <form method="post" action="/admin/invitations/send-batch" onsubmit="return confirm('Send the next batch of up to 5 real invitations through Google Workspace?')"><button ${data.emailRelayConfigured ? "" : "disabled"}>Send next batch of 5</button></form>
+        <h2>Send player invitations</h2>
+        <div class="invite-summary" aria-label="Invitation status">
+          <div><strong>${data.invitationStats.realPlayers}</strong><span>real players</span></div>
+          <div><strong>${data.invitationStats.sent}</strong><span>sent</span></div>
+          <div><strong>${data.invitationStats.ready}</strong><span>ready to send</span></div>
+          <div><strong>${data.invitationStats.needsAttention}</strong><span>need attention</span></div>
         </div>
-        <p class="muted">There is intentionally no <code>wp_mail()</code> fallback. A failed or quota-paused recipient remains unsent and is retried by the next batch.</p>
+        <p class="notice">${data.emailRelayConfigured ? "Workspace is connected. Nothing sends automatically: check quota, send yourself a test, then deliberately send each batch." : "Workspace is not connected. Configure the relay before attempting email."}</p>
+        <div class="invitation-steps">
+          <div class="action-card"><p class="step-label">Step 2</p><h3>Check capacity</h3><p>Read the Workspace account’s current Apps Script quota before sending.</p><form method="post" action="/admin/invitations/quota"><button ${data.emailRelayConfigured ? "" : "disabled"}>Check email quota</button></form></div>
+          <div class="action-card"><p class="step-label">Step 3</p><h3>Send yourself a test</h3><p>Uses a test player’s personalized link. It does not mark a real invitation sent.</p><form method="post" action="/admin/invitations/test"><label>Test recipient<input type="email" name="email" placeholder="you@example.com" required></label><button ${data.emailRelayConfigured ? "" : "disabled"}>Send test email</button></form></div>
+          <div class="action-card"><p class="step-label">Step 4</p><h3>Send the next five</h3><p>Sends only unsent real players, in order. Repeat after each successful batch.</p><form method="post" action="/admin/invitations/send-batch" onsubmit="return confirm('Send up to 5 real player invitations now? This will email actual players.')"><button class="send-real" ${data.emailRelayConfigured && data.invitationStats.ready ? "" : "disabled"}>Send next 5 real invitations</button></form></div>
+        </div>
+        <p class="muted">Safety behavior: the batch stops at the first failure or quota pause. That recipient remains unsent for retry, and there is no unreliable fallback mailer.</p>
       </section>
 
       <section class="panel">
@@ -186,6 +197,11 @@ export function adminPage(data: AdminPageData): string {
           var file = this.files && this.files[0];
           if (!file) return;
           file.text().then(function (text) { document.querySelector('#questionImportData').value = text; });
+        });
+        document.querySelector('#playerCsvFile').addEventListener('change', function () {
+          var file = this.files && this.files[0];
+          if (!file) return;
+          file.text().then(function (text) { document.querySelector('#playerImportData').value = text; });
         });
       </script>
     </main>`,

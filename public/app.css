@@ -141,6 +141,18 @@ code { color: var(--cass-purple); }
 .admin-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }
 .admin-actions form { min-width: 210px; }
 .admin-actions label { margin: 0; }
+.step-label { margin: 0; color: var(--cass-purple); font-size: .78rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.invite-summary { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; margin: 18px 0; }
+.invite-summary div, .action-card { padding: 18px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 16px; }
+.invite-summary strong { display: block; color: var(--cass-purple); font-size: 1.8rem; }
+.invite-summary span { color: var(--muted); font-size: .86rem; font-weight: 700; }
+.invitation-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.action-card { display: flex; flex-direction: column; }
+.action-card h3 { margin: 6px 0; }
+.action-card p:not(.step-label) { flex: 1; margin-top: 4px; color: var(--muted); }
+.action-card form { margin-top: auto; }
+.action-card label { margin-top: 0; }
+.send-real { background: var(--cass-orange); }
 .question-editor {
   display: grid;
   grid-template-columns: 52px minmax(120px, .7fr) minmax(280px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
@@ -158,6 +170,7 @@ code { color: var(--cass-purple); }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }
   .question-editor label, .question-editor button { grid-column: 2; }
+  .invitation-steps { grid-template-columns: 1fr; }
 }
 @media (max-width: 750px) {
   body { padding: 12px; }
@@ -166,5 +179,6 @@ code { color: var(--cass-purple); }
   .prompt { font-size: clamp(1.35rem, 5.5vw, 1.9rem); }
   .review { grid-template-columns: 1fr; }
   .admin { padding: 20px; }
+  .invite-summary { grid-template-columns: 1fr 1fr; }
   h1 { font-size: 2.25rem; }
 }

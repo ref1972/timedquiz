@@ -28,6 +28,7 @@ const cryptoHelpers = await import("./crypto.ts");
 const { config } = await import("./config.ts");
 const mail = await import("./mail.ts");
 const questionImport = await import("./question-import.ts");
+const playerImport = await import("./player-import.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -437,4 +438,9 @@ test("question CSV round-trips quoted punctuation, newlines, and aliases", () =>
   const questions = [{ position: 1, category: "Movies, TV & More", prompt: "Who said \"Hello\"?\nName the character.", answer: "A, B", aliases: ["A", "B"] }];
   const csv = questionImport.questionsToCsv(questions);
   assert.deepEqual(questionImport.parseQuestionImport(csv), questions);
+});
+
+test("player CSV round-trips names with commas and test flags", () => {
+  const players = [{ email: "person@example.com", name: "Friedewald, Russell", isTest: false }, { email: "test@example.com", name: "Test Player", isTest: true }];
+  assert.deepEqual(playerImport.parsePlayerImport(playerImport.playersToCsv(players)), players);
 });

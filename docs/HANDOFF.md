@@ -2,6 +2,16 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Player CSV and invitation workflow
+
+- Added downloadable player CSV plus CSV selection/paste import. Existing
+  emails update name/test status; new emails receive recoverable invitation
+  links. Import never deletes players, resets attempts, or sends email.
+- Reworked invitations into four visible steps with real-player, sent, ready,
+  and attention-needed counts. Quota check, test send, and real batches remain
+  separate deliberate actions; real batches retain the five-person limit and
+  hard pause/no-fallback behavior.
+
 ## 2026-08-01 — Friendlier question import
 
 - Moved the password-change panel to the bottom of the admin page.

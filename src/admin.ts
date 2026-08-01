@@ -9,6 +9,7 @@ import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSe
 import { adminLoginPage, adminPage, page } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
 import { parseQuestionImport, questionsToCsv } from "./question-import.ts";
+import { parsePlayerImport, playersToCsv } from "./player-import.ts";
 
 export interface ResultRow {
   id: number;
@@ -54,6 +55,23 @@ export interface AdminQuestionRow {
   prompt: string;
   canonical_answer: string;
   aliases_json: string;
+}
+
+export interface InvitationStats {
+  realPlayers: number;
+  sent: number;
+  ready: number;
+  needsAttention: number;
+}
+
+export function invitationStats(): InvitationStats {
+  const row = db.prepare(`SELECT
+    COUNT(*) AS real_players,
+    SUM(CASE WHEN invite_sent_at IS NOT NULL THEN 1 ELSE 0 END) AS sent,
+    SUM(CASE WHEN invite_sent_at IS NULL AND token_ciphertext IS NOT NULL THEN 1 ELSE 0 END) AS ready,
+    SUM(CASE WHEN invite_last_error IS NOT NULL OR token_ciphertext IS NULL THEN 1 ELSE 0 END) AS needs_attention
+    FROM players WHERE is_test = 0`).get() as { real_players: number; sent: number | null; ready: number | null; needs_attention: number | null };
+  return { realPlayers: row.real_players, sent: row.sent ?? 0, ready: row.ready ?? 0, needsAttention: row.needs_attention ?? 0 };
 }
 
 export function adminQuestions(): AdminQuestionRow[] {
@@ -108,7 +126,7 @@ adminRouter.get("/admin", (req: Request, res: Response) => {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked(), emailRelayConfigured: relayConfigured() }));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats() }));
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {
@@ -147,41 +165,60 @@ adminRouter.post("/admin/password", requireAdmin, (req: Request, res: Response) 
 });
 
 adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) => {
-  const lines = String(req.body.players ?? "")
-    .split(/\r?\n/)
-    .map((x) => x.trim())
-    .filter(Boolean);
+  let players;
+  try {
+    players = parsePlayerImport(String(req.body.players ?? ""));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The player data could not be read.";
+    res.status(400).send(page("Invalid players", `<main class="card"><h1>Import rejected</h1><p>${escapeHtml(message)}</p><a href="/admin#players">Return to players</a></main>`));
+    return;
+  }
   const insert = db.prepare(
     "INSERT OR IGNORE INTO players (email, display_name, token_hash, token_ciphertext, is_test, created_at) VALUES (?, ?, ?, ?, ?, ?)",
   );
+  const update = db.prepare("UPDATE players SET display_name = ?, is_test = ? WHERE email = ?");
   const links: string[] = [];
   const skipped: string[] = [];
-  for (const line of lines) {
-    const [emailRaw, name = "", test = ""] = line.split(",").map((x) => x.trim());
-    const email = (emailRaw ?? "").toLowerCase();
+  let updated = 0;
+  const seen = new Set<string>();
+  for (const player of players) {
+    const { email, name, isTest } = player;
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      skipped.push(line);
+      skipped.push(email || "blank email");
       continue;
     }
+    if (seen.has(email)) {
+      skipped.push(`${email} (duplicate row)`);
+      continue;
+    }
+    seen.add(email);
     const token = randomToken();
-    const result = insert.run(email, name, sha256(token), encryptInvitationToken(token), /^(1|yes|true|test)$/i.test(test) ? 1 : 0, nowIso());
+    const result = insert.run(email, name, sha256(token), encryptInvitationToken(token), isTest ? 1 : 0, nowIso());
     if (result.changes) {
       links.push(`${email},${name},${config.appOrigin}/invite/${token}`);
     } else {
-      skipped.push(`${email} (already invited)`);
+      update.run(name, isTest ? 1 : 0, email);
+      updated++;
     }
   }
-  logEvent(null, "players_imported", { added: links.length, skipped: skipped.length });
+  logEvent(null, "players_imported", { added: links.length, updated, skipped: skipped.length });
   res.send(
     page(
       "Invitation links",
-      `<main class="card wide"><h1>New invitation links</h1>
-       <p>Save these now. Tokens are hashed for sign-in and stored encrypted for controlled resend; rotating a link invalidates the old one.</p>
-       <textarea rows="18" readonly>${escapeHtml(links.join("\n"))}</textarea>
+      `<main class="card wide"><h1>Player list imported</h1>
+       <p><strong>${links.length} added</strong> &middot; <strong>${updated} updated</strong> &middot; <strong>${skipped.length} skipped</strong>. No email was sent.</p>
+       ${links.length ? `<p>New personalized links are shown below. They also remain recoverable for controlled Workspace delivery.</p><textarea rows="12" readonly>${escapeHtml(links.join("\n"))}</textarea>` : ""}
        ${skipped.length ? `<p class="muted">Skipped ${skipped.length}: ${escapeHtml(skipped.join("; "))}</p>` : ""}
-       <p><a href="/admin">Return to admin</a></p></main>`,
+       <p><a href="/admin#invitations">Continue to invitation setup</a></p></main>`,
     ),
   );
+});
+
+adminRouter.get("/admin/players.csv", requireAdmin, (_req: Request, res: Response) => {
+  const players = db.prepare("SELECT email, display_name, is_test FROM players ORDER BY email").all() as unknown as Array<{ email: string; display_name: string; is_test: number }>;
+  res.type("text/csv");
+  res.setHeader("Content-Disposition", 'attachment; filename="timed-quiz-players.csv"');
+  res.send(playersToCsv(players.map((player) => ({ email: player.email, name: player.display_name, isTest: Boolean(player.is_test) }))));
 });
 
 adminRouter.post("/admin/player/:id/rotate-invitation", requireAdmin, (req: Request, res: Response) => {

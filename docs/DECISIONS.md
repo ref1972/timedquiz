@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-08-01 — Player CSV import is additive and non-destructive
+
+The primary player-list workflow is download/edit/upload CSV using email, name,
+and test columns. Matching email addresses update only name and test status;
+missing rows are not deleted, and import never resets attempts, rotates links,
+or sends mail. Sending remains a separate staged workflow.
+
 ## 2026-08-01 — CSV is the primary question-bank interchange format
 
 The admin supports downloading the current bank and uploading an edited CSV so
