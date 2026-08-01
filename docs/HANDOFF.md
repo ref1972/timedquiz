@@ -45,3 +45,8 @@ Last updated: 2026-08-01.
   for launch and the rehearsal database must not become the final database.
 - Provisioning now waits up to 30 seconds for application health and preserves
   Certbot's live nginx edits on subsequent deployments.
+- The first rc3 repeat-deploy check correctly preserved TLS/data but exposed
+  that `systemctl enable --now` does not restart an already-running service and
+  the persisted `RELEASE_ID` stayed at rc2. No partial upgrade or outage
+  occurred: production remained healthy on rc2. Provisioning now updates the
+  release ID and explicitly restarts the service on every deploy.

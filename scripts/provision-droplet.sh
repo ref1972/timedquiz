@@ -73,6 +73,11 @@ if [[ ! -f /etc/timed-quiz.env ]]; then
     'SUBMIT_GRACE_MS=2000' \
     "RELEASE_ID=${DEPLOY_REF}" > /etc/timed-quiz.env
 fi
+if grep -q '^RELEASE_ID=' /etc/timed-quiz.env; then
+  sed -i "s|^RELEASE_ID=.*|RELEASE_ID=${DEPLOY_REF}|" /etc/timed-quiz.env
+else
+  printf 'RELEASE_ID=%s\n' "$DEPLOY_REF" >> /etc/timed-quiz.env
+fi
 
 if [[ ! -f /var/lib/timed-quiz/quiz.db ]]; then
   set -a
@@ -90,7 +95,8 @@ fi
 ln -sfn /etc/nginx/sites-available/bee.triviaworkshop.com /etc/nginx/sites-enabled/bee.triviaworkshop.com
 
 systemctl daemon-reload
-systemctl enable --now timed-quiz.service
+systemctl enable timed-quiz.service
+systemctl restart timed-quiz.service
 nginx -t
 systemctl reload nginx
 
