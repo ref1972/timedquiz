@@ -2,6 +2,12 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Clearer test-player invitation status
+
+- Test-player rows now say **Test account — use Step 3** instead of the
+  misleading **not sent**. Real-player sent, paused, and unsent statuses are
+  unchanged; test sends still do not mark a real invitation delivered.
+
 ## 2026-08-01 — Brighter question highlight
 
 - Highlighted question text now uses the same `--cass-orange` color as the

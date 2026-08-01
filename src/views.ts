@@ -99,7 +99,7 @@ export function adminPage(data: AdminPageData): string {
         <td>${p.score}</td>
         <td>${(p.correct_time_ms / 1000).toFixed(1)}s</td>
         <td>${p.is_test ? "yes" : ""}</td>
-        <td>${p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</td>
+        <td>${p.is_test ? "Test account — use Step 3" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</td>
         <td><form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form></td>
         <td><form method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}">
           <input name="reason" aria-label="Restart reason" placeholder="Reason" required>
