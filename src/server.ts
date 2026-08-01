@@ -20,7 +20,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Exactly two static files, served from named routes reading a known
+// Static files are served from named routes reading a known
 // absolute path rather than a static-file middleware -- avoids pulling in a
 // dependency purely to serve two files (see pop-culture-bee-quiz-claude's
 // README for the specific path-traversal advisories that motivated this).
@@ -30,6 +30,12 @@ app.get("/app.css", (_req: Request, res: Response) => {
 });
 app.get("/quiz.js", (_req: Request, res: Response) => {
   res.type("application/javascript").send(fs.readFileSync(path.join(publicDir, "quiz.js"), "utf8"));
+});
+app.get("/prompt-format.js", (_req: Request, res: Response) => {
+  res.type("application/javascript").send(fs.readFileSync(path.join(publicDir, "prompt-format.js"), "utf8"));
+});
+app.get("/question-preview.js", (_req: Request, res: Response) => {
+  res.type("application/javascript").send(fs.readFileSync(path.join(publicDir, "question-preview.js"), "utf8"));
 });
 
 app.use(playerRouter);

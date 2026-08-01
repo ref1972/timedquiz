@@ -1,5 +1,6 @@
 import type { AdminQuestionRow, InvitationStats, ResultRow, UnresolvedRow } from "./admin.ts";
 import type { IntroCopy } from "./intro-copy.ts";
+import type { InvitationTemplate } from "./invitation-template.ts";
 
 function esc(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -47,6 +48,7 @@ export function playerPage(): string {
 <body>
 <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle light and dark mode">Dark mode</button>
 <main id="app" class="card quiz" aria-live="polite"><p>Loading your quiz…</p></main>
+<script src="/prompt-format.js"></script>
 <script src="/quiz.js"></script>
 </body>
 </html>`;
@@ -62,6 +64,26 @@ export interface AdminPageData {
   emailRelayConfigured: boolean;
   invitationStats: InvitationStats;
   introCopy: IntroCopy;
+  invitationTemplate: InvitationTemplate;
+}
+
+export function questionPreviewPage(question: AdminQuestionRow, total: number): string {
+  const previewData = JSON.stringify({ prompt: question.prompt, highlightedText: question.highlighted_text }).replaceAll("<", "\\u003c");
+  const previous = question.position > 1 ? `<a class="button secondary small" href="/admin/preview/${question.position - 1}">Previous</a>` : "";
+  const next = question.position < total ? `<a class="button small" href="/admin/preview/${question.position + 1}">Next</a>` : "";
+  return page("Preview question " + question.position, `
+    <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle light and dark mode">Dark mode</button>
+    <nav class="preview-nav"><a href="/admin#question-${question.id}">Back to admin editor</a><span>${previous}${next}</span></nav>
+    <main class="card quiz">
+      <p class="preview-badge">Admin preview &middot; timer not running</p>
+      <div class="quizhead"><span>Question ${question.position} of ${total}</span><strong>20.0</strong></div>
+      <p class="category">${esc(question.category)}</p>
+      <h1 class="prompt" id="previewPrompt"></h1>
+      <form onsubmit="return false"><label for="previewAnswer">Your answer</label><input id="previewAnswer" autocomplete="off"><button type="button" class="submit-answer">Submit Answer</button></form>
+    </main>
+    <script type="application/json" id="previewData">${previewData}</script>
+    <script src="/prompt-format.js"></script>
+    <script src="/question-preview.js"></script>`);
 }
 
 export function adminPage(data: AdminPageData): string {
@@ -110,7 +132,7 @@ export function adminPage(data: AdminPageData): string {
       <label>Highlighted text <span class="muted">(optional)</span><input name="highlightedText" value="${esc(q.highlighted_text)}" ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Answer<input name="answer" value="${esc(q.canonical_answer)}" required ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Aliases <span class="muted">(comma or line separated)</span><input name="aliases" value="${esc(aliases)}" ${data.questionsLocked ? "disabled" : ""}></label>
-      ${data.questionsLocked ? "" : '<button class="small">Save question</button>'}
+      <div class="question-actions">${data.questionsLocked ? "" : '<button class="small">Save question</button>'}<a class="button small secondary" href="/admin/preview/${q.position}" target="_blank" rel="noopener">Preview</a></div>
     </form>`;
   }).join("");
 
@@ -170,6 +192,17 @@ export function adminPage(data: AdminPageData): string {
           <button>Validate and import players</button>
         </form>
         <p class="muted">Importing adds new players and updates the name/test flag for matching email addresses. It never deletes players, resets attempts, or sends email.</p>
+      </section>
+
+      <section class="panel" id="invitation-template">
+        <h2>Invitation email</h2>
+        <p>Edit the subject and message used by both test sends and real invitation batches. Use <code>{{name}}</code> for the player’s name and <code>{{link}}</code> for their personalized link.</p>
+        <form method="post" action="/admin/invitation-template">
+          <label>Subject<input name="subject" value="${esc(data.invitationTemplate.subject)}" maxlength="200" required></label>
+          <label>Message body<textarea name="body" rows="12" maxlength="10000" required>${esc(data.invitationTemplate.body)}</textarea></label>
+          <button>Save invitation email</button>
+        </form>
+        <p class="muted"><code>{{link}}</code> is required. Test messages automatically add <code>[TEST]</code> to the subject. Always use Step 3 below after editing.</p>
       </section>
 
       <section class="panel" id="invitations">

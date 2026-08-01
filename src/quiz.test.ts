@@ -30,6 +30,8 @@ const mail = await import("./mail.ts");
 const questionImport = await import("./question-import.ts");
 const playerImport = await import("./player-import.ts");
 const introCopy = await import("./intro-copy.ts");
+const views = await import("./views.ts");
+const invitationTemplate = await import("./invitation-template.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -456,4 +458,23 @@ test("saved player intro copy is returned before an attempt starts", () => {
   const state = quiz.getStatus(player);
   assert.equal(state.state, "prestart");
   if (state.state === "prestart") assert.deepEqual(state.intro, customized);
+});
+
+test("admin question preview safely embeds prompt data without creating executable markup", () => {
+  const html = views.questionPreviewPage({ id: 7, position: 2, category: "TV", prompt: "*Title* </script><script>alert(1)</script>", highlighted_text: "Title", canonical_answer: "Answer", aliases_json: "[]" }, 50);
+  assert.equal(html.includes("</script><script>alert(1)</script>"), false);
+  assert.match(html, /Admin preview/);
+  assert.match(html, /\/admin\/preview\/1/);
+  assert.match(html, /\/admin\/preview\/3/);
+});
+
+test("invitation email template substitutes required fields and escapes HTML", () => {
+  invitationTemplate.setInvitationTemplate({ subject: "Quiz for {{name}}", body: "Hello {{name}} <script>bad</script>\n\nOpen {{link}}" });
+  const rendered = invitationTemplate.renderInvitationTemplate("A&B", "https://quiz.test/invite/a?x=1&y=2", true);
+  assert.equal(rendered.subject, "[TEST] Quiz for A&B");
+  assert.match(rendered.plain, /Hello A&B/);
+  assert.match(rendered.plain, /https:\/\/quiz\.test\/invite/);
+  assert.equal(rendered.html.includes("<script>bad</script>"), false);
+  assert.match(rendered.html, /A&amp;B/);
+  assert.match(rendered.html, /href="https:\/\/quiz\.test\/invite\/a\?x=1&amp;y=2"/);
 });

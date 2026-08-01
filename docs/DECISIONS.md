@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-08-01 — Test and real invitations share one editable template
+
+Invitation subject/body live in SQLite and support only `{{name}}` and
+`{{link}}` substitution. The link placeholder is required on save. HTML is
+generated through escaping rather than accepting arbitrary authored HTML, and
+test mail uses the identical content with an automatic subject prefix.
+
+## 2026-08-01 — Question preview is authenticated and inert
+
+Editors can inspect any question in player styling without an invitation. The
+preview requires an admin session, shares the production prompt formatter, and
+does not run quiz state transitions or write activity to the database.
+
 ## 2026-08-01 — Question emphasis uses constrained text markup
 
 Questions allow only `*italic*` markup and one optional literal highlighted

@@ -171,6 +171,11 @@ code { color: var(--cass-purple); }
 .question-editor input, .question-editor textarea { margin-top: 6px; padding: 10px; font-size: .9rem; }
 .question-editor button { margin: 0; }
 .question-editor .italic-button { margin-top: 6px; }
+.question-actions { display: flex; gap: 8px; align-items: end; }
+.question-actions .button, .question-actions button { margin: 0; }
+.preview-nav { max-width: 780px; margin: 18px auto -3vh; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.preview-nav > span { display: flex; gap: 8px; }
+.preview-badge { display: inline-block; margin: 0 0 16px; padding: 7px 10px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .question-number { align-self: center; color: var(--cass-purple); font-size: 1.35rem; font-weight: 900; text-align: center; }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }

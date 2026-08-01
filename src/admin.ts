@@ -6,11 +6,12 @@ import { decryptInvitationToken, encryptInvitationToken, sha256, randomToken } f
 import { normalize, applyReviewRuling } from "./grading.ts";
 import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mail.ts";
 import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
-import { adminLoginPage, adminPage, page } from "./views.ts";
+import { adminLoginPage, adminPage, page, questionPreviewPage } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
 import { parseQuestionImport, questionsToCsv, visiblePromptText } from "./question-import.ts";
 import { parsePlayerImport, playersToCsv } from "./player-import.ts";
 import { getIntroCopy, setIntroCopy, type IntroCopy } from "./intro-copy.ts";
+import { getInvitationTemplate, setInvitationTemplate } from "./invitation-template.ts";
 
 export interface ResultRow {
   id: number;
@@ -128,7 +129,7 @@ adminRouter.get("/admin", (req: Request, res: Response) => {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy() }));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate() }));
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {
@@ -184,6 +185,18 @@ adminRouter.post("/admin/intro", requireAdmin, (req: Request, res: Response) => 
   setIntroCopy(copy);
   logEvent(null, "intro_copy_updated");
   res.redirect("/admin#player-intro");
+});
+
+adminRouter.post("/admin/invitation-template", requireAdmin, (req: Request, res: Response) => {
+  const subject = String(req.body.subject ?? "").trim();
+  const body = String(req.body.body ?? "").trim();
+  if (!subject || subject.length > 200 || !body || body.length > 10_000 || !body.includes("{{link}}")) {
+    res.status(400).send(page("Email template not saved", `<main class="card"><h1>Invitation email not saved</h1><p>Enter a subject and body within the displayed limits. The body must contain <code>{{link}}</code> so every player receives their personalized invitation.</p><a href="/admin#invitation-template">Return to invitation email</a></main>`));
+    return;
+  }
+  setInvitationTemplate({ subject, body });
+  logEvent(null, "invitation_email_template_updated");
+  res.redirect("/admin#invitation-template");
 });
 
 adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) => {
@@ -387,6 +400,16 @@ adminRouter.get("/admin/questions.csv", requireAdmin, (_req: Request, res: Respo
   res.type("text/csv");
   res.setHeader("Content-Disposition", 'attachment; filename="timed-quiz-questions.csv"');
   res.send(questionsToCsv(questions));
+});
+
+adminRouter.get("/admin/preview/:position", requireAdmin, (req: Request, res: Response) => {
+  const position = Number(req.params.position);
+  const question = db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json FROM questions WHERE position = ?").get(position) as unknown as AdminQuestionRow | undefined;
+  if (!question) {
+    res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
+    return;
+  }
+  res.send(questionPreviewPage(question, questionCountRow()));
 });
 
 adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Response) => {

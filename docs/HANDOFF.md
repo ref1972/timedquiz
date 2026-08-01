@@ -2,6 +2,25 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Editable invitation email
+
+- Added an Invitation email admin panel for subject and body. `{{name}}` inserts
+  the display name and required `{{link}}` inserts the personalized URL.
+- Test and real sends use the same SQLite-backed template. Test subjects still
+  receive the automatic `[TEST]` prefix. Plain and HTML bodies are generated
+  together, with all author/player content HTML-escaped.
+
+## 2026-08-01 — Invitation-free question preview
+
+- Added Preview beside every question editor. The admin-only preview uses the
+  player card, category, gold highlighting, italics, answer field, and submit
+  styling, with previous/next navigation.
+- Preview is deliberately inert: the displayed 20.0 clock does not run and the
+  answer/button record nothing. It creates no player, attempt, exposure,
+  invitation, or email activity.
+- Extracted prompt rendering into one shared browser formatter so live play and
+  admin preview cannot drift on escaping, italics, or gold highlighting.
+
 ## 2026-08-01 — Question emphasis
 
 - Added optional Highlighted text to the question editor and CSV. Every
