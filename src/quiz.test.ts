@@ -365,7 +365,7 @@ test("score ties rank by lower total server-measured time", async () => {
   assert.equal(tied.length, 2);
   assert.equal(tied[0]!.id, fastPlayer.id);
   assert.equal(tied[0]!.score, tied[1]!.score);
-  assert.ok(tied[0]!.correct_time_ms < tied[1]!.correct_time_ms);
+  assert.ok(tied[0]!.answer_time_ms < tied[1]!.answer_time_ms);
 });
 
 test("an administrator-authorized restart can begin after the general cutoff", () => {
@@ -449,6 +449,17 @@ test("player answer history includes submitted answer, verdict, and question tim
   assert.equal(history?.answers[0]?.verdict, "correct");
   assert.equal(history?.answers[0]?.included_in_score, 1);
   assert.equal(typeof history?.answers[0]?.elapsed_ms, "number");
+});
+
+test("answer time includes finalized incorrect answers", async () => {
+  const player = freshPlayer();
+  const served = quiz.serveNext(player);
+  if (served.state !== "question") return assert.fail();
+  await sleep(5);
+  quiz.submitAnswer(quiz.currentAttempt(player.id)!.id, served.nonce, "");
+  const row = admin.results().find((result) => result.id === player.id);
+  assert.equal(row?.score, 0);
+  assert.ok((row?.answer_time_ms ?? 0) > 0);
 });
 
 test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {

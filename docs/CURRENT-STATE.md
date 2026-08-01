@@ -37,6 +37,9 @@ Last updated: 2026-08-01.
 - Every player row links to an authenticated answer sheet showing all attempt
   generations, questions, submissions, accepted answers, verdicts, per-question
   elapsed time, and finalization reason.
+- Ranking uses score followed by Answer time: server-measured elapsed time for
+  every finalized included question, regardless of verdict. Ready screens and
+  breaks are excluded.
 - Invitation email subject/body are editable in admin and stored in SQLite.
   Both test and real sends share the template; `{{name}}` and required
   `{{link}}` placeholders are safely substituted into plain-text and HTML mail.

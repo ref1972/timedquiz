@@ -2,15 +2,21 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Answer time includes incorrect answers
+
+- Renamed **Correct time** to **Answer time** in admin, answer sheets, and CSV
+  (`answer_time_ms`). It now sums per-question elapsed time for every finalized
+  included question—correct, incorrect, or unresolved.
+- Ready screens and breaks remain excluded; each question's contribution is
+  still server-measured and capped at its timer window.
+
 ## 2026-08-01 — Per-player answer sheets
 
 - Added **View answers** for every player. The separate admin-only screen shows
   each attempt generation and every served question with submitted text,
   canonical/alias answers, verdict, elapsed question time, and manual/timeout
   finalization.
-- The screen explains that Correct time is the sum of server-measured elapsed
-  time only on correct answers, capped by each question window. Ready screens,
-  breaks, and incorrect/unresolved answers do not contribute.
+- The screen explains the current all-finalized-answer time calculation.
 - Deployed as rc20 after verified backup `quiz-20260801T215040Z.sqlite.gz`;
   public health/route/link/explanation markers were verified and CASS remains
   HTTP 200. No answer or scoring data was modified.

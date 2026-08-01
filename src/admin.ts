@@ -20,7 +20,7 @@ export interface ResultRow {
   is_test: number;
   status: string | null;
   score: number;
-  correct_time_ms: number;
+  answer_time_ms: number;
   token_ciphertext: string | null;
   invite_sent_at: string | null;
   invite_last_error: string | null;
@@ -67,13 +67,13 @@ export function results(): ResultRow[] {
     .prepare(
       `SELECT p.id, p.email, p.display_name, p.is_test, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.verdict = 'correct' THEN 1 ELSE 0 END), 0) AS score,
-        COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.verdict = 'correct' THEN e.elapsed_ms ELSE 0 END), 0) AS correct_time_ms
+        COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.submitted_at IS NOT NULL THEN e.elapsed_ms ELSE 0 END), 0) AS answer_time_ms
        FROM players p
        LEFT JOIN attempts a ON a.player_id = p.id AND a.status IN ('in_progress', 'completed')
        LEFT JOIN exposures e ON e.attempt_id = a.id
        LEFT JOIN questions q ON q.id = e.question_id
        GROUP BY p.id, a.id
-       ORDER BY score DESC, correct_time_ms ASC, p.email ASC`,
+       ORDER BY score DESC, answer_time_ms ASC, p.email ASC`,
     )
     .all() as unknown as ResultRow[];
 }
@@ -539,8 +539,8 @@ adminRouter.get("/admin/test-results.csv", requireAdmin, (_req: Request, res: Re
 
 export function resultsCsv(testAccounts: boolean): string {
   const rows = results().filter((row) => Boolean(row.is_test) === testAccounts);
-  return "rank,email,name,score,correct_time_ms,status\n" +
-    rows.map((r, i) => `${i + 1},${csvField(r.email)},${csvField(r.display_name)},${r.score},${r.correct_time_ms},${r.status ?? "not_started"}`).join("\n");
+  return "rank,email,name,score,answer_time_ms,status\n" +
+    rows.map((r, i) => `${i + 1},${csvField(r.email)},${csvField(r.display_name)},${r.score},${r.answer_time_ms},${r.status ?? "not_started"}`).join("\n");
 }
 
 function escapeHtml(value: unknown): string {

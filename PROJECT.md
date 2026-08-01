@@ -11,7 +11,8 @@ Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
 - CASS-compatible automatic grading plus a grouped human-review queue.
 - Administrative question editing, player import, technical restarts, ranked
   results, and CSV export.
-- Ranking by score, then total server-measured time on correct answers.
+- Ranking by score, then total server-measured answer time across all finalized
+  scored questions, regardless of verdict.
 - Google Workspace relay delivery with quota checks and resumable batches;
   there is deliberately no unreliable mail fallback.
 

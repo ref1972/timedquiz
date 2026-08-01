@@ -1,11 +1,17 @@
 # Decisions
 
+## 2026-08-01 — Tiebreak time includes every finalized answer
+
+At the owner's direction, ranking uses score and then the sum of per-question
+elapsed milliseconds for every finalized included question, regardless of
+correct, incorrect, or unresolved verdict. Ready screens and breaks remain
+excluded, and each elapsed value is capped at that question's timer window.
+
 ## 2026-08-01 — Player answer history preserves restart generations
 
 Answer sheets display all attempt generations rather than only the current one,
-preserving audit context after an authorized restart. Correct time remains a
-tiebreak sum of per-question elapsed milliseconds for correct included answers,
-not total wall-clock duration of the quiz session.
+preserving audit context after an authorized restart. The summary uses the same
+all-finalized-answer tiebreak calculation as the main results.
 
 ## 2026-08-01 — Test attempts do not freeze individual question edits
 
