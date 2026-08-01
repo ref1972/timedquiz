@@ -7,6 +7,8 @@ Last updated: 2026-08-01.
 - Each unresolved-answer row now shows **Counted correct** with the question's
   canonical answer followed by all accepted aliases, beside the submitted
   answer and player count. Grading behavior itself is unchanged.
+- Deployed as rc16 after verified backup `quiz-20260801T212618Z.sqlite.gz`;
+  public health/query/display markers were verified and CASS remains HTTP 200.
 
 ## 2026-08-01 — Upcoming category on Ready
 
