@@ -38,6 +38,9 @@ Last updated: 2026-08-01.
 - Test email sends resolve the recipient to that exact imported test player and
   refuse missing or already-completed accounts. They never reuse the first test
   player's personalized token.
+- Individual question editing remains available during test-player rehearsals
+  and locks only after a real participant starts. Full-bank replacement remains
+  blocked after any attempt because it deletes/recreates question records.
 
 ## Production
 

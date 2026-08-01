@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Question editing lock corrected for rehearsals
+
+- Production had two test attempts and zero real-player attempts, but the old
+  any-attempt rule disabled every individual question editor.
+- Individual edits now lock only after a non-test participant starts. Test
+  attempts no longer disable the fields. Full 50-question replacement remains
+  blocked after any attempt because replacing rows would conflict with retained
+  exposure/audit history.
+
 ## 2026-08-01 — Test-link identity incident and fix
 
 - Production evidence confirmed that test sends always selected the first test

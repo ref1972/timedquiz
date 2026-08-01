@@ -179,7 +179,7 @@ export function adminPage(data: AdminPageData): string {
 
       <section class="panel" id="questions">
         <h2>Edit questions</h2>
-        <p>${data.questionsLocked ? "Question editing is locked because an attempt exists." : "Edit the category, question, optional gold-highlighted phrase, canonical answer, or accepted aliases."}</p>
+        <p>${data.questionsLocked ? "Question editing is locked because a real participant has started." : "Edit the category, question, optional gold-highlighted phrase, canonical answer, or accepted aliases. Test-player activity does not lock individual edits."}</p>
         <div class="question-list">${questionForms}</div>
       </section>
 

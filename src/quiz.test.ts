@@ -416,6 +416,15 @@ test("test invitation lookup never substitutes a different test player's link", 
   assert.equal(admin.testPlayerForRecipient("missing@test.invalid"), null);
 });
 
+test("test attempts do not lock individual question editing", () => {
+  const testPlayer = freshPlayer();
+  quiz.serveNext(testPlayer);
+  assert.equal(admin.questionEditingLocked(), false);
+  db.prepare("UPDATE players SET is_test = 0 WHERE id = ?").run(testPlayer.id);
+  assert.equal(admin.questionEditingLocked(), true);
+  db.prepare("UPDATE players SET is_test = 1 WHERE id = ?").run(testPlayer.id);
+});
+
 test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {
   const originalUrl = config.emailRelayUrl;
   const originalSecret = config.emailRelaySecret;

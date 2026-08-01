@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-08-01 — Test attempts do not freeze individual question edits
+
+Individual question edits remain available while all attempts belong to test
+players. The first real-player attempt freezes them. Whole-bank replacement is
+stricter and remains blocked after any attempt because it deletes/recreates
+question identities referenced by exposure and grading history.
+
 ## 2026-08-01 — Test email recipient and player identity must match
 
 A test email may only use the personalized token belonging to an imported test

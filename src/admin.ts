@@ -83,8 +83,12 @@ export function adminQuestions(): AdminQuestionRow[] {
   return db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json FROM questions ORDER BY position").all() as unknown as AdminQuestionRow[];
 }
 
-function questionBankLocked(): boolean {
+function questionImportLocked(): boolean {
   return Number((db.prepare("SELECT COUNT(*) AS n FROM attempts").get() as { n: number }).n) > 0;
+}
+
+export function questionEditingLocked(): boolean {
+  return Number((db.prepare("SELECT COUNT(*) AS n FROM attempts a JOIN players p ON p.id = a.player_id WHERE p.is_test = 0").get() as { n: number }).n) > 0;
 }
 
 export function unresolvedAnswers(): UnresolvedRow[] {
@@ -139,7 +143,7 @@ adminRouter.get("/admin", (req: Request, res: Response) => {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate() }));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate() }));
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {
@@ -362,7 +366,7 @@ adminRouter.post("/admin/invitations/send-batch", requireAdmin, async (_req: Req
 });
 
 adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response) => {
-  if (questionBankLocked()) {
+  if (questionImportLocked()) {
     res
       .status(409)
       .send(page("Import blocked", `<main class="card"><h1>Question import blocked</h1><p>An attempt already exists, so the active question bank is frozen. This is deliberate: changing questions mid-event would invalidate already-answered questions.</p><a href="/admin">Return</a></main>`));
@@ -431,8 +435,8 @@ adminRouter.get("/admin/preview/:position", requireAdmin, (req: Request, res: Re
 });
 
 adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Response) => {
-  if (questionBankLocked()) {
-    res.status(409).send(page("Edit blocked", `<main class="card"><h1>Question edit blocked</h1><p>An attempt already exists, so the active question bank is frozen.</p><a href="/admin#questions">Return to questions</a></main>`));
+  if (questionEditingLocked()) {
+    res.status(409).send(page("Edit blocked", `<main class="card"><h1>Question edit blocked</h1><p>A real participant has started, so the active question bank is frozen. Test-player attempts alone do not trigger this lock.</p><a href="/admin#questions">Return to questions</a></main>`));
     return;
   }
   const id = Number(req.params.id);
