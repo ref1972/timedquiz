@@ -3,20 +3,23 @@ set -euo pipefail
 
 DEPLOY_HOST="${TIMED_QUIZ_DEPLOY_HOST:-root@137.184.62.161}"
 DEPLOY_REF="${TIMED_QUIZ_DEPLOY_REF:-timed-quiz-v0.1.0-rc1}"
-REPOSITORY="${TIMED_QUIZ_REPOSITORY:-https://github.com/ref1972/timedquiz.git}"
 NODE_VERSION="${TIMED_QUIZ_NODE_VERSION:-v24.14.0}"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+release_archive="$(mktemp -t timed-quiz-release.XXXXXX.tar.gz)"
+trap 'rm -f "$release_archive"' EXIT
+
+git -C "$PROJECT_DIR" archive --format=tar.gz --output="$release_archive" "$DEPLOY_REF"
 
 ssh "$DEPLOY_HOST" "mkdir -p /tmp/timed-quiz-provision"
 scp "$PROJECT_DIR/ops/timed-quiz.service" "$DEPLOY_HOST:/tmp/timed-quiz-provision/timed-quiz.service"
 scp "$PROJECT_DIR/ops/nginx-bee.conf" "$DEPLOY_HOST:/tmp/timed-quiz-provision/nginx-bee.conf"
+scp "$release_archive" "$DEPLOY_HOST:/tmp/timed-quiz-provision/release.tar.gz"
 
-ssh "$DEPLOY_HOST" bash -s -- "$DEPLOY_REF" "$REPOSITORY" "$NODE_VERSION" <<'REMOTE'
+ssh "$DEPLOY_HOST" bash -s -- "$DEPLOY_REF" "$NODE_VERSION" <<'REMOTE'
 set -euo pipefail
 
 DEPLOY_REF="$1"
-REPOSITORY="$2"
-NODE_VERSION="$3"
+NODE_VERSION="$2"
 NODE_ARCHIVE="node-${NODE_VERSION}-linux-x64.tar.xz"
 
 if [[ ! -x "/opt/node-${NODE_VERSION}-linux-x64/bin/node" ]]; then
@@ -36,12 +39,17 @@ fi
 install -d -o timedquiz -g timedquiz -m 0750 /var/lib/timed-quiz
 install -d -o timedquiz -g timedquiz -m 0750 /var/backups/timed-quiz
 
-if [[ ! -d /var/www/timed-quiz/.git ]]; then
-  git clone "$REPOSITORY" /var/www/timed-quiz
-fi
-cd /var/www/timed-quiz
-git fetch --tags origin
-git checkout --detach "$DEPLOY_REF"
+release_name="${DEPLOY_REF//\//_}"
+release_dir="/var/www/timed-quiz/releases/${release_name}"
+incoming_dir="${release_dir}.incoming"
+install -d -o root -g root -m 0755 /var/www/timed-quiz/releases
+rm -rf "$incoming_dir"
+install -d -o root -g root -m 0755 "$incoming_dir"
+tar -xzf /tmp/timed-quiz-provision/release.tar.gz -C "$incoming_dir"
+rm -rf "$release_dir"
+mv "$incoming_dir" "$release_dir"
+ln -sfn "$release_dir" /var/www/timed-quiz/current
+cd /var/www/timed-quiz/current
 PATH="/opt/timed-quiz-node/bin:$PATH" npm ci --omit=dev
 chown -R root:root /var/www/timed-quiz
 
@@ -71,7 +79,7 @@ if [[ ! -f /var/lib/timed-quiz/quiz.db ]]; then
   source /etc/timed-quiz.env
   set +a
   runuser -u timedquiz -- env PATH="/opt/timed-quiz-node/bin:/usr/bin:/bin" \
-    /opt/timed-quiz-node/bin/npm run seed > /root/timed-quiz-seed-output.txt
+    /opt/timed-quiz-node/bin/npm --prefix /var/www/timed-quiz/current run seed > /root/timed-quiz-seed-output.txt
   chmod 0600 /root/timed-quiz-seed-output.txt
 fi
 

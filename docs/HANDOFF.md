@@ -30,3 +30,7 @@ Last updated: 2026-08-01.
 - Added tracked systemd/nginx definitions and a repeatable provisioning script.
   The initial provision intentionally creates only a rehearsal database and
   leaves the email relay and cutoff unset.
+- The first `rc1` provision installed the verified Node 24 runtime, then stopped
+  before service/nginx changes because the private GitHub repository cannot be
+  cloned anonymously. Provisioning now uploads a tagged Git archive instead,
+  avoiding any GitHub credential on the server.
