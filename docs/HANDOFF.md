@@ -13,9 +13,10 @@ Last updated: 2026-08-01.
   afterward it no longer authenticates.
 - Every successful change increments the stored admin-session version, making
   all existing signed admin cookies invalid immediately. Automated coverage is
-  now 21 tests plus TypeScript. Deployed as rc6 after a verified pre-deploy
-  database backup; the live authenticated dashboard contains the panel and
-  CASS remained HTTP 200.
+  now 21 tests plus TypeScript. The no-minimum policy was deployed as rc7 after
+  verified pre-deploy backup `quiz-20260801T153007Z.sqlite.gz`; production
+  health reports rc7, the deployed source contains the new policy and copy,
+  and CASS remains HTTP 200.
 
 ## Repository extraction
 
