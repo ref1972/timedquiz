@@ -10,6 +10,9 @@ Last updated: 2026-08-01.
   attempts no longer disable the fields. Full 50-question replacement remains
   blocked after any attempt because replacing rows would conflict with retained
   exposure/audit history.
+- Deployed as rc18 after verified backup `quiz-20260801T213529Z.sqlite.gz`.
+  Public health/lock code and the zero-real-attempt condition were verified;
+  CASS remains HTTP 200.
 
 ## 2026-08-01 — Test-link identity incident and fix
 
