@@ -9,6 +9,9 @@ Last updated: 2026-08-01.
   label. Copy is stored in SQLite and supplied through the prestart API state.
 - The player renders configured values as escaped text. Timing, required
   question count, abandonment behavior, cutoff, and grading remain code rules.
+- Deployed as rc10 after verified backup `quiz-20260801T154816Z.sqlite.gz`.
+  Production health reports rc10, the editor is present, and CASS remains HTTP
+  200. Deployment wrote no intro overrides and did not change live wording.
 
 ## 2026-08-01 — Player CSV and invitation workflow
 
