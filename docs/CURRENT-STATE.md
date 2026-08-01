@@ -19,7 +19,7 @@ Last updated: 2026-08-01.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Release candidate `timed-quiz-v0.1.0-rc5` is deployed on the selected droplet
+- Release candidate `timed-quiz-v0.1.0-rc6` is deployed on the selected droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
 - Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS

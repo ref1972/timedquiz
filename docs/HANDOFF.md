@@ -11,7 +11,9 @@ Last updated: 2026-08-01.
   afterward it no longer authenticates.
 - Every successful change increments the stored admin-session version, making
   all existing signed admin cookies invalid immediately. Automated coverage is
-  now 21 tests plus TypeScript.
+  now 21 tests plus TypeScript. Deployed as rc6 after a verified pre-deploy
+  database backup; the live authenticated dashboard contains the panel and
+  CASS remained HTTP 200.
 
 ## Repository extraction
 
