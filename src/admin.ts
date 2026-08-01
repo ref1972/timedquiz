@@ -1,0 +1,239 @@
+import type { Request, Response, Router as RouterType } from "express";
+import { Router } from "express";
+import { config } from "./config.ts";
+import { db, logEvent, nowIso } from "./db.ts";
+import { sha256, randomToken } from "./crypto.ts";
+import { normalize, applyReviewRuling } from "./grading.ts";
+import { checkAdminPassword, isAdmin, requireAdmin, setAdminSession } from "./auth.ts";
+import { adminLoginPage, adminPage, page } from "./views.ts";
+import { finalizeStaleSessions } from "./quiz.ts";
+
+export interface ResultRow {
+  id: number;
+  email: string;
+  display_name: string;
+  is_test: number;
+  status: string | null;
+  score: number;
+}
+
+export function results(): ResultRow[] {
+  return db
+    .prepare(
+      `SELECT p.id, p.email, p.display_name, p.is_test, a.status,
+        COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.verdict = 'correct' THEN 1 ELSE 0 END), 0) AS score
+       FROM players p
+       LEFT JOIN attempts a ON a.player_id = p.id AND a.status IN ('in_progress', 'completed')
+       LEFT JOIN exposures e ON e.attempt_id = a.id
+       LEFT JOIN questions q ON q.id = e.question_id
+       GROUP BY p.id, a.id
+       ORDER BY score DESC, p.email ASC`,
+    )
+    .all() as unknown as ResultRow[];
+}
+
+export interface UnresolvedRow {
+  question_id: number;
+  position: number;
+  normalized_answer: string;
+  n: number;
+}
+
+export interface AdminQuestionRow {
+  id: number;
+  position: number;
+  category: string;
+  prompt: string;
+  canonical_answer: string;
+  aliases_json: string;
+}
+
+export function adminQuestions(): AdminQuestionRow[] {
+  return db.prepare("SELECT id, position, category, prompt, canonical_answer, aliases_json FROM questions ORDER BY position").all() as unknown as AdminQuestionRow[];
+}
+
+function questionBankLocked(): boolean {
+  return Number((db.prepare("SELECT COUNT(*) AS n FROM attempts").get() as { n: number }).n) > 0;
+}
+
+export function unresolvedAnswers(): UnresolvedRow[] {
+  return db
+    .prepare(
+      `SELECT q.id AS question_id, q.position, e.normalized_answer, COUNT(*) AS n
+       FROM exposures e JOIN questions q ON q.id = e.question_id
+       WHERE e.verdict = 'unresolved'
+       GROUP BY q.id, q.position, e.normalized_answer
+       ORDER BY q.position, n DESC`,
+    )
+    .all() as unknown as UnresolvedRow[];
+}
+
+export function questionCountRow(): number {
+  return Number((db.prepare("SELECT COUNT(*) AS n FROM questions").get() as { n: number }).n);
+}
+
+function csvField(value: unknown): string {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+export const adminRouter: RouterType = Router();
+
+adminRouter.get("/admin", (req: Request, res: Response) => {
+  if (!isAdmin(req)) {
+    res.send(adminLoginPage(false));
+    return;
+  }
+  // Finalize anything that timed out while the player never came back to
+  // check their own state -- otherwise an abandoned attempt could sit
+  // forever as "in_progress" with an unscored question, invisible to the
+  // admin, until that specific player happens to poll again.
+  finalizeStaleSessions();
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked() }));
+});
+
+adminRouter.post("/admin/login", (req: Request, res: Response) => {
+  if (!checkAdminPassword(String(req.body.password ?? ""))) {
+    res.status(403).send(adminLoginPage(true));
+    return;
+  }
+  setAdminSession(res);
+  res.redirect("/admin");
+});
+
+adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) => {
+  const lines = String(req.body.players ?? "")
+    .split(/\r?\n/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const insert = db.prepare(
+    "INSERT OR IGNORE INTO players (email, display_name, token_hash, is_test, created_at) VALUES (?, ?, ?, ?, ?)",
+  );
+  const links: string[] = [];
+  const skipped: string[] = [];
+  for (const line of lines) {
+    const [emailRaw, name = "", test = ""] = line.split(",").map((x) => x.trim());
+    const email = (emailRaw ?? "").toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      skipped.push(line);
+      continue;
+    }
+    const token = randomToken();
+    const result = insert.run(email, name, sha256(token), /^(1|yes|true|test)$/i.test(test) ? 1 : 0, nowIso());
+    if (result.changes) {
+      links.push(`${email},${name},${config.appOrigin}/invite/${token}`);
+    } else {
+      skipped.push(`${email} (already invited)`);
+    }
+  }
+  logEvent(null, "players_imported", { added: links.length, skipped: skipped.length });
+  res.send(
+    page(
+      "Invitation links",
+      `<main class="card wide"><h1>New invitation links</h1>
+       <p>Save these now -- tokens are stored only as hashes and cannot be recovered from the database.</p>
+       <textarea rows="18" readonly>${escapeHtml(links.join("\n"))}</textarea>
+       ${skipped.length ? `<p class="muted">Skipped ${skipped.length}: ${escapeHtml(skipped.join("; "))}</p>` : ""}
+       <p><a href="/admin">Return to admin</a></p></main>`,
+    ),
+  );
+});
+
+adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response) => {
+  if (questionBankLocked()) {
+    res
+      .status(409)
+      .send(page("Import blocked", `<main class="card"><h1>Question import blocked</h1><p>An attempt already exists, so the active question bank is frozen. This is deliberate: changing questions mid-event would invalidate already-answered questions.</p><a href="/admin">Return</a></main>`));
+    return;
+  }
+
+  let parsed: Array<{ position: number; category?: string; prompt: string; answer: string; aliases?: string[] }>;
+  try {
+    parsed = JSON.parse(String(req.body.questions ?? "[]"));
+  } catch {
+    res.status(400).send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>That was not valid JSON.</p><a href="/admin">Return</a></main>`));
+    return;
+  }
+
+  const positions = new Set(parsed.map((q) => q.position));
+  const valid =
+    parsed.length === 50 &&
+    positions.size === 50 &&
+    parsed.every((q) => q.position >= 1 && q.position <= 50 && q.prompt?.trim() && q.answer?.trim());
+  if (!valid) {
+    res
+      .status(400)
+      .send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>Provide exactly 50 unique positions from 1 through 50, each with a non-blank prompt and answer.</p><a href="/admin">Return</a></main>`));
+    return;
+  }
+
+  db.exec("BEGIN");
+  try {
+    db.exec("DELETE FROM questions");
+    const insert = db.prepare("INSERT INTO questions (position, category, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?)");
+    for (const q of [...parsed].sort((a, b) => a.position - b.position)) {
+      insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt.trim(), q.answer.trim(), JSON.stringify(q.aliases ?? []));
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+  logEvent(null, "questions_imported", { count: parsed.length });
+  res.redirect("/admin");
+});
+
+adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Response) => {
+  if (questionBankLocked()) {
+    res.status(409).send(page("Edit blocked", `<main class="card"><h1>Question edit blocked</h1><p>An attempt already exists, so the active question bank is frozen.</p><a href="/admin#questions">Return to questions</a></main>`));
+    return;
+  }
+  const id = Number(req.params.id);
+  const category = String(req.body.category ?? "").trim();
+  const prompt = String(req.body.prompt ?? "").trim();
+  const answer = String(req.body.answer ?? "").trim();
+  const aliases = String(req.body.aliases ?? "").split(/\r?\n|,/).map((alias) => alias.trim()).filter(Boolean);
+  if (!Number.isInteger(id) || !category || !prompt || !answer) {
+    res.status(400).send(page("Invalid question", `<main class="card"><h1>Question not saved</h1><p>Category, question, and answer are required.</p><a href="/admin#questions">Return to questions</a></main>`));
+    return;
+  }
+  const result = db.prepare("UPDATE questions SET category = ?, prompt = ?, canonical_answer = ?, aliases_json = ? WHERE id = ?").run(category, prompt, answer, JSON.stringify(aliases), id);
+  if (!result.changes) {
+    res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
+    return;
+  }
+  logEvent(null, "question_edited", { questionId: id });
+  res.redirect(`/admin#question-${id}`);
+});
+
+adminRouter.post("/admin/review", requireAdmin, (req: Request, res: Response) => {
+  const questionId = Number(req.body.questionId);
+  const answer = String(req.body.answer ?? "");
+  const verdict = req.body.verdict === "correct" ? "correct" : "incorrect";
+  const note = String(req.body.note ?? "").slice(0, 500);
+  applyReviewRuling(questionId, normalize(answer), verdict, note);
+  logEvent(null, "answer_reviewed", { questionId, answer, verdict });
+  res.redirect("/admin#review");
+});
+
+adminRouter.post("/admin/restart", requireAdmin, (req: Request, res: Response) => {
+  const playerId = Number(req.body.playerId);
+  const reason = String(req.body.reason ?? "Technical failure").slice(0, 500);
+  db.prepare(
+    "UPDATE attempts SET status = 'superseded', superseded_at = ?, restart_reason = ? WHERE player_id = ? AND status IN ('in_progress', 'completed')",
+  ).run(nowIso(), reason, playerId);
+  logEvent(null, "restart_granted", { playerId, reason });
+  res.redirect("/admin");
+});
+
+adminRouter.get("/admin/results.csv", requireAdmin, (_req: Request, res: Response) => {
+  finalizeStaleSessions();
+  const rows = results().filter((row) => !row.is_test);
+  const body =
+    "rank,email,name,score,status\n" +
+    rows.map((r, i) => `${i + 1},${csvField(r.email)},${csvField(r.display_name)},${r.score},${r.status ?? "not_started"}`).join("\n");
+  res.type("text/csv").attachment("pop-culture-bee-results.csv").send(body);
+});
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
