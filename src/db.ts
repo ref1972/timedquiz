@@ -106,6 +106,12 @@ CREATE TABLE IF NOT EXISTS audit_events (
   detail_json TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key TEXT PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `);
 
 const questionColumns = db.prepare("PRAGMA table_info(questions)").all() as unknown as Array<{ name: string }>;
@@ -147,4 +153,14 @@ export function logEvent(attemptId: number | null, kind: string, detail: unknown
     JSON.stringify(detail),
     nowIso(),
   );
+}
+
+export function getAppSetting(key: string): string | null {
+  const row = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = ?").get(key) as { setting_value: string } | undefined;
+  return row?.setting_value ?? null;
+}
+
+export function setAppSetting(key: string, value: string): void {
+  db.prepare(`INSERT INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = excluded.updated_at`).run(key, value, nowIso());
 }

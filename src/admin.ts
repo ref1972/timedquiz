@@ -5,7 +5,7 @@ import { db, logEvent, nowIso } from "./db.ts";
 import { decryptInvitationToken, encryptInvitationToken, sha256, randomToken } from "./crypto.ts";
 import { normalize, applyReviewRuling } from "./grading.ts";
 import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mail.ts";
-import { checkAdminPassword, isAdmin, requireAdmin, setAdminSession } from "./auth.ts";
+import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
 import { adminLoginPage, adminPage, page } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
 
@@ -122,6 +122,27 @@ adminRouter.post("/admin/login", (req: Request, res: Response) => {
   loginAttempts.delete(req.ip || req.socket.remoteAddress || "unknown");
   setAdminSession(res);
   res.redirect("/admin");
+});
+
+adminRouter.post("/admin/password", requireAdmin, (req: Request, res: Response) => {
+  const currentPassword = String(req.body.currentPassword ?? "");
+  const newPassword = String(req.body.newPassword ?? "");
+  const confirmation = String(req.body.confirmPassword ?? "");
+  if (!checkAdminPassword(currentPassword)) {
+    res.status(403).send(page("Password not changed", `<main class="card"><h1>Current password was incorrect</h1><p>No change was made.</p><a href="/admin#security">Return to security</a></main>`));
+    return;
+  }
+  if (newPassword.length < 16 || newPassword.length > 256) {
+    res.status(400).send(page("Password not changed", `<main class="card"><h1>Choose a longer password</h1><p>The new administrator password must contain 16 to 256 characters.</p><a href="/admin#security">Return to security</a></main>`));
+    return;
+  }
+  if (newPassword !== confirmation) {
+    res.status(400).send(page("Password not changed", `<main class="card"><h1>Passwords did not match</h1><p>No change was made.</p><a href="/admin#security">Return to security</a></main>`));
+    return;
+  }
+  setAdminPassword(newPassword);
+  logEvent(null, "admin_password_changed");
+  res.send(page("Password changed", `<main class="card"><h1>Administrator password changed</h1><p>All existing administrator sessions have been invalidated. Sign in again with the new password.</p><a href="/admin">Return to sign in</a></main>`));
 });
 
 adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) => {

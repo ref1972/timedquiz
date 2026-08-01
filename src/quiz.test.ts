@@ -23,6 +23,7 @@ const { db } = await import("./db.ts");
 const quiz = await import("./quiz.ts");
 const grading = await import("./grading.ts");
 const admin = await import("./admin.ts");
+const auth = await import("./auth.ts");
 const cryptoHelpers = await import("./crypto.ts");
 const { config } = await import("./config.ts");
 const mail = await import("./mail.ts");
@@ -45,6 +46,7 @@ before(() => {
   db.exec("DELETE FROM players");
   db.exec("DELETE FROM questions");
   db.exec("DELETE FROM grading_rules");
+  db.exec("DELETE FROM app_settings");
   const insert = db.prepare("INSERT INTO questions (position, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?)");
   for (let i = 1; i <= 50; i++) {
     insert.run(i, `Question ${i}?`, `answer${i}`, "[]");
@@ -417,4 +419,15 @@ test("Workspace invitation mail preflights quota and reports a hard quota pause 
     config.emailRelaySecret = originalSecret;
     globalThis.fetch = originalFetch;
   }
+});
+
+test("administrator password changes are salted, hashed, and immediately replace the bootstrap password", () => {
+  assert.equal(auth.checkAdminPassword(config.adminPassword), true);
+  const replacement = "a-new-administrator-password";
+  auth.setAdminPassword(replacement);
+  const stored = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'admin_password_scrypt'").get() as { setting_value: string };
+  assert.match(stored.setting_value, /^scrypt\$/);
+  assert.equal(stored.setting_value.includes(replacement), false);
+  assert.equal(auth.checkAdminPassword(config.adminPassword), false);
+  assert.equal(auth.checkAdminPassword(replacement), true);
 });

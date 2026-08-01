@@ -2,6 +2,17 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Admin password management
+
+- Added a **Change admin password** panel to the admin dashboard. It requires
+  the current password plus a matching 16–256 character replacement.
+- The database stores only a random-salted scrypt hash. The environment value
+  remains the bootstrap credential until the first database password is set;
+  afterward it no longer authenticates.
+- Every successful change increments the stored admin-session version, making
+  all existing signed admin cookies invalid immediately. Automated coverage is
+  now 21 tests plus TypeScript.
+
 ## Repository extraction
 
 - Standalone project name: **Timed Quiz**.

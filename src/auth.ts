@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
+import crypto from "node:crypto";
 import { config } from "./config.ts";
 import { sign, unsign, timingSafeStringEqual } from "./crypto.ts";
+import { getAppSetting, setAppSetting } from "./db.ts";
 import { findPlayerById, type Player } from "./quiz.ts";
 
 const PLAYER_COOKIE = "pcb_player";
@@ -34,7 +36,7 @@ export function setPlayerSession(res: Response, playerId: number): void {
 }
 
 export function setAdminSession(res: Response): void {
-  setSignedCookie(res, ADMIN_COOKIE, "admin", TWELVE_HOURS_SECONDS);
+  setSignedCookie(res, ADMIN_COOKIE, `admin:${adminSessionVersion()}`, TWELVE_HOURS_SECONDS);
 }
 
 export function currentPlayer(req: Request): Player | null {
@@ -45,14 +47,35 @@ export function currentPlayer(req: Request): Player | null {
 }
 
 export function isAdmin(req: Request): boolean {
-  return unsign(parseCookies(req)[ADMIN_COOKIE]) === "admin";
+  return unsign(parseCookies(req)[ADMIN_COOKIE]) === `admin:${adminSessionVersion()}`;
 }
 
 export function checkAdminPassword(supplied: string): boolean {
-  // Pad-free timing-safe compare: both sides must already be plain strings
-  // of attacker-uninfluenced length comparison, which timingSafeStringEqual
-  // handles by bailing out (safely, non-signaling) on length mismatch.
+  const stored = getAppSetting("admin_password_scrypt");
+  if (stored) {
+    try {
+      const [scheme, saltText, hashText] = stored.split("$");
+      if (scheme !== "scrypt" || !saltText || !hashText) return false;
+      const expected = Buffer.from(hashText, "base64url");
+      const actual = crypto.scryptSync(supplied, Buffer.from(saltText, "base64url"), expected.length);
+      return crypto.timingSafeEqual(actual, expected);
+    } catch {
+      return false;
+    }
+  }
   return timingSafeStringEqual(supplied, config.adminPassword);
+}
+
+export function setAdminPassword(password: string): void {
+  const salt = crypto.randomBytes(16);
+  const hash = crypto.scryptSync(password, salt, 32);
+  setAppSetting("admin_password_scrypt", `scrypt$${salt.toString("base64url")}$${hash.toString("base64url")}`);
+  setAppSetting("admin_session_version", String(adminSessionVersion() + 1));
+}
+
+function adminSessionVersion(): number {
+  const value = Number(getAppSetting("admin_session_version") ?? "1");
+  return Number.isSafeInteger(value) && value > 0 ? value : 1;
 }
 
 export function requirePlayer(req: Request, res: Response, next: NextFunction): void {

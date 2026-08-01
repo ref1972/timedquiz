@@ -119,6 +119,17 @@ export function adminPage(data: AdminPageData): string {
         <p>${data.questionCount}/50 questions &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
       </header>
 
+      <section class="panel" id="security">
+        <h2>Change admin password</h2>
+        <p>Changing the password signs out every existing administrator session. Use at least 16 characters.</p>
+        <form method="post" action="/admin/password">
+          <label>Current password<input name="currentPassword" type="password" autocomplete="current-password" required></label>
+          <label>New password<input name="newPassword" type="password" autocomplete="new-password" minlength="16" maxlength="256" required></label>
+          <label>Confirm new password<input name="confirmPassword" type="password" autocomplete="new-password" minlength="16" maxlength="256" required></label>
+          <button>Change admin password</button>
+        </form>
+      </section>
+
       <section class="panel">
         <h2>Import questions</h2>
         <p>JSON array: <code>{"position":1,"category":"Movies","prompt":"…","answer":"…","aliases":["…"]}</code>. Import locks after the first attempt starts.</p>

@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-08-01 — Admin password changes live in the database and revoke sessions
+
+The admin dashboard may replace the bootstrap environment password after
+verifying it. Timed Quiz stores only a random-salted scrypt hash in SQLite and
+increments an admin-session version on every change so all existing sessions
+are invalidated immediately.
+
+Reason: operators need safe self-service without editing server files, while a
+plaintext database setting or continuing to accept the bootstrap password
+would undermine the change.
+
 ## 2026-08-01 — Landing-page copy will be admin-editable
 
 Add a dedicated **Player intro** admin panel for the player landing screen.
