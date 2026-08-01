@@ -84,7 +84,9 @@ if [[ ! -f /var/lib/timed-quiz/quiz.db ]]; then
 fi
 
 install -o root -g root -m 0644 /tmp/timed-quiz-provision/timed-quiz.service /etc/systemd/system/timed-quiz.service
-install -o root -g root -m 0644 /tmp/timed-quiz-provision/nginx-bee.conf /etc/nginx/sites-available/bee.triviaworkshop.com
+if [[ ! -f /etc/nginx/sites-available/bee.triviaworkshop.com ]]; then
+  install -o root -g root -m 0644 /tmp/timed-quiz-provision/nginx-bee.conf /etc/nginx/sites-available/bee.triviaworkshop.com
+fi
 ln -sfn /etc/nginx/sites-available/bee.triviaworkshop.com /etc/nginx/sites-enabled/bee.triviaworkshop.com
 
 systemctl daemon-reload
@@ -92,6 +94,15 @@ systemctl enable --now timed-quiz.service
 nginx -t
 systemctl reload nginx
 
-curl -fsS http://127.0.0.1:8080/health
+for attempt in $(seq 1 30); do
+  if curl -fsS http://127.0.0.1:8080/health; then
+    break
+  fi
+  if [[ "$attempt" == "30" ]]; then
+    echo "Timed Quiz did not become healthy within 30 seconds."
+    exit 1
+  fi
+  sleep 1
+done
 systemctl --no-pager --full status timed-quiz.service
 REMOTE

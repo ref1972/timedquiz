@@ -34,3 +34,14 @@ Last updated: 2026-08-01.
   before service/nginx changes because the private GitHub repository cannot be
   cloned anonymously. Provisioning now uploads a tagged Git archive instead,
   avoiding any GitHub credential on the server.
+- The repository is now public, but archive deployment remains intentional: it
+  installs the exact tag without maintaining a server-side checkout.
+- `timed-quiz-v0.1.0-rc2` is deployed as the rehearsal instance. DNS and HTTPS
+  are live; the dedicated service is healthy with the correct release ID.
+  Admin authentication and the seeded invitation redirect work, HTTP redirects
+  to HTTPS, and CASS remained online/HTTP 200 throughout.
+- Email relay URL/secret and `CLOSES_AT` are deliberately unset, no real player
+  is loaded, and no email was sent. The seeded starting bank is not approved
+  for launch and the rehearsal database must not become the final database.
+- Provisioning now waits up to 30 seconds for application health and preserves
+  Certbot's live nginx edits on subsequent deployments.

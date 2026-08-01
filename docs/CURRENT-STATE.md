@@ -16,8 +16,15 @@ Last updated: 2026-08-01.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Nothing is deployed. DNS, TLS, Node 24, service configuration, production
-  secrets, database, and email relay configuration remain pending.
+- Release candidate `timed-quiz-v0.1.0-rc2` is deployed on the selected droplet
+  with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
+  SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
+- Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS
+  redirect, admin authentication, seeded invitation redirect, active service,
+  and unchanged CASS availability.
+- Email relay configuration and the closing time remain unset. The deployed
+  database contains only the seeded test player and unapproved starting bank;
+  it is not the launch database.
 - No real player invitation has been sent.
 
 ## Launch blockers

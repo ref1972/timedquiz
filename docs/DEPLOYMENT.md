@@ -14,9 +14,13 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
+Current deployed rehearsal release: `timed-quiz-v0.1.0-rc2`. Certbot manages
+the live nginx TLS additions, so provisioning only installs the base nginx
+file when the site does not already exist.
+
 The tracked `scripts/provision-droplet.sh` installs the pinned Node runtime
-under `/opt`, uploads a local Git archive of a tagged release (the private
-repository needs no server-side credential), creates the isolated user/data
+under `/opt`, uploads a local Git archive of a tagged release (so deployment is
+independent of repository visibility and server credentials), creates the isolated user/data
 layout, generates initial secrets, seeds a rehearsal database only when none
 exists, installs the systemd/nginx definitions, and verifies local health. It
 does not configure email, a cutoff, or TLS and does not send anything.
