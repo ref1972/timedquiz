@@ -11,6 +11,9 @@ Last updated: 2026-08-01.
 - The screen explains that Correct time is the sum of server-measured elapsed
   time only on correct answers, capped by each question window. Ready screens,
   breaks, and incorrect/unresolved answers do not contribute.
+- Deployed as rc20 after verified backup `quiz-20260801T215040Z.sqlite.gz`;
+  public health/route/link/explanation markers were verified and CASS remains
+  HTTP 200. No answer or scoring data was modified.
 
 ## 2026-08-01 — Separate test-results export
 
