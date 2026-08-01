@@ -27,6 +27,7 @@ const auth = await import("./auth.ts");
 const cryptoHelpers = await import("./crypto.ts");
 const { config } = await import("./config.ts");
 const mail = await import("./mail.ts");
+const questionImport = await import("./question-import.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -430,4 +431,10 @@ test("administrator password changes are salted, hashed, and immediately replace
   assert.equal(stored.setting_value.includes(replacement), false);
   assert.equal(auth.checkAdminPassword(config.adminPassword), false);
   assert.equal(auth.checkAdminPassword(replacement), true);
+});
+
+test("question CSV round-trips quoted punctuation, newlines, and aliases", () => {
+  const questions = [{ position: 1, category: "Movies, TV & More", prompt: "Who said \"Hello\"?\nName the character.", answer: "A, B", aliases: ["A", "B"] }];
+  const csv = questionImport.questionsToCsv(questions);
+  assert.deepEqual(questionImport.parseQuestionImport(csv), questions);
 });

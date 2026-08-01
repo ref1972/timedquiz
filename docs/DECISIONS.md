@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-08-01 — CSV is the primary question-bank interchange format
+
+The admin supports downloading the current bank and uploading an edited CSV so
+the owner can work in Excel or Google Sheets. The fixed columns are position,
+category, question, answer, and aliases; aliases use `|` within their cell.
+JSON remains accepted as a compatibility path.
+
 ## 2026-08-01 — Admin password changes live in the database and revoke sessions
 
 The admin dashboard may replace the bootstrap environment password after

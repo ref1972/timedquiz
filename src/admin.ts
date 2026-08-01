@@ -8,6 +8,7 @@ import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mai
 import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
 import { adminLoginPage, adminPage, page } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
+import { parseQuestionImport, questionsToCsv } from "./question-import.ts";
 
 export interface ResultRow {
   id: number;
@@ -280,9 +281,10 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
 
   let parsed: Array<{ position: number; category?: string; prompt: string; answer: string; aliases?: string[] }>;
   try {
-    parsed = JSON.parse(String(req.body.questions ?? "[]"));
-  } catch {
-    res.status(400).send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>That was not valid JSON.</p><a href="/admin">Return</a></main>`));
+    parsed = parseQuestionImport(String(req.body.questions ?? ""));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The question data could not be read.";
+    res.status(400).send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>${escapeHtml(message)}</p><a href="/admin">Return</a></main>`));
     return;
   }
 
@@ -312,6 +314,19 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
   }
   logEvent(null, "questions_imported", { count: parsed.length });
   res.redirect("/admin");
+});
+
+adminRouter.get("/admin/questions.csv", requireAdmin, (_req: Request, res: Response) => {
+  const questions = adminQuestions().map((q) => ({
+    position: q.position,
+    category: q.category,
+    prompt: q.prompt,
+    answer: q.canonical_answer,
+    aliases: JSON.parse(q.aliases_json) as string[],
+  }));
+  res.type("text/csv");
+  res.setHeader("Content-Disposition", 'attachment; filename="timed-quiz-questions.csv"');
+  res.send(questionsToCsv(questions));
 });
 
 adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Response) => {

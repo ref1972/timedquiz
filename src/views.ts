@@ -119,24 +119,16 @@ export function adminPage(data: AdminPageData): string {
         <p>${data.questionCount}/50 questions &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
       </header>
 
-      <section class="panel" id="security">
-        <h2>Change admin password</h2>
-        <p>Changing the password signs out every existing administrator session. A long, unique password is recommended but not required.</p>
-        <form method="post" action="/admin/password">
-          <label>Current password<input name="currentPassword" type="password" autocomplete="current-password" required></label>
-          <label>New password<input name="newPassword" type="password" autocomplete="new-password" maxlength="256" required></label>
-          <label>Confirm new password<input name="confirmPassword" type="password" autocomplete="new-password" maxlength="256" required></label>
-          <button>Change admin password</button>
-        </form>
-      </section>
-
       <section class="panel">
         <h2>Import questions</h2>
-        <p>JSON array: <code>{"position":1,"category":"Movies","prompt":"…","answer":"…","aliases":["…"]}</code>. Import locks after the first attempt starts.</p>
+        <p>Download the current question bank, edit it in Excel or Google Sheets, and upload the CSV. Keep the header row; separate multiple accepted aliases with <code>|</code>. Import locks after the first attempt starts.</p>
+        <p><a class="button secondary" href="/admin/questions.csv">Download current questions CSV</a></p>
         <form method="post" action="/admin/questions">
-          <textarea name="questions" rows="7" required></textarea>
+          <label>Question CSV<input id="questionCsvFile" type="file" accept=".csv,text/csv"></label>
+          <label>CSV preview or pasted CSV<textarea id="questionImportData" name="questions" rows="7" required placeholder="position,category,question,answer,aliases"></textarea></label>
           <button>Validate and import 50 questions</button>
         </form>
+        <p class="muted">JSON imports are still accepted for compatibility.</p>
       </section>
 
       <section class="panel" id="questions">
@@ -178,6 +170,24 @@ export function adminPage(data: AdminPageData): string {
         <h2>Review queue</h2>
         ${unresolved}
       </section>
+
+      <section class="panel" id="security">
+        <h2>Change admin password</h2>
+        <p>Changing the password signs out every existing administrator session. A long, unique password is recommended but not required.</p>
+        <form method="post" action="/admin/password">
+          <label>Current password<input name="currentPassword" type="password" autocomplete="current-password" required></label>
+          <label>New password<input name="newPassword" type="password" autocomplete="new-password" maxlength="256" required></label>
+          <label>Confirm new password<input name="confirmPassword" type="password" autocomplete="new-password" maxlength="256" required></label>
+          <button>Change admin password</button>
+        </form>
+      </section>
+      <script>
+        document.querySelector('#questionCsvFile').addEventListener('change', function () {
+          var file = this.files && this.files[0];
+          if (!file) return;
+          file.text().then(function (text) { document.querySelector('#questionImportData').value = text; });
+        });
+      </script>
     </main>`,
   );
 }

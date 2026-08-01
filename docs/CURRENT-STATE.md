@@ -14,6 +14,9 @@ Last updated: 2026-08-01.
   and a nonblank replacement of at most 256 characters. Length is recommended,
   not enforced, at the owner's direction. Only a salted scrypt hash is stored in
   SQLite, and a successful change invalidates every existing admin session.
+- Question-bank import supports a CSV download/edit/upload round trip with
+  position, category, question, answer, and pipe-separated aliases. JSON remains
+  accepted for compatibility.
 
 ## Production
 

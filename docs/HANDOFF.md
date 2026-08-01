@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Friendlier question import
+
+- Moved the password-change panel to the bottom of the admin page.
+- Added downloadable question-bank CSV plus CSV file selection/paste import.
+  Columns are `position,category,question,answer,aliases`; multiple aliases use
+  `|`. Quoted commas, quotes, and multiline cells are supported. JSON remains
+  accepted for compatibility.
+
 ## 2026-08-01 — Admin password management
 
 - Added a **Change admin password** panel to the admin dashboard. It requires
