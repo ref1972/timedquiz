@@ -20,6 +20,9 @@ Last updated: 2026-08-01.
 - Player management supports a CSV download/edit/upload round trip with email,
   name, and test status. The invitation interface presents counts and a safe
   check-quota/test-send/resumable-real-send sequence.
+- The admin Player intro panel controls all opening-card wording. Values are
+  stored in SQLite and returned dynamically before an attempt starts; quiz
+  mechanics remain code-enforced.
 
 ## Production
 
@@ -58,10 +61,6 @@ Last updated: 2026-08-01.
 
 ## Launch blockers
 
-- Add a dedicated **Player intro** admin panel for editing the invitation
-  landing screen's eyebrow, title, introductory instructions, leave-warning
-  copy, no-feedback/advancement copy, and Ready button label. The underlying
-  timing, abandonment, and scoring behavior remains code-enforced.
 - Owner review of all 50 questions, categories, answers, and aliases.
 - Owner decision on the advancement cut and exact closing time.
 - Header inspection for the delivered test invitation, followed by shared

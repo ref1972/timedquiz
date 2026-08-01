@@ -10,6 +10,7 @@ import { adminLoginPage, adminPage, page } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
 import { parseQuestionImport, questionsToCsv } from "./question-import.ts";
 import { parsePlayerImport, playersToCsv } from "./player-import.ts";
+import { getIntroCopy, setIntroCopy, type IntroCopy } from "./intro-copy.ts";
 
 export interface ResultRow {
   id: number;
@@ -126,7 +127,7 @@ adminRouter.get("/admin", (req: Request, res: Response) => {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats() }));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionBankLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy() }));
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {
@@ -162,6 +163,26 @@ adminRouter.post("/admin/password", requireAdmin, (req: Request, res: Response) 
   setAdminPassword(newPassword);
   logEvent(null, "admin_password_changed");
   res.send(page("Password changed", `<main class="card"><h1>Administrator password changed</h1><p>All existing administrator sessions have been invalidated. Sign in again with the new password.</p><a href="/admin">Return to sign in</a></main>`));
+});
+
+adminRouter.post("/admin/intro", requireAdmin, (req: Request, res: Response) => {
+  const copy: IntroCopy = {
+    eyebrow: String(req.body.eyebrow ?? "").trim(),
+    title: String(req.body.title ?? "").trim(),
+    instructions: String(req.body.instructions ?? "").trim(),
+    warningHeading: String(req.body.warningHeading ?? "").trim(),
+    warningBody: String(req.body.warningBody ?? "").trim(),
+    advancement: String(req.body.advancement ?? "").trim(),
+    buttonLabel: String(req.body.buttonLabel ?? "").trim(),
+  };
+  const values = Object.values(copy);
+  if (values.some((value) => !value) || copy.eyebrow.length > 100 || copy.title.length > 160 || copy.instructions.length > 1000 || copy.warningHeading.length > 160 || copy.warningBody.length > 1500 || copy.advancement.length > 1500 || copy.buttonLabel.length > 100) {
+    res.status(400).send(page("Intro not saved", `<main class="card"><h1>Player intro not saved</h1><p>Every field is required and must remain within its displayed character limit.</p><a href="/admin#player-intro">Return to Player intro</a></main>`));
+    return;
+  }
+  setIntroCopy(copy);
+  logEvent(null, "intro_copy_updated");
+  res.redirect("/admin#player-intro");
 });
 
 adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) => {

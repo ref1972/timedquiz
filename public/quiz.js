@@ -63,14 +63,13 @@
       root.innerHTML =
         '<p class="eyebrow">Trivia Nationals</p><h1>The entry window has closed</h1><p>New attempts can no longer be started. If you were already in progress, contact Trivia Nationals.</p>';
     } else if (state.state === "prestart") {
+      var intro = state.intro || {};
       root.innerHTML =
-        '<p class="eyebrow">Trivia Nationals</p><h1>Pop Culture Bee Preliminary</h1>' +
-        "<p>You will answer " +
-        state.questionCount +
-        " text questions, one at a time. Each question has 20 seconds.</p>" +
-        '<div class="notice"><strong>If you leave:</strong> the current question expires using the most recent saved draft (blank if none). When you return, you continue with the next question, so walking away costs exactly one question.</div>' +
-        "<p>You will not see correctness or a score. Your result determines whether you advance to the LIVE game Saturday.</p>" +
-        '<button id="start">I’m ready to begin</button>';
+        '<p class="eyebrow">' + escapeHtml(intro.eyebrow || "Trivia Nationals") + '</p><h1>' + escapeHtml(intro.title || "Pop Culture Bee Preliminary") + '</h1>' +
+        '<p>' + escapeHtml(intro.instructions || ("You will answer " + state.questionCount + " text questions, one at a time. Each question has 20 seconds.")) + '</p>' +
+        '<div class="notice"><strong>' + escapeHtml(intro.warningHeading || "If you leave:") + '</strong> ' + escapeHtml(intro.warningBody || "the current question expires using the most recent saved draft (blank if none). When you return, you continue with the next question, so walking away costs exactly one question.") + '</div>' +
+        '<p>' + escapeHtml(intro.advancement || "You will not see correctness or a score. Your result determines whether you advance to the LIVE game Saturday.") + '</p>' +
+        '<button id="start">' + escapeHtml(intro.buttonLabel || "I’m ready to begin") + '</button>';
       document.querySelector("#start").onclick = ready;
     } else if (state.state === "ready") {
       root.innerHTML =

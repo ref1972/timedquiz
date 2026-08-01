@@ -1,4 +1,5 @@
 import type { AdminQuestionRow, InvitationStats, ResultRow, UnresolvedRow } from "./admin.ts";
+import type { IntroCopy } from "./intro-copy.ts";
 
 function esc(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -60,6 +61,7 @@ export interface AdminPageData {
   questionsLocked: boolean;
   emailRelayConfigured: boolean;
   invitationStats: InvitationStats;
+  introCopy: IntroCopy;
 }
 
 export function adminPage(data: AdminPageData): string {
@@ -119,6 +121,24 @@ export function adminPage(data: AdminPageData): string {
         <h1>Pop Culture Bee Quiz</h1>
         <p>${data.questionCount}/50 questions &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
       </header>
+
+      <section class="panel" id="player-intro">
+        <h2>Player intro</h2>
+        <p>Edit the wording players see before they begin. Timing, question count, abandonment behavior, and scoring are still enforced by the application regardless of this copy.</p>
+        <form method="post" action="/admin/intro">
+          <label>Eyebrow<input name="eyebrow" value="${esc(data.introCopy.eyebrow)}" maxlength="100" required></label>
+          <label>Main title<input name="title" value="${esc(data.introCopy.title)}" maxlength="160" required></label>
+          <label>Introductory instructions<textarea name="instructions" rows="3" maxlength="1000" required>${esc(data.introCopy.instructions)}</textarea></label>
+          <div class="form-grid">
+            <label>Warning heading<input name="warningHeading" value="${esc(data.introCopy.warningHeading)}" maxlength="160" required></label>
+            <label>Ready button label<input name="buttonLabel" value="${esc(data.introCopy.buttonLabel)}" maxlength="100" required></label>
+          </div>
+          <label>Warning text<textarea name="warningBody" rows="4" maxlength="1500" required>${esc(data.introCopy.warningBody)}</textarea></label>
+          <label>Score / advancement text<textarea name="advancement" rows="4" maxlength="1500" required>${esc(data.introCopy.advancement)}</textarea></label>
+          <button>Save player intro</button>
+          <a class="button secondary" href="/quiz" target="_blank" rel="noopener">Preview player screen</a>
+        </form>
+      </section>
 
       <section class="panel">
         <h2>Import questions</h2>

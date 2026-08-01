@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-08-01 — Intro wording is data; quiz rules remain code
+
+Opening-screen copy is editable in admin and stored in SQLite. It is rendered
+as escaped text, not HTML. The editor cannot change the authoritative timer,
+question count requirement, abandonment behavior, cutoff, or grading rules.
+
 ## 2026-08-01 — Player CSV import is additive and non-destructive
 
 The primary player-list workflow is download/edit/upload CSV using email, name,

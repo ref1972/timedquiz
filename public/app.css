@@ -141,6 +141,8 @@ code { color: var(--cass-purple); }
 .admin-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }
 .admin-actions form { min-width: 210px; }
 .admin-actions label { margin: 0; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid label { margin-top: 0; }
 .step-label { margin: 0; color: var(--cass-purple); font-size: .78rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
 .invite-summary { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; margin: 18px 0; }
 .invite-summary div, .action-card { padding: 18px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 16px; }
@@ -180,5 +182,6 @@ code { color: var(--cass-purple); }
   .review { grid-template-columns: 1fr; }
   .admin { padding: 20px; }
   .invite-summary { grid-template-columns: 1fr 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
   h1 { font-size: 2.25rem; }
 }

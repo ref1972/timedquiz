@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Editable player intro
+
+- Added a Player intro panel near the top of admin for the opening eyebrow,
+  title, instructions, warning heading/body, advancement copy, and Ready button
+  label. Copy is stored in SQLite and supplied through the prestart API state.
+- The player renders configured values as escaped text. Timing, required
+  question count, abandonment behavior, cutoff, and grading remain code rules.
+
 ## 2026-08-01 — Player CSV and invitation workflow
 
 - Added downloadable player CSV plus CSV selection/paste import. Existing

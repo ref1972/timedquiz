@@ -2,6 +2,7 @@ import { config } from "./config.ts";
 import { db, logEvent, nowIso } from "./db.ts";
 import { autoVerdict, type QuestionRow } from "./grading.ts";
 import { randomToken } from "./crypto.ts";
+import { getIntroCopy, type IntroCopy } from "./intro-copy.ts";
 
 export interface Player {
   id: number;
@@ -34,7 +35,7 @@ export interface Exposure {
 }
 
 export type QuizState =
-  | { state: "prestart"; questionCount: number; closesAt: string | null }
+  | { state: "prestart"; questionCount: number; closesAt: string | null; intro: IntroCopy }
   | { state: "closed" }
   | { state: "ready"; nextPosition: number }
   | { state: "question"; position: number; category: string; prompt: string; nonce: string; deadlineAt: string; draft: string }
@@ -180,7 +181,7 @@ export function getStatus(player: Player): QuizState {
   const attempt = currentAttempt(player.id);
   if (!attempt) {
     if (config.closesAt !== null && Date.now() > config.closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
-    return { state: "prestart", questionCount: questionCount(), closesAt: config.closesAt ? new Date(config.closesAt).toISOString() : null };
+    return { state: "prestart", questionCount: questionCount(), closesAt: config.closesAt ? new Date(config.closesAt).toISOString() : null, intro: getIntroCopy() };
   }
   expireIfNeeded(attempt.id);
   const refreshed = currentAttempt(player.id);
@@ -213,7 +214,7 @@ export function getStatus(player: Player): QuizState {
  * one request's latency, not two chained ones.
  */
 export function serveNext(player: Player): QuizState {
-  if (questionCount() !== 50) return { state: "prestart", questionCount: questionCount(), closesAt: null };
+  if (questionCount() !== 50) return { state: "prestart", questionCount: questionCount(), closesAt: null, intro: getIntroCopy() };
 
   let attempt = currentAttempt(player.id);
   if (!attempt) {

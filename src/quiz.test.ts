@@ -29,6 +29,7 @@ const { config } = await import("./config.ts");
 const mail = await import("./mail.ts");
 const questionImport = await import("./question-import.ts");
 const playerImport = await import("./player-import.ts");
+const introCopy = await import("./intro-copy.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -67,7 +68,9 @@ after(() => {
 
 test("no attempt yet reads as prestart", () => {
   const player = freshPlayer();
-  assert.equal(quiz.getStatus(player).state, "prestart");
+  const state = quiz.getStatus(player);
+  assert.equal(state.state, "prestart");
+  if (state.state === "prestart") assert.equal(state.intro.title, introCopy.defaultIntroCopy.title);
 });
 
 test("Ready serves question 1 and returns the prompt in the same response (no second round-trip needed)", () => {
@@ -443,4 +446,13 @@ test("question CSV round-trips quoted punctuation, newlines, and aliases", () =>
 test("player CSV round-trips names with commas and test flags", () => {
   const players = [{ email: "person@example.com", name: "Friedewald, Russell", isTest: false }, { email: "test@example.com", name: "Test Player", isTest: true }];
   assert.deepEqual(playerImport.parsePlayerImport(playerImport.playersToCsv(players)), players);
+});
+
+test("saved player intro copy is returned before an attempt starts", () => {
+  const player = freshPlayer();
+  const customized = { ...introCopy.defaultIntroCopy, title: "A Custom Preliminary", buttonLabel: "Begin now" };
+  introCopy.setIntroCopy(customized);
+  const state = quiz.getStatus(player);
+  assert.equal(state.state, "prestart");
+  if (state.state === "prestart") assert.deepEqual(state.intro, customized);
 });
