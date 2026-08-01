@@ -1,13 +1,11 @@
-# Pop Culture Bee — preliminary quiz
+# Timed Quiz
 
-A "best of both worlds" build combining two independent prototypes:
-[`pop-culture-bee-quiz-claude/`](../pop-culture-bee-quiz-claude/) (rigorous
-timing-engine tests, clean module separation) and the `agent/pop-culture-bee-quiz-codex`
-branch (a far more complete feature set: invite tokens, admin imports, a
-grading review queue, and restart-as-new-generation). See
-[`../docs/POP-CULTURE-BEE-QUIZ.md`](../docs/POP-CULTURE-BEE-QUIZ.md) and
-[`../docs/POP-CULTURE-BEE-QUIZ-CODEX-DESIGN.md`](../docs/POP-CULTURE-BEE-QUIZ-CODEX-DESIGN.md)
-for the two design documents this reconciles.
+A reusable, server-authoritative timed quiz platform. Its first production game
+is the Trivia Workshop Pop Culture Bee preliminary quiz. The consolidated build
+combines the strongest timing, grading, invitation, administration, and restart
+behavior from two independently developed prototypes. See
+[`docs/POP-CULTURE-BEE-QUIZ.md`](docs/POP-CULTURE-BEE-QUIZ.md) for the complete
+design and launch history.
 
 ## Running it
 
@@ -136,8 +134,8 @@ moment it hands the player the question — not before.**
 - **Workspace invitation delivery is implemented but not yet configured or
   live-tested.** The admin can check Apps Script quota, send a test, and send
   resumable five-recipient batches. It never falls back to `wp_mail()`. The
-  Apps Script `email_quota` action in
-  `../google-apps-script/event-signups/Code.gs` must be redeployed before use.
+  Apps Script `email_quota` action maintained in the TriviaNationals repository
+  must be redeployed before use.
 - **The 50 questions are a real Tangents-derived starting set, but include
   both previously used and unused source material and are not owner-reviewed
   for this event.** Re-import a vetted set via `/admin/questions`

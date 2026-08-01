@@ -1,8 +1,8 @@
 {
-  "name": "pop-culture-bee-quiz",
+  "name": "timed-quiz",
   "version": "0.1.0",
   "private": true,
-  "description": "Preliminary online qualifying quiz for the Trivia Nationals Pop Culture Bee",
+  "description": "Reusable server-timed quiz platform, initially for the Pop Culture Bee",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"

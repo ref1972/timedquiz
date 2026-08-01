@@ -1,0 +1,39 @@
+# Deployment
+
+## Target
+
+- URL: `https://bee.triviaworkshop.com`
+- Host: `root@137.184.62.161` (existing CASS DigitalOcean droplet)
+- Code: `/var/www/timed-quiz`
+- Data: `/var/lib/timed-quiz/quiz.db`
+- Backups: `/var/backups/timed-quiz/`
+- Listener: `127.0.0.1:8080`
+
+The droplet runs CASS on Node 20/PM2 ports 3000 and 3001. Install Node 24 side
+by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
+dedicated system user and systemd service plus a separate nginx virtual host
+and Certbot certificate.
+
+## Release gates
+
+1. Run `npm ci`, `npm test`, and `npm run typecheck`.
+2. Freeze and import the owner-approved question bank before any attempt.
+3. Configure every value in `.env.example` outside Git.
+4. Run `npm run preflight` against the intended production database.
+5. Run `scripts/backup-db.sh` and retain an off-host copy.
+6. Verify `/health`, release identifier, admin login, invitation redirect,
+   timing, review, restart, ranking, and CSV export.
+7. Check live Workspace quota and send exactly one test invitation before any
+   real batch.
+
+Run exactly one application process against the SQLite database.
+
+## Rollback
+
+- Code-only fault: restore the prior tagged code and restart the service while
+  retaining the current database.
+- Before real play: restoring a clean database backup is safe when deliberate.
+- After attempts begin: preserve the current database before any repair and do
+  not restore an older copy casually because it would erase player activity.
+- Email fault: stop the batch. Never advance the failed recipient or fall back
+  to another mail transport automatically.
