@@ -170,7 +170,10 @@ test("an expired question is finalized from the last draft, not lost, and abando
   // stated assumption of "a Ready action before Q1 and between questions."
   const next = quiz.getStatus(player);
   assert.equal(next.state, "ready");
-  if (next.state === "ready") assert.equal(next.nextPosition, 2, "abandoning costs exactly one question");
+  if (next.state === "ready") {
+    assert.equal(next.nextPosition, 2, "abandoning costs exactly one question");
+    assert.equal(next.category, "Pop Culture", "Ready reveals the upcoming category but not the prompt");
+  }
 
   const resumedByReady = quiz.serveNext(player);
   assert.equal(resumedByReady.state, "question");

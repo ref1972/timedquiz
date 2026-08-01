@@ -75,7 +75,7 @@
       root.innerHTML =
         '<p class="eyebrow">Question ' +
         state.nextPosition +
-        ' of 50</p><h1>Ready?</h1><p>Your 20 seconds begin the moment the question appears.</p><button id="readyBtn">Show question</button>';
+        ' of 50</p><p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p><h1>Ready?</h1><p>Your 20 seconds begin the moment the question appears.</p><button id="readyBtn">Show question</button>';
       document.querySelector("#readyBtn").onclick = ready;
     } else if (state.state === "complete") {
       root.innerHTML =

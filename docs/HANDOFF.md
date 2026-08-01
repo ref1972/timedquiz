@@ -2,6 +2,12 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Upcoming category on Ready
+
+- The between-question Ready state now includes and displays the next
+  question's category. The prompt remains undisclosed until **Show question**
+  starts that question's server-authoritative window.
+
 ## 2026-08-01 — Clearer test-player invitation status
 
 - Test-player rows now say **Test account — use Step 3** instead of the

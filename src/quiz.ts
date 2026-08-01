@@ -37,7 +37,7 @@ export interface Exposure {
 export type QuizState =
   | { state: "prestart"; questionCount: number; closesAt: string | null; intro: IntroCopy }
   | { state: "closed" }
-  | { state: "ready"; nextPosition: number }
+  | { state: "ready"; nextPosition: number; category: string }
   | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; draft: string }
   | { state: "complete" };
 
@@ -200,7 +200,8 @@ export function getStatus(player: Player): QuizState {
       draft: exposure.draft_text,
     };
   }
-  return { state: "ready", nextPosition: finalizedCount(refreshed.id) + 1 };
+  const nextPosition = finalizedCount(refreshed.id) + 1;
+  return { state: "ready", nextPosition, category: questionByPosition(nextPosition).category };
 }
 
 /**
