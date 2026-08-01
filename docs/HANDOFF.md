@@ -9,6 +9,9 @@ Last updated: 2026-08-01.
   included question—correct, incorrect, or unresolved.
 - Ready screens and breaks remain excluded; each question's contribution is
   still server-measured and capped at its timer window.
+- Deployed as rc21 after verified backup `quiz-20260801T215338Z.sqlite.gz`.
+  Public health/query/labels and rehearsal aggregates were verified; CASS
+  remains HTTP 200.
 
 ## 2026-08-01 — Per-player answer sheets
 
