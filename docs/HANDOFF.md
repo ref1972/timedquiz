@@ -9,6 +9,8 @@ Last updated: 2026-08-01.
 - Test and real sends use the same SQLite-backed template. Test subjects still
   receive the automatic `[TEST]` prefix. Plain and HTML bodies are generated
   together, with all author/player content HTML-escaped.
+- Production retained the default template after rc12 deployment; no saved
+  override was created and no email was sent.
 
 ## 2026-08-01 — Invitation-free question preview
 
@@ -20,6 +22,9 @@ Last updated: 2026-08-01.
   invitation, or email activity.
 - Extracted prompt rendering into one shared browser formatter so live play and
   admin preview cannot drift on escaping, italics, or gold highlighting.
+- Deployed with the email editor as rc12 after verified backup
+  `quiz-20260801T205055Z.sqlite.gz`. Public health/assets and deployed markers
+  were verified; CASS remains HTTP 200 and no activity was written.
 
 ## 2026-08-01 — Question emphasis
 
