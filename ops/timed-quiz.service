@@ -1,0 +1,22 @@
+[Unit]
+Description=Timed Quiz
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=timedquiz
+Group=timedquiz
+WorkingDirectory=/var/www/timed-quiz
+EnvironmentFile=/etc/timed-quiz.env
+ExecStart=/opt/timed-quiz-node/bin/node --disable-warning=ExperimentalWarning --experimental-strip-types src/server.ts
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/timed-quiz
+
+[Install]
+WantedBy=multi-user.target

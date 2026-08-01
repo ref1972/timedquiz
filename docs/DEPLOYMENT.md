@@ -14,6 +14,12 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
+The tracked `scripts/provision-droplet.sh` installs the pinned Node runtime
+under `/opt`, checks out a tagged release, creates the isolated user/data
+layout, generates initial secrets, seeds a rehearsal database only when none
+exists, installs the systemd/nginx definitions, and verifies local health. It
+does not configure email, a cutoff, or TLS and does not send anything.
+
 ## Release gates
 
 1. Run `npm ci`, `npm test`, and `npm run typecheck`.

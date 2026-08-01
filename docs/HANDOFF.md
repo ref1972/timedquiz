@@ -23,3 +23,10 @@ Last updated: 2026-08-01.
 4. Merge/tag a release and provision the isolated service on the CASS droplet.
 5. Finish editorial review, cutoff/cut decisions, email relay test, rehearsal,
    clean database creation, final import, and monitored invitation send.
+
+## 2026-08-01 — Deployment provisioning started
+
+- DNS now resolves `bee.triviaworkshop.com` to the CASS droplet.
+- Added tracked systemd/nginx definitions and a repeatable provisioning script.
+  The initial provision intentionally creates only a rehearsal database and
+  leaves the email relay and cutoff unset.
