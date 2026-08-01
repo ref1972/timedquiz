@@ -13,6 +13,9 @@ Last updated: 2026-08-01.
   until an admin grants a restart. No other player's token is substituted.
 - Do not automatically resend to Marc; the owner can deliberately send a new
   test after this fix is deployed.
+- Deployed as rc17 after verified backup `quiz-20260801T213008Z.sqlite.gz`.
+  Public health and exact-match code were verified; Marc's matching test player
+  remains not started, CASS remains HTTP 200, and no resend occurred.
 
 ## 2026-08-01 — Accepted answers in Review Queue
 
