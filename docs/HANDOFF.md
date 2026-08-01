@@ -11,6 +11,9 @@ Last updated: 2026-08-01.
   **Italicize selection** wraps it in portable `*asterisk*` markup, which is
   supported in CSV and rendered as `<em>` after escaping all question text.
 - Added `questions.highlighted_text` through a backward-compatible migration.
+- Deployed as rc11 after verified backup `quiz-20260801T201101Z.sqlite.gz`.
+  Public health reports rc11, the live migration and UI/rendering markers were
+  verified, and CASS remains HTTP 200. Existing questions were not modified.
 
 ## 2026-08-01 — Editable player intro
 
