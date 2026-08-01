@@ -130,8 +130,9 @@ moment it hands the player the question — not before.**
 
 - **Hosting is packaged but not provisioned.** `Dockerfile` and
   `compose.example.yaml` run exactly one Node/SQLite instance with a persistent
-  `/data` volume. The production host, DNS, TLS, and secrets still need to be
-  chosen/configured.
+  `/data` volume. The selected target is the existing CASS droplet at
+  `https://bee.triviaworkshop.com`; DNS, TLS, service, and secrets still need
+  to be configured.
 - **Workspace invitation delivery is implemented but not yet configured or
   live-tested.** The admin can check Apps Script quota, send a test, and send
   resumable five-recipient batches. It never falls back to `wp_mail()`. The
