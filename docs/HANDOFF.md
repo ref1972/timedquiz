@@ -2,6 +2,11 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Brighter question highlight
+
+- Highlighted question text now uses the same `--cass-orange` color as the
+  timer background in both light and dark modes.
+
 ## 2026-08-01 — Editable invitation email
 
 - Added an Invitation email admin panel for subject and body. `{{name}}` inserts

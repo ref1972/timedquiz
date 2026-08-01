@@ -127,8 +127,7 @@ button:disabled { opacity: .55; }
   letter-spacing: -.02em;
   margin: 18px 0 28px;
 }
-.highlighted-text { color: #b36b00; }
-[data-theme="dark"] .highlighted-text { color: #ffd166; }
+.highlighted-text { color: var(--cass-orange); }
 .quiz label { margin-top: 0; }
 .quiz input { min-height: 58px; font-size: 1.3rem; }
 .submit-answer { width: 100%; min-height: 64px; margin-top: 16px; font-size: 1.25rem; border-radius: 14px; }
