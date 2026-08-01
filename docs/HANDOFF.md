@@ -52,3 +52,7 @@ Last updated: 2026-08-01.
   release ID and explicitly restarts the service on every deploy.
 - rc4 confirmed the repeat-deploy fix end to end: the service restarted and
   `/health` reported rc4 while preserving the rehearsal database and TLS.
+- rc5 added the missing SQLite CLI and enabled the daily backup timer. A manual
+  service run produced `quiz-20260801T145925Z.sqlite.gz`; gzip validation and
+  `PRAGMA integrity_check` both passed. Production health reports rc5 and CASS
+  remains HTTP 200.

@@ -16,12 +16,14 @@ Last updated: 2026-08-01.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Release candidate `timed-quiz-v0.1.0-rc2` is deployed on the selected droplet
+- Release candidate `timed-quiz-v0.1.0-rc5` is deployed on the selected droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
 - Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS
   redirect, admin authentication, seeded invitation redirect, active service,
   and unchanged CASS availability.
+- The daily systemd backup timer is enabled. A manually triggered rehearsal
+  backup completed successfully and passed gzip plus SQLite integrity checks.
 - Email relay configuration and the closing time remain unset. The deployed
   database contains only the seeded test player and unapproved starting bank;
   it is not the launch database.
