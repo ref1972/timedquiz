@@ -56,3 +56,12 @@ Last updated: 2026-08-01.
   service run produced `quiz-20260801T145925Z.sqlite.gz`; gzip validation and
   `PRAGMA integrity_check` both passed. Production health reports rc5 and CASS
   remains HTTP 200.
+- The existing Workspace relay URL/secret were transferred from authenticated
+  WordPress settings into the server environment without committing them. The
+  Apps Script owner redeployed the existing matching Web App as Version 5;
+  after propagation, the quota action returned 97. One owner-authorized test
+  invitation was accepted and returned 96 remaining. Inbox/header confirmation
+  is still needed; no batch or real-player message was sent.
+- Rotate the shared relay secret everywhere before the real send because it was
+  surfaced during authenticated setup. This affects Apps Script Script
+  Properties, WordPress Signup Settings, and `/etc/timed-quiz.env`.

@@ -24,16 +24,21 @@ Last updated: 2026-08-01.
   and unchanged CASS availability.
 - The daily systemd backup timer is enabled. A manually triggered rehearsal
   backup completed successfully and passed gzip plus SQLite integrity checks.
-- Email relay configuration and the closing time remain unset. The deployed
-  database contains only the seeded test player and unapproved starting bank;
-  it is not the launch database.
-- No real player invitation has been sent.
+- The shared Workspace relay is configured. Its newly deployed quota endpoint
+  reported 97 available recipients; one explicitly authorized test invitation
+  was accepted and the relay reported 96 remaining. Inbox/header confirmation
+  is pending. No batch or real-player invitation has been sent.
+- The closing time remains unset. The deployed database contains only the
+  seeded test player and unapproved starting bank; it is not the launch
+  database.
+- Rotate the shared relay secret across Apps Script, WordPress, and Timed Quiz
+  before the real send because it was surfaced during authenticated setup.
 
 ## Launch blockers
 
 - Owner review of all 50 questions, categories, answers, and aliases.
 - Owner decision on the advancement cut and exact closing time.
-- Apps Script relay redeploy with the quota endpoint, followed by one real
-  test invitation and header inspection.
+- Inbox and header inspection for the single accepted test invitation, followed
+  by shared relay-secret rotation before the real send.
 - Real-phone/network rehearsal, clean production database, final player import,
   preflight, and backup.

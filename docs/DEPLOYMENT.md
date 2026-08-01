@@ -18,6 +18,12 @@ Current deployed rehearsal release: `timed-quiz-v0.1.0-rc5`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
+The Workspace Apps Script quota endpoint is deployed and the existing relay
+URL/secret are configured in `/etc/timed-quiz.env`. A test send was accepted on
+2026-08-01 with quota moving 97 → 96; inbox/header verification is pending.
+Rotate the shared secret across Apps Script, WordPress, and Timed Quiz before
+the real player send.
+
 `timed-quiz-backup.timer` creates a consistent compressed SQLite backup in
 `/var/backups/timed-quiz` daily around 04:15 UTC. Before a real invitation
 send, also trigger it manually and retain a verified off-host copy.
