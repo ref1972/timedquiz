@@ -11,6 +11,9 @@ Last updated: 2026-08-01.
   and attention-needed counts. Quota check, test send, and real batches remain
   separate deliberate actions; real batches retain the five-person limit and
   hard pause/no-fallback behavior.
+- Deployed as rc9 after verified backup `quiz-20260801T154019Z.sqlite.gz`.
+  Production health reports rc9, deployed workflow markers are present, and
+  CASS remains HTTP 200. No player import or email send occurred during deploy.
 
 ## 2026-08-01 — Friendlier question import
 

@@ -26,7 +26,7 @@ Last updated: 2026-08-01.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Release candidate `timed-quiz-v0.1.0-rc8` is deployed on the selected droplet
+- Release candidate `timed-quiz-v0.1.0-rc9` is deployed on the selected droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
 - Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS
@@ -41,6 +41,10 @@ Last updated: 2026-08-01.
   `quiz-20260801T153559Z.sqlite.gz`; production health reports rc8, the CSV
   controls and bottom-positioned password panel are present, and CASS remains
   HTTP 200.
+- The rc9 deployment was preceded by verified backup
+  `quiz-20260801T154019Z.sqlite.gz`; production health reports rc9, the player
+  CSV and staged invitation controls are present, and CASS remains HTTP 200.
+  Deployment did not import players or send email.
 - The shared Workspace relay is configured. Its newly deployed quota endpoint
   reported 97 available recipients; one explicitly authorized test invitation
   was accepted and the relay reported 96 remaining. The owner confirmed inbox
