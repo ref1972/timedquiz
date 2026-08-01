@@ -30,6 +30,7 @@ export interface Exposure {
   draft_sequence: number;
   submitted_text: string | null;
   finalized_reason: string | null;
+  elapsed_ms: number | null;
 }
 
 export type QuizState =
@@ -89,6 +90,11 @@ export function finalizedCount(attemptId: number): number {
   );
 }
 
+function hasAuthorizedRestart(playerId: number): boolean {
+  const latestPrior = db.prepare("SELECT status, restart_reason FROM attempts WHERE player_id = ? ORDER BY generation DESC LIMIT 1").get(playerId) as { status: string; restart_reason: string | null } | undefined;
+  return latestPrior?.status === "superseded" && Boolean(latestPrior.restart_reason);
+}
+
 /**
  * Finalizes an exposure exactly once via an UPDATE guarded on
  * `submitted_at IS NULL` -- a page load racing an auto-submit, or two
@@ -99,12 +105,16 @@ function finalize(exposure: Exposure, reason: "manual" | "timeout", text: string
   const question = questionById(exposure.question_id);
   const answer = text.slice(0, 500);
   const { verdict, normalizedAnswer } = autoVerdict(question, answer);
+  const submittedAt = nowIso();
+  const measuredMs = Math.max(0, Date.parse(submittedAt) - Date.parse(exposure.served_at));
+  const questionWindowMs = Math.max(0, Date.parse(exposure.deadline_at) - Date.parse(exposure.served_at));
+  const elapsedMs = Math.min(measuredMs, questionWindowMs);
   const changed = db
     .prepare(
-      `UPDATE exposures SET submitted_text = ?, submitted_at = ?, finalized_reason = ?, normalized_answer = ?, verdict = ?
+      `UPDATE exposures SET submitted_text = ?, submitted_at = ?, finalized_reason = ?, normalized_answer = ?, verdict = ?, elapsed_ms = ?
        WHERE id = ? AND submitted_at IS NULL`,
     )
-    .run(answer, nowIso(), reason, normalizedAnswer, verdict, exposure.id).changes;
+    .run(answer, submittedAt, reason, normalizedAnswer, verdict, elapsedMs, exposure.id).changes;
 
   if (changed) {
     logEvent(exposure.attempt_id, "answer_finalized", { questionId: exposure.question_id, reason, verdict });
@@ -169,7 +179,7 @@ export function submitAnswer(attemptId: number, nonce: string, text: string): { 
 export function getStatus(player: Player): QuizState {
   const attempt = currentAttempt(player.id);
   if (!attempt) {
-    if (config.closesAt !== null && Date.now() > config.closesAt) return { state: "closed" };
+    if (config.closesAt !== null && Date.now() > config.closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
     return { state: "prestart", questionCount: questionCount(), closesAt: config.closesAt ? new Date(config.closesAt).toISOString() : null };
   }
   expireIfNeeded(attempt.id);
@@ -207,7 +217,7 @@ export function serveNext(player: Player): QuizState {
 
   let attempt = currentAttempt(player.id);
   if (!attempt) {
-    if (config.closesAt !== null && Date.now() > config.closesAt) return { state: "closed" };
+    if (config.closesAt !== null && Date.now() > config.closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
     const generation = Number(
       (db.prepare("SELECT COALESCE(MAX(generation), 0) + 1 AS n FROM attempts WHERE player_id = ?").get(player.id) as {
         n: number;

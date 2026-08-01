@@ -9,6 +9,25 @@ export function randomToken(bytes = 32): string {
   return crypto.randomBytes(bytes).toString("base64url");
 }
 
+function invitationKey(): Buffer {
+  return crypto.createHash("sha256").update(config.invitationEncryptionKey).digest();
+}
+
+export function encryptInvitationToken(token: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", invitationKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  return [iv, cipher.getAuthTag(), encrypted].map((part) => part.toString("base64url")).join(".");
+}
+
+export function decryptInvitationToken(value: string): string {
+  const [ivText, tagText, encryptedText] = value.split(".");
+  if (!ivText || !tagText || !encryptedText) throw new Error("Invitation token is not recoverable; rotate it first.");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", invitationKey(), Buffer.from(ivText, "base64url"));
+  decipher.setAuthTag(Buffer.from(tagText, "base64url"));
+  return Buffer.concat([decipher.update(Buffer.from(encryptedText, "base64url")), decipher.final()]).toString("utf8");
+}
+
 export function sign(value: string): string {
   const mac = crypto.createHmac("sha256", config.sessionSecret).update(value).digest("base64url");
   return `${value}.${mac}`;

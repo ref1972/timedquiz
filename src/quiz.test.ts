@@ -22,6 +22,10 @@ process.env.SUBMIT_GRACE_MS = "100";
 const { db } = await import("./db.ts");
 const quiz = await import("./quiz.ts");
 const grading = await import("./grading.ts");
+const admin = await import("./admin.ts");
+const cryptoHelpers = await import("./crypto.ts");
+const { config } = await import("./config.ts");
+const mail = await import("./mail.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -327,4 +331,86 @@ test("a restarted attempt starts a new generation and the old one is superseded,
 
   const oldRow = db.prepare("SELECT status FROM attempts WHERE id = ?").get(firstAttempt.id) as any;
   assert.equal(oldRow.status, "superseded", "the old attempt's row is preserved, not deleted");
+});
+
+test("score ties rank by lower total server-measured time", async () => {
+  const fastPlayer = freshPlayer();
+  const slowPlayer = freshPlayer();
+  const fastQuestion = quiz.serveNext(fastPlayer);
+  if (fastQuestion.state !== "question") return assert.fail();
+  await sleep(5);
+  quiz.submitAnswer(quiz.currentAttempt(fastPlayer.id)!.id, fastQuestion.nonce, "answer1");
+
+  const slowQuestion = quiz.serveNext(slowPlayer);
+  if (slowQuestion.state !== "question") return assert.fail();
+  await sleep(30);
+  quiz.submitAnswer(quiz.currentAttempt(slowPlayer.id)!.id, slowQuestion.nonce, "answer1");
+
+  const tied = admin.results().filter((row) => row.id === fastPlayer.id || row.id === slowPlayer.id);
+  assert.equal(tied.length, 2);
+  assert.equal(tied[0]!.id, fastPlayer.id);
+  assert.equal(tied[0]!.score, tied[1]!.score);
+  assert.ok(tied[0]!.correct_time_ms < tied[1]!.correct_time_ms);
+});
+
+test("an administrator-authorized restart can begin after the general cutoff", () => {
+  const originalCutoff = config.closesAt;
+  try {
+    config.closesAt = null;
+    const player = freshPlayer();
+    const first = quiz.serveNext(player);
+    if (first.state !== "question") return assert.fail();
+    const firstAttempt = quiz.currentAttempt(player.id)!;
+    db.prepare("UPDATE attempts SET status = 'superseded', superseded_at = ?, restart_reason = ? WHERE id = ?").run(
+      new Date().toISOString(),
+      "Verified technical failure",
+      firstAttempt.id,
+    );
+    config.closesAt = Date.now() - 1;
+    assert.equal(quiz.getStatus(player).state, "prestart");
+    const restarted = quiz.serveNext(player);
+    assert.equal(restarted.state, "question");
+    assert.equal(quiz.currentAttempt(player.id)!.generation, 2);
+
+    const neverStarted = freshPlayer();
+    assert.equal(quiz.getStatus(neverStarted).state, "closed");
+    assert.equal(quiz.serveNext(neverStarted).state, "closed");
+  } finally {
+    config.closesAt = originalCutoff;
+  }
+});
+
+test("recoverable invitation tokens round-trip under authenticated encryption", () => {
+  const token = cryptoHelpers.randomToken();
+  const encrypted = cryptoHelpers.encryptInvitationToken(token);
+  assert.notEqual(encrypted, token);
+  assert.equal(cryptoHelpers.decryptInvitationToken(encrypted), token);
+  assert.throws(() => cryptoHelpers.decryptInvitationToken(encrypted.slice(0, -1) + "x"));
+});
+
+test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {
+  const originalUrl = config.emailRelayUrl;
+  const originalSecret = config.emailRelaySecret;
+  const originalFetch = globalThis.fetch;
+  const actions: string[] = [];
+  try {
+    config.emailRelayUrl = "https://relay.test/exec";
+    config.emailRelaySecret = "test-secret";
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const payload = JSON.parse(String(init?.body ?? "{}")) as { action: string; secret: string };
+      actions.push(payload.action);
+      assert.equal(payload.secret, "test-secret");
+      if (payload.action === "email_quota") return new Response(JSON.stringify({ ok: true, remaining: 70 }), { status: 200 });
+      return new Response(JSON.stringify({ ok: false, error: "Apps Script email quota exhausted", quota_exhausted: true, remaining: 0 }), { status: 200 });
+    }) as typeof fetch;
+    assert.equal(await mail.remainingEmailQuota(), 70);
+    const result = await mail.sendInvitationEmail("player@example.com", "Player", "https://quiz.test/invite/token");
+    assert.equal(result.ok, false);
+    assert.equal(result.quotaExhausted, true);
+    assert.deepEqual(actions, ["email_quota", "send_email"]);
+  } finally {
+    config.emailRelayUrl = originalUrl;
+    config.emailRelaySecret = originalSecret;
+    globalThis.fetch = originalFetch;
+  }
 });

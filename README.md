@@ -27,6 +27,7 @@ Other scripts:
 npm test         # fast unit tests: timing, grading, restart-as-new-generation
 npm run dev      # auto-restart on file change
 npm run typecheck
+npm run preflight   # production configuration/database readiness check
 ```
 
 ## Player and admin experience
@@ -127,24 +128,37 @@ moment it hands the player the question — not before.**
 
 ## Known gaps — not yet built
 
-- **Invitation email is not sent by the app.** `/admin/players` generates
-  personalized links; getting them to the 70 invited players is still a
-  manual step (paste into the existing Apps Script relay, or mail-merge).
-- **Hosting is not decided or provisioned.** This runs on `node:sqlite`
-  locally; both design docs recommend deciding HostGator-vs-PaaS and
-  SQLite-vs-Postgres deliberately before real invitations go out, not by
-  default. See the two design docs' "Architecture" sections.
-- **The 50 questions are a real, usable starting set pulled exclusively from
-  previously used Tangents material (`src/questions.json`), so this test does
-  not expose unused Tangents inventory. They are not yet owner-reviewed for
-  this specific event.** Re-import a vetted set via `/admin/questions`
+- **Hosting is packaged but not provisioned.** `Dockerfile` and
+  `compose.example.yaml` run exactly one Node/SQLite instance with a persistent
+  `/data` volume. The production host, DNS, TLS, and secrets still need to be
+  chosen/configured.
+- **Workspace invitation delivery is implemented but not yet configured or
+  live-tested.** The admin can check Apps Script quota, send a test, and send
+  resumable five-recipient batches. It never falls back to `wp_mail()`. The
+  Apps Script `email_quota` action in
+  `../google-apps-script/event-signups/Code.gs` must be redeployed before use.
+- **The 50 questions are a real Tangents-derived starting set, but include
+  both previously used and unused source material and are not owner-reviewed
+  for this event.** Re-import a vetted set via `/admin/questions`
   before opening real play; import is frozen the moment any attempt exists,
   so do this first.
-- **N (the cut line) and the tie policy are not implemented as a decision
-  screen.** `/admin/results.csv` exports rank-by-score with an alphabetical
-  tiebreak, which is a placeholder, not a resolved policy — see both design
-  docs' explicit warning that this must be a recorded owner decision before
-  the cut is drawn.
+- **N (the cut line) remains an owner decision.** Ranking and CSV export now
+  use score descending, then total server-measured time across correct answers
+  ascending, then email only as a deterministic final ordering.
 - Mobile rehearsal on real phones over real (possibly slow) connections
   has not happened. `SUBMIT_GRACE_MS` is a provisional 2000ms; both design
   docs say to measure and ratify this during rehearsal, not assume it.
+
+## Deployment shape
+
+Build and run one container only; SQLite is intentionally not horizontally
+scalable in this release. Mount a persistent volume at `/data`, put the app
+behind HTTPS, and keep `.env` outside Git. Before importing real players:
+
+1. Seed or import the final 50-question bank.
+2. Set all variables in `.env.example`, including the relay and invitation
+   encryption secrets.
+3. Run `npm run preflight` against the production database.
+4. Create a consistent backup with `scripts/backup-db.sh`.
+5. Send a test invitation, check Workspace's live quota, then send real
+   invitations in five-recipient batches from `/admin`.

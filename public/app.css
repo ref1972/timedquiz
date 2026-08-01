@@ -138,6 +138,9 @@ th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); 
 .review { display: grid; grid-template-columns: 60px 1fr 100px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
 code { color: var(--cass-purple); }
 .question-list { display: grid; gap: 14px; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }
+.admin-actions form { min-width: 210px; }
+.admin-actions label { margin: 0; }
 .question-editor {
   display: grid;
   grid-template-columns: 52px minmax(120px, .7fr) minmax(280px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;

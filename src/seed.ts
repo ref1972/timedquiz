@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "./config.ts";
 import { db, nowIso } from "./db.ts";
-import { sha256, randomToken } from "./crypto.ts";
+import { encryptInvitationToken, sha256, randomToken } from "./crypto.ts";
 
 interface SeedQuestion {
   position: number;
@@ -40,10 +40,11 @@ const testEmail = "test-player@example.com";
 const existing = db.prepare("SELECT id FROM players WHERE email = ?").get(testEmail) as { id: number } | undefined;
 if (!existing) {
   const token = randomToken();
-  db.prepare("INSERT INTO players (email, display_name, token_hash, is_test, created_at) VALUES (?, ?, ?, 1, ?)").run(
+  db.prepare("INSERT INTO players (email, display_name, token_hash, token_ciphertext, is_test, created_at) VALUES (?, ?, ?, ?, 1, ?)").run(
     testEmail,
     "Test Player",
     sha256(token),
+    encryptInvitationToken(token),
     nowIso(),
   );
   console.log(`Seeded a local test player. Invite link: ${config.appOrigin}/invite/${token}`);

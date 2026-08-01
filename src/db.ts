@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS players (
   email TEXT NOT NULL UNIQUE COLLATE NOCASE,
   display_name TEXT NOT NULL DEFAULT '',
   token_hash TEXT NOT NULL UNIQUE,
+  token_ciphertext TEXT,
+  invite_sent_at TEXT,
+  invite_last_error TEXT,
+  invite_send_attempts INTEGER NOT NULL DEFAULT 0,
   is_test INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
@@ -75,6 +79,7 @@ CREATE TABLE IF NOT EXISTS exposures (
   finalized_reason TEXT CHECK (finalized_reason IN ('manual', 'timeout')),
   normalized_answer TEXT,
   verdict TEXT CHECK (verdict IN ('correct', 'incorrect', 'unresolved')),
+  elapsed_ms INTEGER,
   UNIQUE (attempt_id, question_id)
 );
 
@@ -106,6 +111,29 @@ CREATE TABLE IF NOT EXISTS audit_events (
 const questionColumns = db.prepare("PRAGMA table_info(questions)").all() as unknown as Array<{ name: string }>;
 if (!questionColumns.some((column) => column.name === "category")) {
   db.exec("ALTER TABLE questions ADD COLUMN category TEXT NOT NULL DEFAULT 'Pop Culture'");
+}
+
+const playerColumns = db.prepare("PRAGMA table_info(players)").all() as unknown as Array<{ name: string }>;
+if (!playerColumns.some((column) => column.name === "token_ciphertext")) {
+  db.exec("ALTER TABLE players ADD COLUMN token_ciphertext TEXT");
+}
+if (!playerColumns.some((column) => column.name === "invite_sent_at")) {
+  db.exec("ALTER TABLE players ADD COLUMN invite_sent_at TEXT");
+}
+if (!playerColumns.some((column) => column.name === "invite_last_error")) {
+  db.exec("ALTER TABLE players ADD COLUMN invite_last_error TEXT");
+}
+if (!playerColumns.some((column) => column.name === "invite_send_attempts")) {
+  db.exec("ALTER TABLE players ADD COLUMN invite_send_attempts INTEGER NOT NULL DEFAULT 0");
+}
+
+const exposureColumns = db.prepare("PRAGMA table_info(exposures)").all() as unknown as Array<{ name: string }>;
+if (!exposureColumns.some((column) => column.name === "elapsed_ms")) {
+  db.exec("ALTER TABLE exposures ADD COLUMN elapsed_ms INTEGER");
+  db.exec(`UPDATE exposures SET elapsed_ms = MIN(
+    CAST((julianday(submitted_at) - julianday(served_at)) * 86400000 AS INTEGER),
+    CAST((julianday(deadline_at) - julianday(served_at)) * 86400000 AS INTEGER)
+  ) WHERE submitted_at IS NOT NULL`);
 }
 
 export function nowIso(): string {

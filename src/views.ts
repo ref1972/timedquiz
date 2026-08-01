@@ -58,6 +58,7 @@ export interface AdminPageData {
   unresolved: UnresolvedRow[];
   questions: AdminQuestionRow[];
   questionsLocked: boolean;
+  emailRelayConfigured: boolean;
 }
 
 export function adminPage(data: AdminPageData): string {
@@ -71,7 +72,10 @@ export function adminPage(data: AdminPageData): string {
         <td>${esc(p.display_name)}</td>
         <td>${esc(p.status ?? "not started")}</td>
         <td>${p.score}</td>
+        <td>${(p.correct_time_ms / 1000).toFixed(1)}s</td>
         <td>${p.is_test ? "yes" : ""}</td>
+        <td>${p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</td>
+        <td><form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form></td>
         <td><form method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}">
           <input name="reason" aria-label="Restart reason" placeholder="Reason" required>
           <button class="small">Grant restart</button></form></td>
@@ -132,18 +136,29 @@ export function adminPage(data: AdminPageData): string {
 
       <section class="panel">
         <h2>Import players</h2>
-        <p>One per line: <code>email,name,test</code>. New personalized links appear once and must be saved -- tokens are stored only as hashes.</p>
+        <p>One per line: <code>email,name,test</code>. New personalized links appear after import. Links are stored encrypted for Workspace delivery and can be rotated if compromised or lost.</p>
         <form method="post" action="/admin/players">
           <textarea name="players" rows="7" required></textarea>
           <button>Create invitation links</button>
         </form>
       </section>
 
+      <section class="panel" id="invitations">
+        <h2>Email invitations</h2>
+        <p>${data.emailRelayConfigured ? "The Google Workspace relay is configured. Sends are limited to five recipients per resumable batch and stop on the first failure." : "The Workspace relay is not configured. Set EMAIL_RELAY_URL and EMAIL_RELAY_SECRET on the server before attempting email."}</p>
+        <div class="admin-actions">
+          <form method="post" action="/admin/invitations/quota"><button ${data.emailRelayConfigured ? "" : "disabled"}>Check Workspace quota</button></form>
+          <form method="post" action="/admin/invitations/test"><label>Test recipient<input type="email" name="email" placeholder="you@example.com" required></label><button ${data.emailRelayConfigured ? "" : "disabled"}>Send test invitation</button></form>
+          <form method="post" action="/admin/invitations/send-batch" onsubmit="return confirm('Send the next batch of up to 5 real invitations through Google Workspace?')"><button ${data.emailRelayConfigured ? "" : "disabled"}>Send next batch of 5</button></form>
+        </div>
+        <p class="muted">There is intentionally no <code>wp_mail()</code> fallback. A failed or quota-paused recipient remains unsent and is retried by the next batch.</p>
+      </section>
+
       <section class="panel">
         <h2>Progress and results</h2>
         <p><a class="button" href="/admin/results.csv">Download results CSV</a> Test accounts are excluded from the CSV.</p>
         <div class="table"><table>
-          <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Test</th><th>Restart</th></tr></thead>
+          <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Correct time</th><th>Test</th><th>Invitation</th><th>Link</th><th>Restart</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
       </section>
