@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-08-01 — Per-question timer is 30 seconds
+
+At the owner's direction, each question receives a server-authoritative
+30-second window. The configured duration is included in player states and used
+by Ready/countdown displays; refresh never grants a new window.
+
 ## 2026-08-01 — Tiebreak time includes every finalized answer
 
 At the owner's direction, ranking uses score and then the sum of per-question

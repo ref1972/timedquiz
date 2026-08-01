@@ -45,7 +45,7 @@ export const config = {
   // this only gates *starting* a fresh attempt. Unset locally so the app is
   // playable at any hour during development.
   closesAt: process.env.CLOSES_AT ? Date.parse(process.env.CLOSES_AT) : null,
-  questionDurationMs: Number(process.env.QUESTION_DURATION_MS ?? 20_000),
+  questionDurationMs: Number(process.env.QUESTION_DURATION_MS ?? 30_000),
   // Bounded transport allowance: covers normal request latency between the
   // visible deadline and the server receiving a final submit/expiry check.
   // Not advertised to the player and never applied to the *visible* countdown.

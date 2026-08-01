@@ -11,7 +11,7 @@ export const defaultInvitationTemplate: InvitationTemplate = {
 
 You’re invited to complete the Trivia Nationals Pop Culture Bee preliminary quiz.
 
-The quiz has 50 questions. Each question has a 20-second timer, and your personalized link permits one attempt.
+The quiz has 50 questions. Each question has a 30-second timer, and your personalized link permits one attempt.
 
 Open your personalized quiz: {{link}}
 

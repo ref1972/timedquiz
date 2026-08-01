@@ -20,7 +20,7 @@ This is a new subsystem. It is not part of any existing plugin.
 - **50 pre-loaded questions**, the same 50 in the same order for every player.
 - **One question on screen at a time**, with a free-text answer box and a
   submit button.
-- **20-second limit per question.** If the player has not submitted when the
+- **30-second limit per question.** If the player has not submitted when the
   timer expires, whatever is in the answer field is submitted automatically.
 - **After question 50**, the player is thanked and told their score determines
   whether they advance to the LIVE game on Saturday.
@@ -129,13 +129,13 @@ The database must not be reachable from the web document root.
 
 This is the central design constraint. A client-side countdown is advisory
 only: it can be paused with developer tools, and a page refresh would otherwise
-grant a fresh 20 seconds.
+grant a fresh 30 seconds.
 
 The rules:
 
 1. When the server delivers question N, it records `served_at` and derives a
    deadline from it.
-2. The client receives `remaining_ms`, never a flat 20000. A refresh therefore
+2. The client receives the authoritative deadline, never a flat 30000. A refresh therefore
    returns the *same* question with the time actually left on it.
 3. On submit, the server judges lateness using its own clock. The client's
    clock is never trusted.
@@ -244,7 +244,7 @@ Phase 1 is the local demo. Phases 2–4 are what make it survivable in productio
 - **Timezone.** The deadline is Central; the server clock will not be. Store
   UTC, display "Thursday 11:59pm Central" explicitly on every surface.
 - **The questions will leak.** A fixed order across a multi-day window
-  guarantees it. The 20-second clock is the actual defense — a player who has
+  guarantees it. The 30-second clock is the actual defense — a player who has
   been told the questions still needs the answers ready. Log tab-switch and
   visibility-change events and surface them as an admin flag rather than an
   automatic penalty. Nothing prevents a friend sitting beside the player; for a
@@ -265,7 +265,7 @@ Raised 2026-07-31; awaiting the owner.
   system. Cheap to design in now; effectively impossible to retrofit at 1am on
   Friday.
 - **Practice round** — two or three unscored questions before Q1, so no player
-  burns a real question discovering that 20 seconds is fast.
+  burns a real question discovering how the 30-second window feels.
 - **Per-question analytics** — percent correct across the field. This is the
   mechanism by which a broken question is *discovered*, and it is nearly free
   once the answer data exists.
@@ -287,7 +287,7 @@ Asked 2026-07-31, not yet answered:
    window is tight. Does grading need to support two people at once?
 3. Where do the 50 questions live today? This sets the import format and
    determines whether answer aliases are authored in the app or upstream.
-4. Does the 20-second clock start when the question renders, or after a
+4. Does the 30-second clock start when the question renders, or after a
    per-question "Ready" tap? Asynchronous play means a player may open the link
    somewhere inconvenient with Q1 already running.
 5. Does the player see progress ("Question 12 of 50") and a visible countdown,

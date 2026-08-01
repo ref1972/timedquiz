@@ -466,7 +466,7 @@ adminRouter.get("/admin/preview/:position", requireAdmin, (req: Request, res: Re
     res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
     return;
   }
-  res.send(questionPreviewPage(question, questionCountRow()));
+  res.send(questionPreviewPage(question, questionCountRow(), config.questionDurationMs / 1000));
 });
 
 adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Response) => {

@@ -66,7 +66,7 @@
       var intro = state.intro || {};
       root.innerHTML =
         '<p class="eyebrow">' + escapeHtml(intro.eyebrow || "Trivia Nationals") + '</p><h1>' + escapeHtml(intro.title || "Pop Culture Bee Preliminary") + '</h1>' +
-        '<p>' + escapeHtml(intro.instructions || ("You will answer " + state.questionCount + " text questions, one at a time. Each question has 20 seconds.")) + '</p>' +
+        '<p>' + escapeHtml(intro.instructions || ("You will answer " + state.questionCount + " text questions, one at a time. Each question has " + state.durationSeconds + " seconds.")) + '</p>' +
         '<div class="notice"><strong>' + escapeHtml(intro.warningHeading || "If you leave:") + '</strong> ' + escapeHtml(intro.warningBody || "the current question expires using the most recent saved draft (blank if none). When you return, you continue with the next question, so walking away costs exactly one question.") + '</div>' +
         '<p>' + escapeHtml(intro.advancement || "You will not see correctness or a score. Your result determines whether you advance to the LIVE game Saturday.") + '</p>' +
         '<button id="start">' + escapeHtml(intro.buttonLabel || "I’m ready to begin") + '</button>';
@@ -75,7 +75,7 @@
       root.innerHTML =
         '<p class="eyebrow">Question ' +
         state.nextPosition +
-        ' of 50</p><p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p><h1>Ready?</h1><p>Your 20 seconds begin the moment the question appears.</p><button id="readyBtn">Show question</button>';
+        ' of 50</p><p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p><h1>Ready?</h1><p>Your ' + escapeHtml(state.durationSeconds) + ' seconds begin the moment the question appears.</p><button id="readyBtn">Show question</button>';
       document.querySelector("#readyBtn").onclick = ready;
     } else if (state.state === "complete") {
       root.innerHTML =
@@ -114,7 +114,7 @@
     root.innerHTML =
       '<div class="quizhead"><span>Question ' +
       state.position +
-      ' of 50</span><strong id="clock">20.0</strong></div>' +
+      ' of 50</span><strong id="clock">' + Number(state.durationSeconds || 30).toFixed(1) + '</strong></div>' +
       '<p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p>' +
       '<h1 class="prompt">' +
       window.TimedQuizPrompt.format(state.prompt, state.highlightedText) +

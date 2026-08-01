@@ -47,7 +47,7 @@ These come from the owner and are settled. Do not redesign around them.
 - Every player sees the same 50 in the same order.
 - One question on screen at a time, with a free-text answer box and a submit
   button.
-- 20-second limit per question. If the player has not submitted when the timer
+- 30-second limit per question. If the player has not submitted when the timer
   expires, whatever is in the answer field is submitted automatically.
 - All questions are **text only** — no audio, image, or video.
 - Players receive **no feedback whatsoever**: no right/wrong per question, no
@@ -134,7 +134,7 @@ existing cPanel/FTPS habits.
 2. Who works the review queue and when — does grading need to support two
    concurrent people?
 3. Where the 50 questions live today (sets the import format).
-4. Whether the 20-second clock starts on render or after a per-question "Ready"
+4. Whether the 30-second clock starts on render or after a per-question "Ready"
    tap.
 5. Whether the player sees progress ("Question 12 of 50") and a countdown.
 6. Whether the app sends reminder emails to players who never start.
@@ -150,11 +150,11 @@ rather than waiting.
 
 **Server-authoritative timing.** Treated as the central constraint. A
 client-side countdown is advisory — it can be paused with developer tools, and
-a refresh would otherwise grant a fresh 20 seconds. Proposed rules:
+a refresh would otherwise grant a fresh 30 seconds. Proposed rules:
 
 1. On delivering question N, the server records `served_at` and derives a
    deadline.
-2. The client receives `remaining_ms`, never a flat 20000, so a refresh returns
+2. The client receives the authoritative deadline, never a flat 30000, so a refresh returns
    the same question with the time actually left.
 3. On submit, the server judges lateness by its own clock.
 4. If the deadline passes with no submission, the answer is the last draft the
@@ -207,7 +207,7 @@ enforcement, mobile polish. 5: deploy and rehearse on real phones. 6: run week.
 `autocapitalize`, and `spellcheck` off on the input from the first commit, as
 most players will be on phones. Timezone: store UTC, display Central
 explicitly. Question leakage is guaranteed by a fixed order over a multi-day
-window; the 20-second clock is the actual defense, with tab-switch logging
+window; the 30-second clock is the actual defense, with tab-switch logging
 surfaced as an admin flag rather than an automatic penalty. Nothing prevents a
 friend sitting beside the player, which is acceptable for a prelim but should
 be acknowledged rather than assumed away. Load concentrates on Thursday

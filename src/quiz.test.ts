@@ -81,6 +81,7 @@ test("Ready serves question 1 and returns the prompt in the same response (no se
   assert.equal(served.state, "question");
   if (served.state !== "question") return;
   assert.equal(served.position, 1);
+  assert.equal(served.durationSeconds, 0.4, "player state exposes the configured authoritative duration");
   assert.equal(served.prompt, "Question 1?");
   assert.ok(served.nonce);
   assert.ok(Date.parse(served.deadlineAt) > Date.now(), "deadline must be in the future at serve time");
@@ -527,6 +528,7 @@ test("admin question preview safely embeds prompt data without creating executab
   assert.match(html, /Admin preview/);
   assert.match(html, /\/admin\/preview\/1/);
   assert.match(html, /\/admin\/preview\/3/);
+  assert.match(html, />30\.0</);
 });
 
 test("invitation email template substitutes required fields and escapes HTML", () => {

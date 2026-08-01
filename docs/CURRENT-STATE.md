@@ -29,7 +29,7 @@ Last updated: 2026-08-01.
   shared live prompt formatter and player styling with previous/next navigation,
   but creates no player, attempt, timer, answer, invitation, or email activity.
 - Between questions, the Ready screen shows the upcoming category while keeping
-  the prompt hidden until the player deliberately starts the 20-second window.
+  the prompt hidden until the player deliberately starts the 30-second window.
 - Each Review Queue row shows the canonical answer and all accepted aliases
   beside the grouped submitted answer for rapid grading comparison.
 - Admin provides separate real-results and test-results CSV downloads so
@@ -40,6 +40,8 @@ Last updated: 2026-08-01.
 - Ranking uses score followed by Answer time: server-measured elapsed time for
   every finalized included question, regardless of verdict. Ready screens and
   breaks are excluded.
+- The authoritative per-question window is 30 seconds. Ready, countdown, and
+  preview displays read the configured duration dynamically.
 - Invitation email subject/body are editable in admin and stored in SQLite.
   Both test and real sends share the template; `{{name}}` and required
   `{{link}}` placeholders are safely substituted into plain-text and HTML mail.

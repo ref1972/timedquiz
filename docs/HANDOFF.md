@@ -2,6 +2,17 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Question timer increased to 30 seconds
+
+- Changed the authoritative question window from 20 to 30 seconds. Ready,
+  countdown, preview, intro defaults, email defaults, provisioning defaults,
+  and active design documentation were updated.
+- Player API states now carry the configured duration so displayed timer copy
+  does not drift from server enforcement.
+- Production has customized intro/email copy containing the old duration; the
+  deployment must replace only `20 seconds`/`20-second` in those two stored
+  values while preserving all other authored wording.
+
 ## 2026-08-01 — Answer time includes incorrect answers
 
 - Renamed **Correct time** to **Answer time** in admin, answer sheets, and CSV
@@ -106,7 +117,7 @@ Last updated: 2026-08-01.
 - Added Preview beside every question editor. The admin-only preview uses the
   player card, category, gold highlighting, italics, answer field, and submit
   styling, with previous/next navigation.
-- Preview is deliberately inert: the displayed 20.0 clock does not run and the
+- Preview is deliberately inert: the displayed 30.0 clock does not run and the
   answer/button record nothing. It creates no player, attempt, exposure,
   invitation, or email activity.
 - Extracted prompt rendering into one shared browser formatter so live play and

@@ -68,7 +68,7 @@ export interface AdminPageData {
   invitationTemplate: InvitationTemplate;
 }
 
-export function questionPreviewPage(question: AdminQuestionRow, total: number): string {
+export function questionPreviewPage(question: AdminQuestionRow, total: number, durationSeconds = 30): string {
   const previewData = JSON.stringify({ prompt: question.prompt, highlightedText: question.highlighted_text }).replaceAll("<", "\\u003c");
   const previous = question.position > 1 ? `<a class="button secondary small" href="/admin/preview/${question.position - 1}">Previous</a>` : "";
   const next = question.position < total ? `<a class="button small" href="/admin/preview/${question.position + 1}">Next</a>` : "";
@@ -77,7 +77,7 @@ export function questionPreviewPage(question: AdminQuestionRow, total: number): 
     <nav class="preview-nav"><a href="/admin#question-${question.id}">Back to admin editor</a><span>${previous}${next}</span></nav>
     <main class="card quiz">
       <p class="preview-badge">Admin preview &middot; timer not running</p>
-      <div class="quizhead"><span>Question ${question.position} of ${total}</span><strong>20.0</strong></div>
+      <div class="quizhead"><span>Question ${question.position} of ${total}</span><strong>${durationSeconds.toFixed(1)}</strong></div>
       <p class="category">${esc(question.category)}</p>
       <h1 class="prompt" id="previewPrompt"></h1>
       <form onsubmit="return false"><label for="previewAnswer">Your answer</label><input id="previewAnswer" autocomplete="off"><button type="button" class="submit-answer">Submit Answer</button></form>

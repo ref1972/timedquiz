@@ -35,14 +35,18 @@ export interface Exposure {
 }
 
 export type QuizState =
-  | { state: "prestart"; questionCount: number; closesAt: string | null; intro: IntroCopy }
+  | { state: "prestart"; questionCount: number; closesAt: string | null; intro: IntroCopy; durationSeconds: number }
   | { state: "closed" }
-  | { state: "ready"; nextPosition: number; category: string }
-  | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; draft: string }
+  | { state: "ready"; nextPosition: number; category: string; durationSeconds: number }
+  | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; draft: string; durationSeconds: number }
   | { state: "complete" };
 
 export function questionCount(): number {
   return Number((db.prepare("SELECT COUNT(*) AS n FROM questions").get() as { n: number }).n);
+}
+
+function durationSeconds(): number {
+  return config.questionDurationMs / 1000;
 }
 
 export function findPlayerById(id: number): Player | null {
@@ -181,7 +185,7 @@ export function getStatus(player: Player): QuizState {
   const attempt = currentAttempt(player.id);
   if (!attempt) {
     if (config.closesAt !== null && Date.now() > config.closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
-    return { state: "prestart", questionCount: questionCount(), closesAt: config.closesAt ? new Date(config.closesAt).toISOString() : null, intro: getIntroCopy() };
+    return { state: "prestart", questionCount: questionCount(), closesAt: config.closesAt ? new Date(config.closesAt).toISOString() : null, intro: getIntroCopy(), durationSeconds: durationSeconds() };
   }
   expireIfNeeded(attempt.id);
   const refreshed = currentAttempt(player.id);
@@ -198,10 +202,11 @@ export function getStatus(player: Player): QuizState {
       nonce: exposure.nonce,
       deadlineAt: exposure.deadline_at,
       draft: exposure.draft_text,
+      durationSeconds: durationSeconds(),
     };
   }
   const nextPosition = finalizedCount(refreshed.id) + 1;
-  return { state: "ready", nextPosition, category: questionByPosition(nextPosition).category };
+  return { state: "ready", nextPosition, category: questionByPosition(nextPosition).category, durationSeconds: durationSeconds() };
 }
 
 /**
@@ -216,7 +221,7 @@ export function getStatus(player: Player): QuizState {
  * one request's latency, not two chained ones.
  */
 export function serveNext(player: Player): QuizState {
-  if (questionCount() !== 50) return { state: "prestart", questionCount: questionCount(), closesAt: null, intro: getIntroCopy() };
+  if (questionCount() !== 50) return { state: "prestart", questionCount: questionCount(), closesAt: null, intro: getIntroCopy(), durationSeconds: durationSeconds() };
 
   let attempt = currentAttempt(player.id);
   if (!attempt) {
@@ -255,6 +260,7 @@ export function serveNext(player: Player): QuizState {
       nonce: existing.nonce,
       deadlineAt: existing.deadline_at,
       draft: existing.draft_text,
+      durationSeconds: durationSeconds(),
     };
   }
 
@@ -274,7 +280,7 @@ export function serveNext(player: Player): QuizState {
   );
   logEvent(refreshed.id, "question_served", { position });
 
-  return { state: "question", position, category: question.category, prompt: question.prompt, highlightedText: question.highlighted_text, nonce, deadlineAt, draft: "" };
+  return { state: "question", position, category: question.category, prompt: question.prompt, highlightedText: question.highlighted_text, nonce, deadlineAt, draft: "", durationSeconds: durationSeconds() };
 }
 
 /** Marks any exposure abandoned since the last check as finalized, across all in-progress attempts. Safe to run on an interval. */

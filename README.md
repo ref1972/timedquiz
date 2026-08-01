@@ -110,7 +110,7 @@ moment it hands the player the question — not before.**
    same response.
 2. The client renders a visible countdown from `deadlineAt`. A page
    reload's `GET /api/state` returns that same, unmoved deadline, so a
-   refresh shows less time remaining, never a fresh 20 seconds.
+   refresh shows less time remaining, never a fresh 30 seconds.
 3. Drafts autosave roughly every 350ms of idle typing and are refused once
    `deadlineAt + SUBMIT_GRACE_MS` has passed.
 4. A submission is judged against the server's own clock. Late (but within
