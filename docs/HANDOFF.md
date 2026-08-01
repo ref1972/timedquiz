@@ -6,6 +6,8 @@ Last updated: 2026-08-01.
 
 - Highlighted question text now uses the same `--cass-orange` color as the
   timer background in both light and dark modes.
+- Deployed as rc13 after verified backup `quiz-20260801T210228Z.sqlite.gz`;
+  public health/CSS were verified and CASS remains HTTP 200.
 
 ## 2026-08-01 — Editable invitation email
 
