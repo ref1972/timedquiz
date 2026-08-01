@@ -2,6 +2,18 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Test-link identity incident and fix
+
+- Production evidence confirmed that test sends always selected the first test
+  player. The placeholder account had completed generation 1, while Marc's
+  separately imported test account had no attempt; Marc therefore received the
+  completed placeholder identity and saw the Thank you screen.
+- Test sends now require an exact email match to an imported test player. They
+  refuse missing/unrecoverable accounts and refuse completed test accounts
+  until an admin grants a restart. No other player's token is substituted.
+- Do not automatically resend to Marc; the owner can deliberately send a new
+  test after this fix is deployed.
+
 ## 2026-08-01 — Accepted answers in Review Queue
 
 - Each unresolved-answer row now shows **Counted correct** with the question's

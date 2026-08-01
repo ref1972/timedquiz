@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-08-01 — Test email recipient and player identity must match
+
+A test email may only use the personalized token belonging to an imported test
+player with the exact recipient email. There is no fallback to another test
+account. Completed test accounts require an explicit admin restart before a
+new test email, preventing delivery of a link that opens directly to completion.
+
 ## 2026-08-01 — Test and real invitations share one editable template
 
 Invitation subject/body live in SQLite and support only `{{name}}` and

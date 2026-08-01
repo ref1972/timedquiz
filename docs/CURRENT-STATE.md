@@ -35,6 +35,9 @@ Last updated: 2026-08-01.
 - Invitation email subject/body are editable in admin and stored in SQLite.
   Both test and real sends share the template; `{{name}}` and required
   `{{link}}` placeholders are safely substituted into plain-text and HTML mail.
+- Test email sends resolve the recipient to that exact imported test player and
+  refuse missing or already-completed accounts. They never reuse the first test
+  player's personalized token.
 
 ## Production
 

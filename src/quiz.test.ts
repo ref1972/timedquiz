@@ -407,6 +407,15 @@ test("recoverable invitation tokens round-trip under authenticated encryption", 
   assert.throws(() => cryptoHelpers.decryptInvitationToken(parts.join(".")));
 });
 
+test("test invitation lookup never substitutes a different test player's link", () => {
+  const first = freshPlayer();
+  const second = freshPlayer();
+  db.prepare("UPDATE players SET token_ciphertext = ? WHERE id = ?").run("first-token", first.id);
+  db.prepare("UPDATE players SET token_ciphertext = ? WHERE id = ?").run("second-token", second.id);
+  assert.equal(admin.testPlayerForRecipient(second.email)?.id, second.id);
+  assert.equal(admin.testPlayerForRecipient("missing@test.invalid"), null);
+});
+
 test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {
   const originalUrl = config.emailRelayUrl;
   const originalSecret = config.emailRelaySecret;

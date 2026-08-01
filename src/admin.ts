@@ -103,6 +103,14 @@ export function questionCountRow(): number {
   return Number((db.prepare("SELECT COUNT(*) AS n FROM questions").get() as { n: number }).n);
 }
 
+export function testPlayerForRecipient(email: string): { id: number; email: string; display_name: string; token_ciphertext: string | null; attempt_status: string | null } | null {
+  return (db.prepare(`SELECT p.id, p.email, p.display_name, p.token_ciphertext, a.status AS attempt_status
+    FROM players p
+    LEFT JOIN attempts a ON a.player_id = p.id AND a.status IN ('in_progress', 'completed')
+    WHERE p.is_test = 1 AND lower(p.email) = lower(?)
+    ORDER BY a.generation DESC LIMIT 1`).get(email) as { id: number; email: string; display_name: string; token_ciphertext: string | null; attempt_status: string | null } | undefined) ?? null;
+}
+
 function csvField(value: unknown): string {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
@@ -289,9 +297,17 @@ adminRouter.post("/admin/invitations/test", requireAdmin, async (req: Request, r
     res.status(400).send(page("Invalid email", `<main class="card"><h1>Enter a valid test address</h1><a href="/admin#invitations">Return to invitations</a></main>`));
     return;
   }
-  const player = db.prepare("SELECT id, display_name, token_ciphertext FROM players WHERE is_test = 1 AND token_ciphertext IS NOT NULL ORDER BY id LIMIT 1").get() as { id: number; display_name: string; token_ciphertext: string } | undefined;
+  const player = testPlayerForRecipient(to);
   if (!player) {
-    res.status(409).send(page("No test player", `<main class="card"><h1>No recoverable test invitation exists</h1><p>Import or rotate a test player's invitation first.</p><a href="/admin#invitations">Return to invitations</a></main>`));
+    res.status(409).send(page("No matching test player", `<main class="card"><h1>No matching test player</h1><p>Import ${escapeHtml(to)} as a test player first. Test sends never borrow another player's personalized link.</p><a href="/admin#players">Return to players</a></main>`));
+    return;
+  }
+  if (!player.token_ciphertext) {
+    res.status(409).send(page("Test link unavailable", `<main class="card"><h1>Rotate this test player's link</h1><p>${escapeHtml(to)} does not have a recoverable invitation link.</p><a href="/admin">Return to players</a></main>`));
+    return;
+  }
+  if (player.attempt_status === "completed") {
+    res.status(409).send(page("Test already completed", `<main class="card"><h1>This test player already completed the quiz</h1><p>Grant ${escapeHtml(to)} a restart in Progress and results before sending another test invitation.</p><a href="/admin">Return to players</a></main>`));
     return;
   }
   const link = `${config.appOrigin}/invite/${decryptInvitationToken(player.token_ciphertext)}`;
