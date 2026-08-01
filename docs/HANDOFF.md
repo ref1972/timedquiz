@@ -9,6 +9,9 @@ Last updated: 2026-08-01.
   Columns are `position,category,question,answer,aliases`; multiple aliases use
   `|`. Quoted commas, quotes, and multiline cells are supported. JSON remains
   accepted for compatibility.
+- Deployed as rc8 after verified backup `quiz-20260801T153559Z.sqlite.gz`.
+  Production health reports rc8, deployed layout markers are present, and CASS
+  remains HTTP 200.
 
 ## 2026-08-01 — Admin password management
 
