@@ -60,8 +60,14 @@ Last updated: 2026-08-01.
   WordPress settings into the server environment without committing them. The
   Apps Script owner redeployed the existing matching Web App as Version 5;
   after propagation, the quota action returned 97. One owner-authorized test
-  invitation was accepted and returned 96 remaining. Inbox/header confirmation
+  invitation was accepted and returned 96 remaining. The owner confirmed inbox
+  delivery and that the personalized production link worked. Header inspection
   is still needed; no batch or real-player message was sent.
 - Rotate the shared relay secret everywhere before the real send because it was
   surfaced during authenticated setup. This affects Apps Script Script
   Properties, WordPress Signup Settings, and `/etc/timed-quiz.env`.
+- Owner requested an admin **Player intro** panel after reviewing the live
+  invitation landing screen. Make the eyebrow (`TRIVIA NATIONALS`), main title,
+  introductory sentence, leave-warning copy, no-feedback/advancement paragraph,
+  and Ready button label editable. Preserve the actual timing, abandonment,
+  cutoff, and grading rules in code regardless of the configured wording.

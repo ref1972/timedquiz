@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-08-01 — Landing-page copy will be admin-editable
+
+Add a dedicated **Player intro** admin panel for the player landing screen.
+Staff may edit the eyebrow, title, introductory instructions, leave-warning
+copy, no-feedback/advancement text, and Ready button label. These are display
+settings only; the server remains authoritative for timing, abandonment,
+cutoff, scoring, and attempt state.
+
+Reason: the owner needs to refine player-facing event language close to launch
+without a code deployment, but prose must not be able to change competitive
+behavior.
+
 ## 2026-08-01 — Timed Quiz is a standalone project
 
 The reusable timed-quiz application lives in `ref1972/timedquiz`; TriviaNationals

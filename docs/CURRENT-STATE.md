@@ -26,8 +26,9 @@ Last updated: 2026-08-01.
   backup completed successfully and passed gzip plus SQLite integrity checks.
 - The shared Workspace relay is configured. Its newly deployed quota endpoint
   reported 97 available recipients; one explicitly authorized test invitation
-  was accepted and the relay reported 96 remaining. Inbox/header confirmation
-  is pending. No batch or real-player invitation has been sent.
+  was accepted and the relay reported 96 remaining. The owner confirmed inbox
+  delivery and that the personalized production link worked. Header inspection
+  remains pending. No batch or real-player invitation has been sent.
 - The closing time remains unset. The deployed database contains only the
   seeded test player and unapproved starting bank; it is not the launch
   database.
@@ -36,9 +37,13 @@ Last updated: 2026-08-01.
 
 ## Launch blockers
 
+- Add a dedicated **Player intro** admin panel for editing the invitation
+  landing screen's eyebrow, title, introductory instructions, leave-warning
+  copy, no-feedback/advancement copy, and Ready button label. The underlying
+  timing, abandonment, and scoring behavior remains code-enforced.
 - Owner review of all 50 questions, categories, answers, and aliases.
 - Owner decision on the advancement cut and exact closing time.
-- Inbox and header inspection for the single accepted test invitation, followed
-  by shared relay-secret rotation before the real send.
+- Header inspection for the delivered test invitation, followed by shared
+  relay-secret rotation before the real send.
 - Real-phone/network rehearsal, clean production database, final player import,
   preflight, and backup.
