@@ -121,11 +121,11 @@ export function adminPage(data: AdminPageData): string {
 
       <section class="panel" id="security">
         <h2>Change admin password</h2>
-        <p>Changing the password signs out every existing administrator session. Use at least 16 characters.</p>
+        <p>Changing the password signs out every existing administrator session. A long, unique password is recommended but not required.</p>
         <form method="post" action="/admin/password">
           <label>Current password<input name="currentPassword" type="password" autocomplete="current-password" required></label>
-          <label>New password<input name="newPassword" type="password" autocomplete="new-password" minlength="16" maxlength="256" required></label>
-          <label>Confirm new password<input name="confirmPassword" type="password" autocomplete="new-password" minlength="16" maxlength="256" required></label>
+          <label>New password<input name="newPassword" type="password" autocomplete="new-password" maxlength="256" required></label>
+          <label>Confirm new password<input name="confirmPassword" type="password" autocomplete="new-password" maxlength="256" required></label>
           <button>Change admin password</button>
         </form>
       </section>

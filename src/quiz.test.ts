@@ -423,7 +423,7 @@ test("Workspace invitation mail preflights quota and reports a hard quota pause 
 
 test("administrator password changes are salted, hashed, and immediately replace the bootstrap password", () => {
   assert.equal(auth.checkAdminPassword(config.adminPassword), true);
-  const replacement = "a-new-administrator-password";
+  const replacement = "short";
   auth.setAdminPassword(replacement);
   const stored = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'admin_password_scrypt'").get() as { setting_value: string };
   assert.match(stored.setting_value, /^scrypt\$/);

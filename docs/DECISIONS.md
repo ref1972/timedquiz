@@ -11,6 +11,9 @@ Reason: operators need safe self-service without editing server files, while a
 plaintext database setting or continuing to accept the bootstrap password
 would undermine the change.
 
+The UI recommends a long, unique password but enforces no minimum length at the
+owner's direction; it rejects only blank values and values over 256 characters.
+
 ## 2026-08-01 — Landing-page copy will be admin-editable
 
 Add a dedicated **Player intro** admin panel for the player landing screen.

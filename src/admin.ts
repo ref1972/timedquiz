@@ -132,8 +132,8 @@ adminRouter.post("/admin/password", requireAdmin, (req: Request, res: Response) 
     res.status(403).send(page("Password not changed", `<main class="card"><h1>Current password was incorrect</h1><p>No change was made.</p><a href="/admin#security">Return to security</a></main>`));
     return;
   }
-  if (newPassword.length < 16 || newPassword.length > 256) {
-    res.status(400).send(page("Password not changed", `<main class="card"><h1>Choose a longer password</h1><p>The new administrator password must contain 16 to 256 characters.</p><a href="/admin#security">Return to security</a></main>`));
+  if (!newPassword || newPassword.length > 256) {
+    res.status(400).send(page("Password not changed", `<main class="card"><h1>Enter a new password</h1><p>The new administrator password cannot be blank or longer than 256 characters.</p><a href="/admin#security">Return to security</a></main>`));
     return;
   }
   if (newPassword !== confirmation) {

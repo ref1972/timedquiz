@@ -5,7 +5,9 @@ Last updated: 2026-08-01.
 ## 2026-08-01 — Admin password management
 
 - Added a **Change admin password** panel to the admin dashboard. It requires
-  the current password plus a matching 16–256 character replacement.
+  the current password plus a matching nonblank replacement of at most 256
+  characters. The original 16-character minimum was removed at the owner's
+  direction; the UI recommends length without enforcing it.
 - The database stores only a random-salted scrypt hash. The environment value
   remains the bootstrap credential until the first database password is set;
   afterward it no longer authenticates.

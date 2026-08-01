@@ -11,7 +11,8 @@ Last updated: 2026-08-01.
   admin login throttling, preflight, backups, and deployment packaging.
 - Automated verification passes 21 tests and TypeScript typechecking.
 - The live admin can change its own password by supplying the current password
-  and a 16–256 character replacement. Only a salted scrypt hash is stored in
+  and a nonblank replacement of at most 256 characters. Length is recommended,
+  not enforced, at the owner's direction. Only a salted scrypt hash is stored in
   SQLite, and a successful change invalidates every existing admin session.
 
 ## Production
