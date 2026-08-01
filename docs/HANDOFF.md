@@ -2,6 +2,12 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Separate test-results export
+
+- Added **Download test results CSV** beside the renamed **Download real
+  results CSV** button. Both use the same columns and ranking calculation, but
+  filter on opposite test flags so accounts never cross between files.
+
 ## 2026-08-01 — Question editing lock corrected for rehearsals
 
 - Production had two test attempts and zero real-player attempts, but the old

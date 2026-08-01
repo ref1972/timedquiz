@@ -484,12 +484,19 @@ adminRouter.post("/admin/restart", requireAdmin, (req: Request, res: Response) =
 
 adminRouter.get("/admin/results.csv", requireAdmin, (_req: Request, res: Response) => {
   finalizeStaleSessions();
-  const rows = results().filter((row) => !row.is_test);
-  const body =
-    "rank,email,name,score,correct_time_ms,status\n" +
-    rows.map((r, i) => `${i + 1},${csvField(r.email)},${csvField(r.display_name)},${r.score},${r.correct_time_ms},${r.status ?? "not_started"}`).join("\n");
-  res.type("text/csv").attachment("pop-culture-bee-results.csv").send(body);
+  res.type("text/csv").attachment("pop-culture-bee-results.csv").send(resultsCsv(false));
 });
+
+adminRouter.get("/admin/test-results.csv", requireAdmin, (_req: Request, res: Response) => {
+  finalizeStaleSessions();
+  res.type("text/csv").attachment("pop-culture-bee-test-results.csv").send(resultsCsv(true));
+});
+
+export function resultsCsv(testAccounts: boolean): string {
+  const rows = results().filter((row) => Boolean(row.is_test) === testAccounts);
+  return "rank,email,name,score,correct_time_ms,status\n" +
+    rows.map((r, i) => `${i + 1},${csvField(r.email)},${csvField(r.display_name)},${r.score},${r.correct_time_ms},${r.status ?? "not_started"}`).join("\n");
+}
 
 function escapeHtml(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

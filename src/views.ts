@@ -226,7 +226,8 @@ export function adminPage(data: AdminPageData): string {
 
       <section class="panel">
         <h2>Progress and results</h2>
-        <p><a class="button" href="/admin/results.csv">Download results CSV</a> Test accounts are excluded from the CSV.</p>
+        <p><a class="button" href="/admin/results.csv">Download real results CSV</a> <a class="button secondary" href="/admin/test-results.csv">Download test results CSV</a></p>
+        <p class="muted">The two files remain separate so rehearsal accounts never appear in the real rankings.</p>
         <div class="table"><table>
           <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Correct time</th><th>Test</th><th>Invitation</th><th>Link</th><th>Restart</th></tr></thead>
           <tbody>${rows}</tbody>

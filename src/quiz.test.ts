@@ -425,6 +425,18 @@ test("test attempts do not lock individual question editing", () => {
   db.prepare("UPDATE players SET is_test = 1 WHERE id = ?").run(testPlayer.id);
 });
 
+test("real and test result exports remain separated", () => {
+  const testPlayer = freshPlayer();
+  const realPlayer = freshPlayer();
+  db.prepare("UPDATE players SET is_test = 0 WHERE id = ?").run(realPlayer.id);
+  const testCsv = admin.resultsCsv(true);
+  const realCsv = admin.resultsCsv(false);
+  assert.match(testCsv, new RegExp(testPlayer.email));
+  assert.equal(testCsv.includes(realPlayer.email), false);
+  assert.match(realCsv, new RegExp(realPlayer.email));
+  assert.equal(realCsv.includes(testPlayer.email), false);
+});
+
 test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {
   const originalUrl = config.emailRelayUrl;
   const originalSecret = config.emailRelaySecret;
