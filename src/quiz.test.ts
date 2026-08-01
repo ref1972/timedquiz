@@ -437,6 +437,20 @@ test("real and test result exports remain separated", () => {
   assert.equal(realCsv.includes(testPlayer.email), false);
 });
 
+test("player answer history includes submitted answer, verdict, and question timing", () => {
+  const player = freshPlayer();
+  const served = quiz.serveNext(player);
+  if (served.state !== "question") return assert.fail();
+  quiz.submitAnswer(quiz.currentAttempt(player.id)!.id, served.nonce, "answer1");
+  const history = admin.playerAnswerHistory(player.id);
+  assert.equal(history?.attempts.length, 1);
+  assert.equal(history?.answers.length, 1);
+  assert.equal(history?.answers[0]?.submitted_text, "answer1");
+  assert.equal(history?.answers[0]?.verdict, "correct");
+  assert.equal(history?.answers[0]?.included_in_score, 1);
+  assert.equal(typeof history?.answers[0]?.elapsed_ms, "number");
+});
+
 test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {
   const originalUrl = config.emailRelayUrl;
   const originalSecret = config.emailRelaySecret;

@@ -2,6 +2,16 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Per-player answer sheets
+
+- Added **View answers** for every player. The separate admin-only screen shows
+  each attempt generation and every served question with submitted text,
+  canonical/alias answers, verdict, elapsed question time, and manual/timeout
+  finalization.
+- The screen explains that Correct time is the sum of server-measured elapsed
+  time only on correct answers, capped by each question window. Ready screens,
+  breaks, and incorrect/unresolved answers do not contribute.
+
 ## 2026-08-01 — Separate test-results export
 
 - Added **Download test results CSV** beside the renamed **Download real

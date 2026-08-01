@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-08-01 — Player answer history preserves restart generations
+
+Answer sheets display all attempt generations rather than only the current one,
+preserving audit context after an authorized restart. Correct time remains a
+tiebreak sum of per-question elapsed milliseconds for correct included answers,
+not total wall-clock duration of the quiz session.
+
 ## 2026-08-01 — Test attempts do not freeze individual question edits
 
 Individual question edits remain available while all attempts belong to test

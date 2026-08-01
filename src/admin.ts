@@ -6,7 +6,7 @@ import { decryptInvitationToken, encryptInvitationToken, sha256, randomToken } f
 import { normalize, applyReviewRuling } from "./grading.ts";
 import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mail.ts";
 import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
-import { adminLoginPage, adminPage, page, questionPreviewPage } from "./views.ts";
+import { adminLoginPage, adminPage, page, playerAnswersPage, questionPreviewPage } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
 import { parseQuestionImport, questionsToCsv, visiblePromptText } from "./question-import.ts";
 import { parsePlayerImport, playersToCsv } from "./player-import.ts";
@@ -25,6 +25,41 @@ export interface ResultRow {
   invite_sent_at: string | null;
   invite_last_error: string | null;
   invite_send_attempts: number;
+}
+
+export interface PlayerAnswerAttempt {
+  id: number;
+  generation: number;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  restart_reason: string | null;
+}
+
+export interface PlayerAnswerRow {
+  attempt_id: number;
+  position: number;
+  category: string;
+  prompt: string;
+  canonical_answer: string;
+  aliases_json: string;
+  included_in_score: number;
+  submitted_text: string | null;
+  submitted_at: string | null;
+  verdict: string | null;
+  elapsed_ms: number | null;
+  finalized_reason: string | null;
+}
+
+export function playerAnswerHistory(playerId: number): { player: { id: number; email: string; display_name: string; is_test: number }; attempts: PlayerAnswerAttempt[]; answers: PlayerAnswerRow[] } | null {
+  const player = db.prepare("SELECT id, email, display_name, is_test FROM players WHERE id = ?").get(playerId) as { id: number; email: string; display_name: string; is_test: number } | undefined;
+  if (!player) return null;
+  const attempts = db.prepare("SELECT id, generation, status, started_at, completed_at, restart_reason FROM attempts WHERE player_id = ? ORDER BY generation DESC").all(playerId) as unknown as PlayerAnswerAttempt[];
+  const answers = db.prepare(`SELECT e.attempt_id, q.position, q.category, q.prompt, q.canonical_answer, q.aliases_json, q.included_in_score,
+    e.submitted_text, e.submitted_at, e.verdict, e.elapsed_ms, e.finalized_reason
+    FROM attempts a JOIN exposures e ON e.attempt_id = a.id JOIN questions q ON q.id = e.question_id
+    WHERE a.player_id = ? ORDER BY a.generation DESC, q.position`).all(playerId) as unknown as PlayerAnswerRow[];
+  return { player, attempts, answers };
 }
 
 export function results(): ResultRow[] {
@@ -480,6 +515,16 @@ adminRouter.post("/admin/restart", requireAdmin, (req: Request, res: Response) =
   ).run(nowIso(), reason, playerId);
   logEvent(null, "restart_granted", { playerId, reason });
   res.redirect("/admin");
+});
+
+adminRouter.get("/admin/player/:id/answers", requireAdmin, (req: Request, res: Response) => {
+  finalizeStaleSessions();
+  const history = playerAnswerHistory(Number(req.params.id));
+  if (!history) {
+    res.status(404).send(page("Player not found", `<main class="card"><h1>Player not found</h1><a href="/admin">Return to admin</a></main>`));
+    return;
+  }
+  res.send(playerAnswersPage(history.player, history.attempts, history.answers));
 });
 
 adminRouter.get("/admin/results.csv", requireAdmin, (_req: Request, res: Response) => {

@@ -1,6 +1,7 @@
-import type { AdminQuestionRow, InvitationStats, ResultRow, UnresolvedRow } from "./admin.ts";
+import type { AdminQuestionRow, InvitationStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow, UnresolvedRow } from "./admin.ts";
 import type { IntroCopy } from "./intro-copy.ts";
 import type { InvitationTemplate } from "./invitation-template.ts";
+import { visiblePromptText } from "./question-import.ts";
 
 function esc(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -86,6 +87,27 @@ export function questionPreviewPage(question: AdminQuestionRow, total: number): 
     <script src="/question-preview.js"></script>`);
 }
 
+export function playerAnswersPage(player: { id: number; email: string; display_name: string; is_test: number }, attempts: PlayerAnswerAttempt[], answers: PlayerAnswerRow[]): string {
+  const attemptSections = attempts.length ? attempts.map((attempt) => {
+    const rows = answers.filter((answer) => answer.attempt_id === attempt.id);
+    const score = rows.filter((answer) => answer.included_in_score && answer.verdict === "correct").length;
+    const correctTime = rows.reduce((sum, answer) => sum + (answer.included_in_score && answer.verdict === "correct" ? answer.elapsed_ms ?? 0 : 0), 0);
+    const answerRows = rows.length ? rows.map((answer) => {
+      const accepted = [answer.canonical_answer, ...(JSON.parse(answer.aliases_json) as string[])];
+      return `<tr>
+        <td>${answer.position}</td><td>${esc(answer.category)}</td><td>${esc(visiblePromptText(answer.prompt))}</td>
+        <td>${answer.submitted_at ? (answer.submitted_text ? esc(answer.submitted_text) : '<span class="muted">blank</span>') : '<span class="muted">in progress</span>'}</td>
+        <td>${accepted.map((item) => esc(item)).join(" · ")}</td><td>${esc(answer.verdict ?? "pending")}</td>
+        <td>${answer.elapsed_ms === null ? "—" : (answer.elapsed_ms / 1000).toFixed(1) + "s"}</td><td>${esc(answer.finalized_reason ?? "—")}</td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="8">No questions have been served for this attempt.</td></tr>';
+    return `<section class="panel answer-attempt"><h2>Attempt ${attempt.generation} <span class="status-pill">${esc(attempt.status)}</span></h2>
+      <p>${score} correct &middot; ${(correctTime / 1000).toFixed(1)}s correct time &middot; started ${esc(new Date(attempt.started_at).toLocaleString())}${attempt.restart_reason ? ` &middot; restart reason: ${esc(attempt.restart_reason)}` : ""}</p>
+      <div class="table"><table><thead><tr><th>Q</th><th>Category</th><th>Question</th><th>Submitted</th><th>Counted correct</th><th>Verdict</th><th>Time</th><th>Finalized</th></tr></thead><tbody>${answerRows}</tbody></table></div></section>`;
+  }).join("") : '<section class="panel"><p>This player has not started an attempt.</p></section>';
+  return page("Answers for " + (player.display_name || player.email), `<main class="admin answer-sheet"><header><p class="eyebrow">Player answer sheet</p><h1>${esc(player.display_name || player.email)}</h1><p>${esc(player.email)}${player.is_test ? " &middot; test account" : ""}</p><a class="button secondary" href="/admin">Back to admin</a></header><div class="notice"><strong>Correct time:</strong> sum of elapsed question time only for answers graded correct. Ready screens, breaks, and incorrect/unresolved answers are excluded.</div>${attemptSections}</main>`);
+}
+
 export function adminPage(data: AdminPageData): string {
   const closesLabel = data.closesAt
     ? new Date(data.closesAt).toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })
@@ -99,6 +121,7 @@ export function adminPage(data: AdminPageData): string {
         <td>${p.score}</td>
         <td>${(p.correct_time_ms / 1000).toFixed(1)}s</td>
         <td>${p.is_test ? "yes" : ""}</td>
+        <td><a class="button small secondary" href="/admin/player/${p.id}/answers">View answers</a></td>
         <td>${p.is_test ? "Test account — use Step 3" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</td>
         <td><form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form></td>
         <td><form method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}">
@@ -229,7 +252,7 @@ export function adminPage(data: AdminPageData): string {
         <p><a class="button" href="/admin/results.csv">Download real results CSV</a> <a class="button secondary" href="/admin/test-results.csv">Download test results CSV</a></p>
         <p class="muted">The two files remain separate so rehearsal accounts never appear in the real rankings.</p>
         <div class="table"><table>
-          <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Correct time</th><th>Test</th><th>Invitation</th><th>Link</th><th>Restart</th></tr></thead>
+          <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Correct time</th><th>Test</th><th>Answers</th><th>Invitation</th><th>Link</th><th>Restart</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
       </section>

@@ -34,6 +34,9 @@ Last updated: 2026-08-01.
   beside the grouped submitted answer for rapid grading comparison.
 - Admin provides separate real-results and test-results CSV downloads so
   rehearsal accounts can be analyzed without entering real rankings.
+- Every player row links to an authenticated answer sheet showing all attempt
+  generations, questions, submissions, accepted answers, verdicts, per-question
+  elapsed time, and finalization reason.
 - Invitation email subject/body are editable in admin and stored in SQLite.
   Both test and real sends share the template; `{{name}}` and required
   `{{link}}` placeholders are safely substituted into plain-text and HTML mail.

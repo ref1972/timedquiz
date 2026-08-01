@@ -178,6 +178,10 @@ code { color: var(--cass-purple); }
 .preview-nav { max-width: 780px; margin: 18px auto -3vh; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .preview-nav > span { display: flex; gap: 8px; }
 .preview-badge { display: inline-block; margin: 0 0 16px; padding: 7px 10px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.answer-sheet { max-width: 1500px; }
+.answer-sheet table { min-width: 1150px; }
+.answer-sheet td:nth-child(3) { min-width: 280px; }
+.status-pill { display: inline-block; margin-left: 8px; padding: 5px 8px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); font-size: .72rem; text-transform: uppercase; vertical-align: middle; }
 .question-number { align-self: center; color: var(--cass-purple); font-size: 1.35rem; font-weight: 900; text-align: center; }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }
