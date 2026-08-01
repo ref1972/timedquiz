@@ -25,6 +25,11 @@ working personalized link. Header inspection remains pending. Rotate the shared
 secret across Apps Script, WordPress, and Timed Quiz before the real player
 send.
 
+Direct Google Workspace SMTP relay is the planned replacement for the Timed
+Quiz Apps Script path, but it is not implemented or configured yet. Follow
+`docs/WORKSPACE-SMTP-RELAY-PLAN.md`; do not interpret the plan as authorization
+to send mail or change the separate Trivia Nationals/WordPress relay.
+
 `timed-quiz-backup.timer` creates a consistent compressed SQLite backup in
 `/var/backups/timed-quiz` daily around 04:15 UTC. Before a real invitation
 send, also trigger it manually and retain a verified off-host copy.

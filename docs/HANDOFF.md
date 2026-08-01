@@ -2,6 +2,19 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Workspace SMTP relay migration planned
+
+- The owner chose direct Google Workspace SMTP relay as the intended
+  replacement for Timed Quiz's Apps Script mail path.
+- The complete staged plan is in `docs/WORKSPACE-SMTP-RELAY-PLAN.md`, including
+  narrow IP-based Workspace configuration, explicit transport selection,
+  TLS/readiness checks, a local safety ceiling, acceptance/audit semantics,
+  tests, production rollout, real-batch procedure, ambiguity handling, and
+  rollback.
+- This is documentation only. No Workspace rule, production environment,
+  database, mail transport, or recipient state was changed, and no email was
+  sent.
+
 ## 2026-08-01 — Question timer increased to 30 seconds
 
 - Changed the authoritative question window from 20 to 30 seconds. Ready,
