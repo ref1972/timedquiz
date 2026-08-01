@@ -7,6 +7,8 @@ Last updated: 2026-08-01.
 - The between-question Ready state now includes and displays the next
   question's category. The prompt remains undisclosed until **Show question**
   starts that question's server-authoritative window.
+- Deployed as rc15 after verified backup `quiz-20260801T211654Z.sqlite.gz`;
+  public health/state/rendering markers were verified and CASS remains HTTP 200.
 
 ## 2026-08-01 — Clearer test-player invitation status
 
