@@ -9,9 +9,11 @@ Last updated: 2026-08-01.
   and active design documentation were updated.
 - Player API states now carry the configured duration so displayed timer copy
   does not drift from server enforcement.
-- Production has customized intro/email copy containing the old duration; the
-  deployment must replace only `20 seconds`/`20-second` in those two stored
-  values while preserving all other authored wording.
+- Deployed as rc22 after successful backup
+  `quiz-20260801T220626Z.sqlite.gz`. Production health reports rc22, the server
+  environment is `QUESTION_DURATION_MS=30000`, and the customized intro/email
+  values contain the 30-second wording with no old timer phrase. All other
+  authored wording was preserved; CASS remains HTTP 200.
 
 ## 2026-08-01 — Answer time includes incorrect answers
 
