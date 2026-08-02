@@ -48,11 +48,9 @@ Last updated: 2026-08-01.
 - Test email sends resolve the recipient to that exact imported test player and
   refuse missing or already-completed accounts. They never reuse the first test
   player's personalized token.
-- Source now supports app-specific bearer authentication to the planned shared
-  droplet Workspace Gmail API gateway when `EMAIL_RELAY_CLIENT_ID` is configured,
-  while retaining explicit compatibility with the currently deployed Apps
-  Script endpoint. This source is not deployed and production still uses Apps
-  Script.
+- Production uses app-specific bearer authentication to the shared droplet
+  Workspace Gmail API gateway. Explicit Apps Script compatibility remains in
+  the client as a rollback path, but there is no automatic fallback.
 - Individual question editing remains available during test-player rehearsals
   and locks only after a real participant starts. Full-bank replacement remains
   blocked after any attempt because it deletes/recreates question records.
@@ -62,7 +60,7 @@ Last updated: 2026-08-01.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Release candidate `timed-quiz-v0.1.0-rc22` is deployed on the selected droplet
+- Release candidate `timed-quiz-v0.1.0-rc23` is deployed on the selected droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
 - Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS
@@ -75,6 +73,11 @@ Last updated: 2026-08-01.
   authoritative environment setting is 30 seconds, stored intro/invitation
   copy contains the new duration and no old duration, and CASS remains HTTP
   200.
+- The rc23 deployment was preceded by verified backup
+  `quiz-20260802T014933Z.sqlite.gz`. Production now points to the isolated
+  Gmail API gateway as client `timed_quiz`; app-specific credential matching,
+  no-send capacity (0 accepted, 1,000 remaining), public health, and CASS HTTP
+  200 were verified. No invitation or other email was sent.
 - The rc7 deployment was preceded by verified backup
   `quiz-20260801T153007Z.sqlite.gz`; production health reports rc7 and CASS
   remains HTTP 200.

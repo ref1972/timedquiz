@@ -14,21 +14,16 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed rehearsal release: `timed-quiz-v0.1.0-rc22`. Certbot manages
+Current deployed rehearsal release: `timed-quiz-v0.1.0-rc23`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
-The Workspace Apps Script quota endpoint is deployed and the existing relay
-URL/secret are configured in `/etc/timed-quiz.env`. A test send was accepted on
-2026-08-01 with quota moving 97 → 96; the owner confirmed delivery and a
-working personalized link. Header inspection remains pending. Rotate the shared
-secret across Apps Script, WordPress, and Timed Quiz before the real player
-send.
-
-Direct Google Workspace SMTP relay is the planned replacement for the Timed
-Quiz Apps Script path, but it is not implemented or configured yet. Follow
-`docs/WORKSPACE-SMTP-RELAY-PLAN.md`; do not interpret the plan as authorization
-to send mail or change the separate Trivia Nationals/WordPress relay.
+Production uses `https://mail.triviaworkshop.com/v1/mail` with client ID
+`timed_quiz` and its app-specific secret in `/etc/timed-quiz.env`. A no-send
+capacity check succeeds with zero gateway acceptances. The older Apps Script
+transport remains an explicit rollback option, but there is no automatic
+fallback. One owner-authorized gateway test plus header/log inspection are
+still required before a real player send.
 
 `timed-quiz-backup.timer` creates a consistent compressed SQLite backup in
 `/var/backups/timed-quiz` daily around 04:15 UTC. Before a real invitation

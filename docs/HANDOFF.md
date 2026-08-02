@@ -2,6 +2,19 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Timed Quiz switched to Gmail API gateway, no mail sent
+
+- Deployed rc23 after backup `quiz-20260802T014933Z.sqlite.gz` and configured
+  the app-specific `timed_quiz` client for
+  `https://mail.triviaworkshop.com/v1/mail`.
+- Verified the configured secret matches the relay's stored client credential,
+  the no-send capacity response reports zero accepted and 1,000 remaining,
+  public Timed Quiz health reports rc23, and CASS remains HTTP 200.
+- No email was sent. The next action requires explicit owner authorization for
+  one test invitation to an exact imported test player; verify inbox, link
+  identity, headers, gateway audit, and Workspace Email Log Search before any
+  WordPress cutover or real-player batch.
+
 ## 2026-08-01 — Shared droplet relay client prepared
 
 - Timed Quiz source now supports the planned shared droplet mail gateway with
