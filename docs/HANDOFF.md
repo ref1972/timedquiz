@@ -17,9 +17,21 @@ TypeScript, and `git diff --check` pass.
 
 Setting the flag does not regrade existing answers, by design.
 
-**Next: tick the person box on Q3, Q10, Q12, Q17, Q22, Q23, Q29, Q32, Q44, and
-Q48 in production.** Q29 "Jayne Mansfield" is the one that materially needs it,
-having no surname alias.
+Deployed after verified backup `quiz-20260802T202931Z.sqlite.gz` with no
+question in flight. Production health and `RELEASE_ID` report rc27, the
+grading route and view/CSS markers are present, counts are unchanged at 9
+attempts / 436 exposures / 50 questions / 9 players / 103 grading rules, CASS
+remains HTTP 200, and no email was sent.
+
+The owner then set the flag on all ten person questions through the admin
+screen — Q3, Q10, Q12, Q17, Q22, Q23, Q29, Q32, Q44, Q48 — between 20:30:06 and
+20:31:19 UTC, each recorded as a `question_grading_updated` audit event. That
+is the feature working end to end in production on a frozen bank.
+
+Grading verified against the live database afterwards: Q29 "Mansfield" and
+"Jayne Mansfield" both correct with "Marilyn Mansfield" unresolved; Q10 "Bush"
+and "Kate Bush" correct with "George Bush" unresolved; Q3 "Mel Brooks" and Q44
+"french fry" unresolved; Q15 "I don't know" and Q41 "Kryptonite" unresolved.
 
 ## 2026-08-02 — rc26 deployed and verified; person flag blocked by the edit lock
 
@@ -38,10 +50,15 @@ no question was in flight — the single in-progress attempt is an abandoned
 test-player rehearsal whose last answer was eight hours earlier.
 
 Stored verdicts were not regraded, by design; the new rules apply at submit
-time. Re-grading all 305 stored `correct` answers against the deployed code
-found only three that would now go to review, **all belonging to test
-players**: "Juicy Coutore" (Q31), "Krypton" for "Krypto" (Q41), and "stephen
-frye" (Q44). The one real player's answers are unaffected.
+time. Re-grading all 324 stored `correct` answers against the deployed code
+found four that would now go to review, **all belonging to test players**:
+"Juicy Coutore" and "juicy couroee" (Q31), "Krypton" for "Krypto" (Q41), and
+"stephen frye" (Q44). The one real player's answers are unaffected.
+
+An earlier run of this check reported 305 answers and three drifts. It was
+wrong: it read a `cp` of the live WAL-mode database taken without its `-wal`
+file, which is an inconsistent snapshot. Copy a live database with
+`sqlite3 … ".backup"`, never `cp`.
 
 ### Resolved in rc27: the person flag is editable on a frozen bank
 

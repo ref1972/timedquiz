@@ -113,9 +113,16 @@ Last updated: 2026-08-02.
   grading rules, all four admin routes gate to sign-in, and CASS remains HTTP
   200. Preceded by verified backup `quiz-20260802T201145Z.sqlite.gz`; no email
   was sent.
+- Release `timed-quiz-v0.1.0-rc27` is deployed and verified after backup
+  `quiz-20260802T202931Z.sqlite.gz`: health and `RELEASE_ID` report rc27, the
+  grading route is present, counts are unchanged, CASS remains HTTP 200, and no
+  email was sent.
 - The question bank is frozen by a real completed attempt, so question content
   cannot be edited. The `answer_is_person` grading flag is deliberately exempt
   and has its own admin route; it changes no content and no stored verdict.
+- All ten person questions (Q3, Q10, Q12, Q17, Q22, Q23, Q29, Q32, Q44, Q48)
+  are flagged in production, set by the owner through the admin screen while
+  the bank was frozen.
 - Release candidate `timed-quiz-v0.1.0-rc25` was previously deployed on the droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
