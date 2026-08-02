@@ -9,7 +9,7 @@ Last updated: 2026-08-02.
 - Launch hardening includes encrypted/rotatable invitations, quota-safe email
   batches, server-measured timing tiebreaks, post-cutoff authorized restarts,
   admin login throttling, preflight, backups, and deployment packaging.
-- Automated verification passes 36 tests and TypeScript typechecking.
+- Automated verification passes 37 tests and TypeScript typechecking.
 - Questions carry `answer_is_person`, set by a checkbox in the question editor
   or a `person` column in the question CSV. It accepts the canonical answer's
   last word as a bare surname without needing an alias, and refuses that
@@ -97,7 +97,10 @@ Last updated: 2026-08-02.
   the client as a rollback path, but there is no automatic fallback.
 - Individual question editing remains available during test-player rehearsals
   and locks only after a real participant starts. Full-bank replacement remains
-  blocked after any attempt because it deletes/recreates question records.
+  blocked after any attempt because it deletes/recreates question records. The
+  `answer_is_person` grading flag is exempt from the content lock and has its
+  own route; the content editor never writes it, so saving a question cannot
+  clear it.
 
 ## Production
 
@@ -109,8 +112,10 @@ Last updated: 2026-08-02.
   are unchanged at 9 attempts / 436 exposures / 50 questions / 9 players / 103
   grading rules, all four admin routes gate to sign-in, and CASS remains HTTP
   200. Preceded by verified backup `quiz-20260802T201145Z.sqlite.gz`; no email
-  was sent. All questions are `answer_is_person = 0` and the bank is frozen by
-  a real completed attempt, so the flag cannot currently be set in the UI.
+  was sent.
+- The question bank is frozen by a real completed attempt, so question content
+  cannot be edited. The `answer_is_person` grading flag is deliberately exempt
+  and has its own admin route; it changes no content and no stored verdict.
 - Release candidate `timed-quiz-v0.1.0-rc25` was previously deployed on the droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.

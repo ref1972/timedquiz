@@ -184,21 +184,30 @@ code { color: var(--cass-purple); }
   padding: 16px;
   background: var(--panel-soft);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 16px 16px 0 0;
 }
 .question-editor label { margin: 0; font-size: .8rem; }
 .question-editor input, .question-editor textarea { margin-top: 6px; padding: 10px; font-size: .9rem; }
 .question-editor button { margin: 0; }
 .question-editor .italic-button { margin-top: 6px; }
-.question-editor .checkbox {
-  grid-column: 1 / -1;
+/* Grading metadata sits in its own form because it stays editable after the
+   question bank freezes. It is pulled up under its editor so the pair still
+   reads as one question. */
+.question-grading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  gap: 12px;
+  padding: 10px 16px 14px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+  background: var(--panel-soft);
 }
-.question-editor .checkbox input { margin-top: 0; width: auto; }
-.question-editor .checkbox .muted { font-weight: 400; }
+.question-grading .checkbox { display: flex; align-items: center; gap: 8px; margin: 0; font-size: .8rem; font-weight: 600; }
+.question-grading .checkbox input { margin: 0; width: auto; }
+.question-grading .checkbox .muted { font-weight: 400; }
+.question-grading button { margin: 0; }
 .question-actions { display: flex; gap: 8px; align-items: end; }
 .question-actions .button, .question-actions button { margin: 0; }
 .preview-nav { max-width: 780px; margin: 18px auto -3vh; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -212,7 +221,6 @@ code { color: var(--cass-purple); }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }
   .question-editor label, .question-editor button { grid-column: 2; }
-  .question-editor .checkbox { grid-column: 2; }
   .invitation-steps { grid-template-columns: 1fr; }
 }
 @media (max-width: 750px) {

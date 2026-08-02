@@ -149,6 +149,24 @@ export function questionEditingLocked(): boolean {
   return Number((db.prepare("SELECT COUNT(*) AS n FROM attempts a JOIN players p ON p.id = a.player_id WHERE p.is_test = 0").get() as { n: number }).n) > 0;
 }
 
+/**
+ * Sets the person flag, deliberately *outside* the frozen-bank lock. The lock
+ * protects question content -- prompt, answer, aliases -- because changing
+ * those under a player who already answered would invalidate their answer.
+ * This flag changes no content and no stored verdict; it only affects how the
+ * next submission is auto-graded, which the Review Queue can already do
+ * globally and retroactively at any point in the event.
+ *
+ * Existing answers are not regraded. A "Mansfield" already sitting in the
+ * queue stays there until a reviewer rules on it.
+ */
+export function setQuestionAnswerIsPerson(questionId: number, answerIsPerson: boolean): boolean {
+  if (!Number.isInteger(questionId)) return false;
+  return (
+    db.prepare("UPDATE questions SET answer_is_person = ? WHERE id = ?").run(answerIsPerson ? 1 : 0, questionId).changes > 0
+  );
+}
+
 export function unresolvedAnswers(): UnresolvedRow[] {
   return db
     .prepare(
@@ -530,7 +548,6 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
   const highlightedText = String(req.body.highlightedText ?? "").trim();
   const answer = String(req.body.answer ?? "").trim();
   const aliases = String(req.body.aliases ?? "").split(/\r?\n|,/).map((alias) => alias.trim()).filter(Boolean);
-  const answerIsPerson = req.body.answerIsPerson === "1";
   if (!Number.isInteger(id) || !category || !prompt || !answer) {
     res.status(400).send(page("Invalid question", `<main class="card"><h1>Question not saved</h1><p>Category, question, and answer are required.</p><a href="/admin#questions">Return to questions</a></main>`));
     return;
@@ -539,12 +556,26 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
     res.status(400).send(page("Invalid highlight", `<main class="card"><h1>Question not saved</h1><p>The highlighted text must appear exactly in the question (capitalization may differ).</p><a href="/admin#question-${id}">Return to question</a></main>`));
     return;
   }
-  const result = db.prepare("UPDATE questions SET category = ?, prompt = ?, highlighted_text = ?, canonical_answer = ?, aliases_json = ?, answer_is_person = ? WHERE id = ?").run(category, prompt, highlightedText, answer, JSON.stringify(aliases), answerIsPerson ? 1 : 0, id);
+  // answer_is_person is deliberately absent here: it has its own route that
+  // survives the frozen-bank lock, and including it would silently clear the
+  // flag every time somebody saved question content.
+  const result = db.prepare("UPDATE questions SET category = ?, prompt = ?, highlighted_text = ?, canonical_answer = ?, aliases_json = ? WHERE id = ?").run(category, prompt, highlightedText, answer, JSON.stringify(aliases), id);
   if (!result.changes) {
     res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
     return;
   }
   logEvent(null, "question_edited", { questionId: id });
+  res.redirect(`/admin/questions#question-${id}`);
+});
+
+adminRouter.post("/admin/question/:id/grading", requireAdmin, (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const answerIsPerson = req.body.answerIsPerson === "1";
+  if (!setQuestionAnswerIsPerson(id, answerIsPerson)) {
+    res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin/questions#questions">Return to questions</a></main>`));
+    return;
+  }
+  logEvent(null, "question_grading_updated", { questionId: id, answerIsPerson });
   res.redirect(`/admin/questions#question-${id}`);
 });
 

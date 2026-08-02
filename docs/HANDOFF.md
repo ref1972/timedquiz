@@ -1,5 +1,26 @@
 # Current handoff
 
+## 2026-08-02 — rc27: person flag editable while the question bank stays frozen
+
+The person checkbox moved out of the frozen content editor into its own form
+and route, `POST /admin/question/:id/grading`, which the content lock does not
+gate. `POST /admin/question/:id` no longer writes `answer_is_person`, so saving
+question content cannot silently clear it. Content — category, prompt,
+highlighted text, canonical answer, aliases — stays frozen exactly as before.
+
+Browser-verified against a scratch database seeded to match production (a real
+completed attempt freezing the bank): every content field rendered disabled
+with no Save question button, while all 50 grading checkboxes rendered enabled;
+ticking one and saving persisted `answer_is_person = 1` and logged
+`question_grading_updated`; unticking round-tripped back to 0. 37 tests,
+TypeScript, and `git diff --check` pass.
+
+Setting the flag does not regrade existing answers, by design.
+
+**Next: tick the person box on Q3, Q10, Q12, Q17, Q22, Q23, Q29, Q32, Q44, and
+Q48 in production.** Q29 "Jayne Mansfield" is the one that materially needs it,
+having no surname alias.
+
 ## 2026-08-02 — rc26 deployed and verified; person flag blocked by the edit lock
 
 Commit `0805278` and tag `timed-quiz-v0.1.0-rc26` are pushed and deployed after
@@ -22,7 +43,13 @@ found only three that would now go to review, **all belonging to test
 players**: "Juicy Coutore" (Q31), "Krypton" for "Krypto" (Q41), and "stephen
 frye" (Q44). The one real player's answers are unaffected.
 
-### Open decision: the person flag cannot be set through the admin UI
+### Resolved in rc27: the person flag is editable on a frozen bank
+
+The owner chose to unlock the checkbox. rc27 gives it its own route that is not
+gated by the content lock; see `docs/DECISIONS.md`. The situation that prompted
+the decision is recorded below.
+
+### The situation: a real attempt froze the bank
 
 Production has one **real** completed attempt — `birving1983@gmail.com`,
 invited in the single real batch at 02:19 UTC and completed 02:29–02:37 UTC on
@@ -39,16 +66,8 @@ a submitted "Mansfield" goes to review, where one ruling covers every player.
 The real player answered all ten with the full name and scored correct on each,
 so no result depends on this either way.
 
-Three ways forward, for the owner to choose:
-
-1. Leave it. Q29 "Mansfield" answers are handled by one review ruling.
-2. Authorize a direct database update setting `answer_is_person` on the ten
-   person questions, after a fresh backup. It changes no question text or
-   answer, only future grading.
-3. Change the lock so grading-only metadata stays editable after a real attempt
-   begins. This is arguably the consistent choice, because the Review Queue
-   already lets an admin regrade every matching submission retroactively at any
-   time; the frozen bank exists to protect question *content*.
+The owner chose to make the checkbox editable rather than accept the gap or
+authorize a direct database write. That is rc27.
 
 ## 2026-08-02 — Code review fixes: grading, timer clock, admin throttle
 

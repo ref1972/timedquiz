@@ -162,16 +162,21 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
   </tr>`).join("")}</tbody></table></div>` : "<p>No answers have been manually reviewed yet.</p>";
   const questionForms = data.questions.map((q) => {
     const aliases = (JSON.parse(q.aliases_json) as string[]).join(", ");
-    return `<form class="question-editor" id="question-${q.id}" method="post" action="/admin/question/${q.id}">
+    return `<div class="question-block" id="question-${q.id}">
+    <form class="question-editor" method="post" action="/admin/question/${q.id}">
       <div class="question-number">${q.position}</div>
       <label>Category<input name="category" value="${esc(q.category)}" required ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Question <span class="muted">(*italics*)</span><textarea class="question-prompt" name="prompt" rows="3" required ${data.questionsLocked ? "disabled" : ""}>${esc(q.prompt)}</textarea>${data.questionsLocked ? "" : '<button class="small secondary italic-button" type="button">Italicize selection</button>'}</label>
       <label>Highlighted text <span class="muted">(optional)</span><input name="highlightedText" value="${esc(q.highlighted_text)}" ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Answer<input name="answer" value="${esc(q.canonical_answer)}" required ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Aliases <span class="muted">(comma or line separated)</span><input name="aliases" value="${esc(aliases)}" ${data.questionsLocked ? "disabled" : ""}></label>
-      <label class="checkbox"><input type="checkbox" name="answerIsPerson" value="1" ${q.answer_is_person ? "checked" : ""} ${data.questionsLocked ? "disabled" : ""}> Answer is a person’s name <span class="muted">(accepts the surname alone; sends a surname with a different first name to review)</span></label>
       <div class="question-actions">${data.questionsLocked ? "" : '<button class="small">Save question</button>'}<a class="button small secondary" href="/admin/preview/${q.position}" target="_blank" rel="noopener">Preview</a></div>
-    </form>`;
+    </form>
+    <form class="question-grading" method="post" action="/admin/question/${q.id}/grading">
+      <label class="checkbox"><input type="checkbox" name="answerIsPerson" value="1" ${q.answer_is_person ? "checked" : ""}> Answer is a person’s name <span class="muted">(accepts the surname alone; sends that surname behind a different first name to review)</span></label>
+      <button class="small secondary">Save grading</button>
+    </form>
+    </div>`;
   }).join("");
 
   return page(

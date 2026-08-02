@@ -14,14 +14,14 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed release: `timed-quiz-v0.1.0-rc26`. Certbot manages
+Current deployed release: `timed-quiz-v0.1.0-rc27`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
 One real player has completed an attempt, so the question bank is frozen:
-individual question edits and full-bank import both return 409. Any change to
-question content or to the `answer_is_person` grading flag now requires an
-explicit owner decision — see `docs/HANDOFF.md`.
+individual question edits and full-bank import both return 409. The
+`answer_is_person` grading flag is deliberately exempt and stays editable at
+`POST /admin/question/:id/grading` — see `docs/DECISIONS.md`.
 
 Production uses `https://mail.triviaworkshop.com/v1/mail` with client ID
 `timed_quiz` and its app-specific secret in `/etc/timed-quiz.env`. A no-send

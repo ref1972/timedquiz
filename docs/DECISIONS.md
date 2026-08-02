@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-08-02 — The frozen bank protects question content, not grading metadata
+
+At the owner's direction, the person flag remains editable after a real
+participant has started, while question content stays frozen. It has its own
+route, `POST /admin/question/:id/grading`, which is not gated by
+`questionEditingLocked()`; the content editor at `POST /admin/question/:id`
+still returns 409 and no longer writes the flag at all, so saving content can
+never silently clear it.
+
+The distinction is that the freeze exists to stop a prompt, canonical answer,
+or alias changing under a player who already answered it. The person flag
+changes no content and no stored verdict — only how the next submission is
+auto-graded. The Review Queue already lets an admin regrade every matching
+submission retroactively at any point in the event, so blocking a
+grading-only flag was the inconsistent position.
+
+Setting the flag does not regrade existing answers. A "Mansfield" already
+sitting in the queue stays there until a reviewer rules on it.
+
 ## 2026-08-02 — A surname counts alone, but not behind a different first name
 
 Questions carry an `answer_is_person` flag, set with a checkbox in the question

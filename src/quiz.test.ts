@@ -554,6 +554,40 @@ test("test attempts do not lock individual question editing", () => {
   db.prepare("UPDATE players SET is_test = 1 WHERE id = ?").run(testPlayer.id);
 });
 
+test("the person flag stays settable after a real attempt freezes the question bank", () => {
+  const question = db.prepare("SELECT id, answer_is_person FROM questions WHERE position = 3").get() as any;
+  const realPlayer = freshPlayer();
+  quiz.serveNext(realPlayer);
+  db.prepare("UPDATE players SET is_test = 0 WHERE id = ?").run(realPlayer.id);
+  assert.equal(admin.questionEditingLocked(), true, "a real participant freezes question content");
+
+  // Grading metadata is not question content: it changes no prompt, answer, or
+  // stored verdict, and the Review Queue can already regrade globally.
+  assert.equal(admin.setQuestionAnswerIsPerson(question.id, true), true);
+  assert.equal((db.prepare("SELECT answer_is_person FROM questions WHERE id = ?").get(question.id) as any).answer_is_person, 1);
+  assert.equal(admin.setQuestionAnswerIsPerson(question.id, false), true);
+  assert.equal((db.prepare("SELECT answer_is_person FROM questions WHERE id = ?").get(question.id) as any).answer_is_person, 0);
+  assert.equal(admin.setQuestionAnswerIsPerson(999999, true), false, "an unknown question is rejected");
+
+  // The control must still be rendered and enabled on a frozen bank, and it
+  // must post to its own route rather than the locked content editor.
+  const html = views.adminPage(
+    { questionCount: 50, closesAt: null, results: [], unresolved: [], reviewedRules: [], questions: admin.adminQuestions(), questionsLocked: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    "questions",
+  );
+  assert.match(html, new RegExp(`action="/admin/question/${question.id}/grading"`));
+  assert.equal(/name="answerIsPerson"[^>]*disabled/.test(html), false, "the person checkbox must not be disabled by the content lock");
+  assert.match(html, /Save grading/);
+  assert.equal(html.includes("Save question"), false, "question content stays frozen");
+
+  // audit_events references attempts, so it has to go first.
+  db.prepare("DELETE FROM audit_events WHERE attempt_id IN (SELECT id FROM attempts WHERE player_id = ?)").run(realPlayer.id);
+  db.prepare("DELETE FROM exposures WHERE attempt_id IN (SELECT id FROM attempts WHERE player_id = ?)").run(realPlayer.id);
+  db.prepare("DELETE FROM attempts WHERE player_id = ?").run(realPlayer.id);
+  db.prepare("DELETE FROM players WHERE id = ?").run(realPlayer.id);
+  assert.equal(admin.questionEditingLocked(), false, "the suite is left unlocked for later tests");
+});
+
 test("real and test result exports remain separated", () => {
   const testPlayer = freshPlayer();
   const realPlayer = freshPlayer();
