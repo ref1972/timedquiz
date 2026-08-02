@@ -30,6 +30,11 @@ SQLite, not environment variables. They are enabled in production for the
 owner address as of rc24; each future completed real or test attempt consumes
 one gateway message. Configuration alone does not send a message.
 
+The fixed player-stage layout introduced after rc24 is explicitly an owner
+evaluation experiment and can be reverted independently of quiz timing/data.
+Before release, verify Ready/question button coordinates and prompt overflow at
+desktop and phone widths.
+
 `timed-quiz-backup.timer` creates a consistent compressed SQLite backup in
 `/var/backups/timed-quiz` daily around 04:15 UTC. Before a real invitation
 send, also trigger it manually and retain a verified off-host copy.

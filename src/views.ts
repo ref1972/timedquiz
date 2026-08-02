@@ -1,4 +1,4 @@
-import type { AdminQuestionRow, InvitationStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow, UnresolvedRow } from "./admin.ts";
+import type { AdminQuestionRow, InvitationStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow, ReviewedRuleRow, UnresolvedRow } from "./admin.ts";
 import type { IntroCopy } from "./intro-copy.ts";
 import type { InvitationTemplate } from "./invitation-template.ts";
 import type { CompletionNotificationSettings } from "./completion-notification.ts";
@@ -61,6 +61,7 @@ export interface AdminPageData {
   closesAt: number | null;
   results: ResultRow[];
   unresolved: UnresolvedRow[];
+  reviewedRules: ReviewedRuleRow[];
   questions: AdminQuestionRow[];
   questionsLocked: boolean;
   emailRelayConfigured: boolean;
@@ -76,13 +77,15 @@ export function questionPreviewPage(question: AdminQuestionRow, total: number, d
   const next = question.position < total ? `<a class="button small" href="/admin/preview/${question.position + 1}">Next</a>` : "";
   return page("Preview question " + question.position, `
     <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle light and dark mode">Dark mode</button>
-    <nav class="preview-nav"><a href="/admin#question-${question.id}">Back to admin editor</a><span>${previous}${next}</span></nav>
+    <nav class="preview-nav"><a href="/admin/questions#question-${question.id}">Back to admin editor</a><strong>Admin preview &middot; timer not running</strong><span>${previous}${next}</span></nav>
     <main class="card quiz">
-      <p class="preview-badge">Admin preview &middot; timer not running</p>
-      <div class="quizhead"><span>Question ${question.position} of ${total}</span><strong>${durationSeconds.toFixed(1)}</strong></div>
-      <p class="category">${esc(question.category)}</p>
-      <h1 class="prompt" id="previewPrompt"></h1>
-      <form onsubmit="return false"><label for="previewAnswer">Your answer</label><input id="previewAnswer" autocomplete="off"><button type="button" class="submit-answer">Submit Answer</button></form>
+      <div class="play-stage">
+        <div class="quizhead"><span>Question ${question.position} of ${total}</span><strong>${durationSeconds.toFixed(1)}</strong></div>
+        <p class="category">${esc(question.category)}</p>
+        <div class="prompt-stage"><h1 class="prompt" id="previewPrompt"></h1></div>
+        <form class="answer-zone" onsubmit="return false"><label for="previewAnswer">Your answer</label><input id="previewAnswer" autocomplete="off"><button type="button" class="submit-answer">Submit Answer</button></form>
+        <p class="muted save-status">Preview only &middot; no answer will be saved.</p>
+      </div>
     </main>
     <script type="application/json" id="previewData">${previewData}</script>
     <script src="/prompt-format.js"></script>
@@ -107,10 +110,12 @@ export function playerAnswersPage(player: { id: number; email: string; display_n
       <p>${score} correct &middot; ${(answerTime / 1000).toFixed(1)}s answer time &middot; started ${esc(new Date(attempt.started_at).toLocaleString())}${attempt.restart_reason ? ` &middot; restart reason: ${esc(attempt.restart_reason)}` : ""}</p>
       <div class="table"><table><thead><tr><th>Q</th><th>Category</th><th>Question</th><th>Submitted</th><th>Counted correct</th><th>Verdict</th><th>Time</th><th>Finalized</th></tr></thead><tbody>${answerRows}</tbody></table></div></section>`;
   }).join("") : '<section class="panel"><p>This player has not started an attempt.</p></section>';
-  return page("Answers for " + (player.display_name || player.email), `<main class="admin answer-sheet"><header><p class="eyebrow">Player answer sheet</p><h1>${esc(player.display_name || player.email)}</h1><p>${esc(player.email)}${player.is_test ? " &middot; test account" : ""}</p><a class="button secondary" href="/admin">Back to admin</a></header><div class="notice"><strong>Answer time:</strong> sum of elapsed question time for every finalized scored question, regardless of verdict. Ready screens and breaks are excluded.</div>${attemptSections}</main>`);
+  return page("Answers for " + (player.display_name || player.email), `<main class="admin answer-sheet"><header><p class="eyebrow">Player answer sheet</p><h1>${esc(player.display_name || player.email)}</h1><p>${esc(player.email)}${player.is_test ? " &middot; test account" : ""}</p><a class="button secondary" href="/admin/progress">Back to Progress</a></header><div class="notice"><strong>Answer time:</strong> sum of elapsed question time for every finalized scored question, regardless of verdict. Ready screens and breaks are excluded.</div>${attemptSections}</main>`);
 }
 
-export function adminPage(data: AdminPageData): string {
+export type AdminSection = "questions" | "players" | "progress" | "review";
+
+export function adminPage(data: AdminPageData, section: AdminSection): string {
   const closesLabel = data.closesAt
     ? new Date(data.closesAt).toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })
     : "not set";
@@ -151,6 +156,10 @@ export function adminPage(data: AdminPageData): string {
         })
         .join("")
     : "<p>No unresolved answers yet.</p>";
+  const reviewed = data.reviewedRules.length ? `<div class="table"><table><thead><tr><th>Question</th><th>Submitted answer</th><th>Current ruling</th><th>Players</th><th>Note</th><th>Change ruling</th></tr></thead><tbody>${data.reviewedRules.map((rule) => `<tr>
+    <td>Q${rule.position}</td><td>“${esc(rule.normalized_answer)}”</td><td><strong>${esc(rule.verdict)}</strong></td><td>${rule.affected}</td><td>${rule.note ? esc(rule.note) : "—"}</td>
+    <td><form method="post" action="/admin/review"><input type="hidden" name="questionId" value="${rule.question_id}"><input type="hidden" name="answer" value="${esc(rule.normalized_answer)}"><input type="hidden" name="note" value="${esc(rule.note)}"><button class="small" name="verdict" value="correct" ${rule.verdict === "correct" ? "disabled" : ""}>Correct</button> <button class="small secondary" name="verdict" value="incorrect" ${rule.verdict === "incorrect" ? "disabled" : ""}>Incorrect</button></form></td>
+  </tr>`).join("")}</tbody></table></div>` : "<p>No answers have been manually reviewed yet.</p>";
   const questionForms = data.questions.map((q) => {
     const aliases = (JSON.parse(q.aliases_json) as string[]).join(", ");
     return `<form class="question-editor" id="question-${q.id}" method="post" action="/admin/question/${q.id}">
@@ -172,26 +181,28 @@ export function adminPage(data: AdminPageData): string {
         <h1>Pop Culture Bee Quiz</h1>
         <p>${data.questionCount}/50 questions &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
       </header>
+      <nav class="admin-nav" aria-label="Quiz administration">
+        <a href="/admin/questions" ${section === "questions" ? 'aria-current="page"' : ""}>Questions &amp; Answers</a>
+        <a href="/admin/players" ${section === "players" ? 'aria-current="page"' : ""}>Players</a>
+        <a href="/admin/progress" ${section === "progress" ? 'aria-current="page"' : ""}>Progress</a>
+        <a href="/admin/review" ${section === "review" ? 'aria-current="page"' : ""}>Review Queue${data.unresolved.length ? ` (${data.unresolved.length})` : ""}</a>
+      </nav>
 
-      <section class="panel" id="player-intro">
+      <section class="panel" id="player-intro" ${section === "players" ? "" : "hidden"}>
         <h2>Player intro</h2>
         <p>Edit the wording players see before they begin. Timing, question count, abandonment behavior, and scoring are still enforced by the application regardless of this copy.</p>
         <form method="post" action="/admin/intro">
           <label>Eyebrow<input name="eyebrow" value="${esc(data.introCopy.eyebrow)}" maxlength="100" required></label>
           <label>Main title<input name="title" value="${esc(data.introCopy.title)}" maxlength="160" required></label>
           <label>Introductory instructions<textarea name="instructions" rows="3" maxlength="1000" required>${esc(data.introCopy.instructions)}</textarea></label>
-          <div class="form-grid">
-            <label>Warning heading<input name="warningHeading" value="${esc(data.introCopy.warningHeading)}" maxlength="160" required></label>
-            <label>Ready button label<input name="buttonLabel" value="${esc(data.introCopy.buttonLabel)}" maxlength="100" required></label>
-          </div>
-          <label>Warning text<textarea name="warningBody" rows="4" maxlength="1500" required>${esc(data.introCopy.warningBody)}</textarea></label>
+          <label>Ready button label<input name="buttonLabel" value="${esc(data.introCopy.buttonLabel)}" maxlength="100" required></label>
           <label>Score / advancement text<textarea name="advancement" rows="4" maxlength="1500" required>${esc(data.introCopy.advancement)}</textarea></label>
           <button>Save player intro</button>
           <a class="button secondary" href="/quiz" target="_blank" rel="noopener">Preview player screen</a>
         </form>
       </section>
 
-      <section class="panel">
+      <section class="panel" ${section === "questions" ? "" : "hidden"}>
         <h2>Import questions</h2>
         <p>Download the current question bank, edit it in Excel or Google Sheets, and upload the CSV. Keep the header row; wrap titles in <code>*asterisks*</code> for italics, use <code>highlighted_text</code> for an optional gold phrase, and separate multiple accepted aliases with <code>|</code>. Import locks after the first attempt starts.</p>
         <p><a class="button secondary" href="/admin/questions.csv">Download current questions CSV</a></p>
@@ -203,13 +214,13 @@ export function adminPage(data: AdminPageData): string {
         <p class="muted">JSON imports are still accepted for compatibility.</p>
       </section>
 
-      <section class="panel" id="questions">
+      <section class="panel" id="questions" ${section === "questions" ? "" : "hidden"}>
         <h2>Edit questions</h2>
         <p>${data.questionsLocked ? "Question editing is locked because a real participant has started." : "Edit the category, question, optional gold-highlighted phrase, canonical answer, or accepted aliases. Test-player activity does not lock individual edits."}</p>
         <div class="question-list">${questionForms}</div>
       </section>
 
-      <section class="panel" id="players">
+      <section class="panel" id="players" ${section === "players" ? "" : "hidden"}>
         <p class="step-label">Step 1</p>
         <h2>Prepare the player list</h2>
         <p>Download the current list, edit it in Excel or Google Sheets, then upload the CSV. Required column: <code>email</code>. Optional columns: <code>name</code> and <code>test</code> (<code>yes</code> or <code>no</code>).</p>
@@ -222,7 +233,7 @@ export function adminPage(data: AdminPageData): string {
         <p class="muted">Importing adds new players and updates the name/test flag for matching email addresses. It never deletes players, resets attempts, or sends email.</p>
       </section>
 
-      <section class="panel" id="invitation-template">
+      <section class="panel" id="invitation-template" ${section === "players" ? "" : "hidden"}>
         <h2>Invitation email</h2>
         <p>Edit the subject and message used by both test sends and real invitation batches. Use <code>{{name}}</code> for the player’s name and <code>{{link}}</code> for their personalized link.</p>
         <form method="post" action="/admin/invitation-template">
@@ -233,7 +244,7 @@ export function adminPage(data: AdminPageData): string {
         <p class="muted"><code>{{link}}</code> is required. Test messages automatically add <code>[TEST]</code> to the subject. Always use Step 3 below after editing.</p>
       </section>
 
-      <section class="panel" id="invitations">
+      <section class="panel" id="invitations" ${section === "players" ? "" : "hidden"}>
         <h2>Send player invitations</h2>
         <div class="invite-summary" aria-label="Invitation status">
           <div><strong>${data.invitationStats.realPlayers}</strong><span>real players</span></div>
@@ -250,7 +261,7 @@ export function adminPage(data: AdminPageData): string {
         <p class="muted">Safety behavior: the batch stops at the first failure or quota pause. That recipient remains unsent for retry, and there is no unreliable fallback mailer.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel" ${section === "progress" ? "" : "hidden"}>
         <h2>Progress and results</h2>
         <p><a class="button" href="/admin/results.csv">Download real results CSV</a> <a class="button secondary" href="/admin/test-results.csv">Download test results CSV</a></p>
         <p class="muted">The two files remain separate so rehearsal accounts never appear in the real rankings.</p>
@@ -260,7 +271,7 @@ export function adminPage(data: AdminPageData): string {
         </table></div>
       </section>
 
-      <section class="panel" id="completion-notifications">
+      <section class="panel" id="completion-notifications" ${section === "progress" ? "" : "hidden"}>
         <h2>Completion notifications</h2>
         <p>Send one admin email when any player—including a test player—submits all answers. Each attempt is claimed before sending so completion-page refreshes cannot create duplicates.</p>
         <form method="post" action="/admin/completion-notifications">
@@ -271,12 +282,15 @@ export function adminPage(data: AdminPageData): string {
         <p class="muted">The message includes test/real status, score, answer time, completion time, and a link to the player’s admin answer sheet.</p>
       </section>
 
-      <section class="panel" id="review">
+      <section class="panel" id="review" ${section === "review" ? "" : "hidden"}>
         <h2>Review queue</h2>
         ${unresolved}
+        <h2>Reviewed answers</h2>
+        <p>These rulings apply to every player who submitted the same normalized answer. Change a ruling here to regrade all matching submissions.</p>
+        ${reviewed}
       </section>
 
-      <section class="panel" id="security">
+      <section class="panel" id="security" ${section === "players" ? "" : "hidden"}>
         <h2>Change admin password</h2>
         <p>Changing the password signs out every existing administrator session. A long, unique password is recommended but not required.</p>
         <form method="post" action="/admin/password">

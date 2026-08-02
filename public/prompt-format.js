@@ -46,5 +46,17 @@
     return html;
   }
 
-  window.TimedQuizPrompt = { format: format };
+  function fit() {
+    var prompt = document.querySelector(".prompt");
+    var stage = document.querySelector(".prompt-stage");
+    if (!prompt || !stage) return;
+    var size = 38;
+    prompt.style.fontSize = size + "px";
+    while (size > 18 && (prompt.scrollHeight > stage.clientHeight || prompt.scrollWidth > stage.clientWidth)) {
+      size -= 1;
+      prompt.style.fontSize = size + "px";
+    }
+  }
+
+  window.TimedQuizPrompt = { format: format, fit: fit };
 })();

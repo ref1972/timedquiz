@@ -67,15 +67,16 @@
       root.innerHTML =
         '<p class="eyebrow">' + escapeHtml(intro.eyebrow || "Trivia Nationals") + '</p><h1>' + escapeHtml(intro.title || "Pop Culture Bee Preliminary") + '</h1>' +
         '<p>' + escapeHtml(intro.instructions || ("You will answer " + state.questionCount + " text questions, one at a time. Each question has " + state.durationSeconds + " seconds.")) + '</p>' +
-        '<div class="notice"><strong>' + escapeHtml(intro.warningHeading || "If you leave:") + '</strong> ' + escapeHtml(intro.warningBody || "the current question expires using the most recent saved draft (blank if none). When you return, you continue with the next question, so walking away costs exactly one question.") + '</div>' +
         '<p>' + escapeHtml(intro.advancement || "You will not see correctness or a score. Your result determines whether you advance to the LIVE game Saturday.") + '</p>' +
         '<button id="start">' + escapeHtml(intro.buttonLabel || "I’m ready to begin") + '</button>';
       document.querySelector("#start").onclick = ready;
     } else if (state.state === "ready") {
-      root.innerHTML =
+      root.innerHTML = '<div class="play-stage">' +
         '<p class="eyebrow">Question ' +
         state.nextPosition +
-        ' of 50</p><p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p><h1>Ready?</h1><p>Your ' + escapeHtml(state.durationSeconds) + ' seconds begin the moment the question appears.</p><button id="readyBtn">Show question</button>';
+        ' of 50</p><p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p>' +
+        '<div class="prompt-stage ready-copy"><div><h1>Ready?</h1><p>Your ' + escapeHtml(state.durationSeconds) + ' seconds begin the moment the question appears.</p></div></div>' +
+        '<div class="answer-zone ready-action"><button id="readyBtn" class="submit-answer">Show question</button></div><p class="muted save-status" aria-hidden="true">&nbsp;</p></div>';
       document.querySelector("#readyBtn").onclick = ready;
     } else if (state.state === "complete") {
       root.innerHTML =
@@ -111,18 +112,20 @@
     // way it is always the true, authoritative deadline, never a locally
     // guessed one.
     var deadline = new Date(state.deadlineAt).getTime();
-    root.innerHTML =
+    root.innerHTML = '<div class="play-stage">' +
       '<div class="quizhead"><span>Question ' +
       state.position +
       ' of 50</span><strong id="clock">' + Number(state.durationSeconds || 30).toFixed(1) + '</strong></div>' +
       '<p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p>' +
-      '<h1 class="prompt">' +
+      '<div class="prompt-stage"><h1 class="prompt">' +
       window.TimedQuizPrompt.format(state.prompt, state.highlightedText) +
-      '</h1><form id="answerForm"><label for="answer">Your answer</label>' +
+      '</h1></div><form id="answerForm" class="answer-zone"><label for="answer">Your answer</label>' +
       '<input id="answer" maxlength="500" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="' +
       escapeHtml(state.draft || "") +
       '"><button class="submit-answer">Submit Answer</button></form>' +
-      '<p id="saveStatus" class="muted">Your draft saves automatically.</p>';
+      '<p id="saveStatus" class="muted save-status">Your draft saves automatically.</p></div>';
+
+    window.TimedQuizPrompt.fit();
 
     var input = document.querySelector("#answer");
     input.focus();
@@ -150,6 +153,8 @@
     tick();
     tickTimer = setInterval(tick, 100);
   }
+
+  window.addEventListener("resize", window.TimedQuizPrompt.fit);
 
   function saveDraft() {
     sequence++;

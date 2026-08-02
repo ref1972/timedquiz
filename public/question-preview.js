@@ -12,4 +12,6 @@
     updateThemeButton();
   };
   document.querySelector("#previewPrompt").innerHTML = window.TimedQuizPrompt.format(data.prompt, data.highlightedText);
+  window.TimedQuizPrompt.fit();
+  window.addEventListener("resize", window.TimedQuizPrompt.fit);
 })();

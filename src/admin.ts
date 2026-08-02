@@ -6,7 +6,7 @@ import { decryptInvitationToken, encryptInvitationToken, sha256, randomToken } f
 import { normalize, applyReviewRuling } from "./grading.ts";
 import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mail.ts";
 import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
-import { adminLoginPage, adminPage, page, playerAnswersPage, questionPreviewPage } from "./views.ts";
+import { adminLoginPage, adminPage, page, playerAnswersPage, questionPreviewPage, type AdminSection } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
 import { parseQuestionImport, questionsToCsv, visiblePromptText } from "./question-import.ts";
 import { parsePlayerImport, playersToCsv } from "./player-import.ts";
@@ -92,6 +92,23 @@ export interface UnresolvedRow {
   n: number;
 }
 
+export interface ReviewedRuleRow {
+  question_id: number;
+  position: number;
+  normalized_answer: string;
+  verdict: "correct" | "incorrect";
+  note: string;
+  reviewed_at: string;
+  affected: number;
+}
+
+export function reviewedRules(): ReviewedRuleRow[] {
+  return db.prepare(`SELECT r.question_id, q.position, r.normalized_answer, r.verdict, r.note, r.reviewed_at,
+    COUNT(e.id) AS affected FROM grading_rules r JOIN questions q ON q.id = r.question_id
+    LEFT JOIN exposures e ON e.question_id = r.question_id AND e.normalized_answer = r.normalized_answer
+    GROUP BY r.id ORDER BY q.position, r.normalized_answer`).all() as unknown as ReviewedRuleRow[];
+}
+
 export interface AdminQuestionRow {
   id: number;
   position: number;
@@ -173,7 +190,7 @@ function loginRateLimited(ip: string): boolean {
   return existing.count > 10;
 }
 
-adminRouter.get("/admin", (req: Request, res: Response) => {
+function renderAdmin(req: Request, res: Response, section: AdminSection): void {
   if (!isAdmin(req)) {
     res.send(adminLoginPage(false));
     return;
@@ -183,19 +200,28 @@ adminRouter.get("/admin", (req: Request, res: Response) => {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), reviewedRules: reviewedRules(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }, section));
+}
+
+adminRouter.get("/admin", (req: Request, res: Response) => {
+  if (!isAdmin(req)) return renderAdmin(req, res, "questions");
+  res.redirect("/admin/questions");
 });
+
+for (const section of ["questions", "players", "progress", "review"] as const) {
+  adminRouter.get(`/admin/${section}`, (req: Request, res: Response) => renderAdmin(req, res, section));
+}
 
 adminRouter.post("/admin/completion-notifications", requireAdmin, (req: Request, res: Response) => {
   const recipient = String(req.body.recipient ?? "").trim().toLowerCase();
   const enabled = req.body.enabled === "1";
   if (enabled && !/^\S+@\S+\.\S+$/.test(recipient)) {
-    res.status(400).send(page("Notification settings not saved", `<main class="card"><h1>Enter a valid notification address</h1><a href="/admin#completion-notifications">Return to settings</a></main>`));
+    res.status(400).send(page("Notification settings not saved", `<main class="card"><h1>Enter a valid notification address</h1><a href="/admin/progress#completion-notifications">Return to settings</a></main>`));
     return;
   }
   setCompletionNotificationSettings({ enabled, recipient });
   logEvent(null, "completion_notification_settings_updated", { enabled });
-  res.redirect("/admin#completion-notifications");
+  res.redirect("/admin/progress#completion-notifications");
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {
@@ -209,7 +235,7 @@ adminRouter.post("/admin/login", (req: Request, res: Response) => {
   }
   loginAttempts.delete(req.ip || req.socket.remoteAddress || "unknown");
   setAdminSession(res);
-  res.redirect("/admin");
+  res.redirect("/admin/questions");
 });
 
 adminRouter.post("/admin/password", requireAdmin, (req: Request, res: Response) => {
@@ -217,15 +243,15 @@ adminRouter.post("/admin/password", requireAdmin, (req: Request, res: Response) 
   const newPassword = String(req.body.newPassword ?? "");
   const confirmation = String(req.body.confirmPassword ?? "");
   if (!checkAdminPassword(currentPassword)) {
-    res.status(403).send(page("Password not changed", `<main class="card"><h1>Current password was incorrect</h1><p>No change was made.</p><a href="/admin#security">Return to security</a></main>`));
+    res.status(403).send(page("Password not changed", `<main class="card"><h1>Current password was incorrect</h1><p>No change was made.</p><a href="/admin/players#security">Return to security</a></main>`));
     return;
   }
   if (!newPassword || newPassword.length > 256) {
-    res.status(400).send(page("Password not changed", `<main class="card"><h1>Enter a new password</h1><p>The new administrator password cannot be blank or longer than 256 characters.</p><a href="/admin#security">Return to security</a></main>`));
+    res.status(400).send(page("Password not changed", `<main class="card"><h1>Enter a new password</h1><p>The new administrator password cannot be blank or longer than 256 characters.</p><a href="/admin/players#security">Return to security</a></main>`));
     return;
   }
   if (newPassword !== confirmation) {
-    res.status(400).send(page("Password not changed", `<main class="card"><h1>Passwords did not match</h1><p>No change was made.</p><a href="/admin#security">Return to security</a></main>`));
+    res.status(400).send(page("Password not changed", `<main class="card"><h1>Passwords did not match</h1><p>No change was made.</p><a href="/admin/players#security">Return to security</a></main>`));
     return;
   }
   setAdminPassword(newPassword);
@@ -238,31 +264,31 @@ adminRouter.post("/admin/intro", requireAdmin, (req: Request, res: Response) => 
     eyebrow: String(req.body.eyebrow ?? "").trim(),
     title: String(req.body.title ?? "").trim(),
     instructions: String(req.body.instructions ?? "").trim(),
-    warningHeading: String(req.body.warningHeading ?? "").trim(),
-    warningBody: String(req.body.warningBody ?? "").trim(),
+    warningHeading: getIntroCopy().warningHeading,
+    warningBody: getIntroCopy().warningBody,
     advancement: String(req.body.advancement ?? "").trim(),
     buttonLabel: String(req.body.buttonLabel ?? "").trim(),
   };
   const values = Object.values(copy);
   if (values.some((value) => !value) || copy.eyebrow.length > 100 || copy.title.length > 160 || copy.instructions.length > 1000 || copy.warningHeading.length > 160 || copy.warningBody.length > 1500 || copy.advancement.length > 1500 || copy.buttonLabel.length > 100) {
-    res.status(400).send(page("Intro not saved", `<main class="card"><h1>Player intro not saved</h1><p>Every field is required and must remain within its displayed character limit.</p><a href="/admin#player-intro">Return to Player intro</a></main>`));
+    res.status(400).send(page("Intro not saved", `<main class="card"><h1>Player intro not saved</h1><p>Every field is required and must remain within its displayed character limit.</p><a href="/admin/players#player-intro">Return to Player intro</a></main>`));
     return;
   }
   setIntroCopy(copy);
   logEvent(null, "intro_copy_updated");
-  res.redirect("/admin#player-intro");
+  res.redirect("/admin/players#player-intro");
 });
 
 adminRouter.post("/admin/invitation-template", requireAdmin, (req: Request, res: Response) => {
   const subject = String(req.body.subject ?? "").trim();
   const body = String(req.body.body ?? "").trim();
   if (!subject || subject.length > 200 || !body || body.length > 10_000 || !body.includes("{{link}}")) {
-    res.status(400).send(page("Email template not saved", `<main class="card"><h1>Invitation email not saved</h1><p>Enter a subject and body within the displayed limits. The body must contain <code>{{link}}</code> so every player receives their personalized invitation.</p><a href="/admin#invitation-template">Return to invitation email</a></main>`));
+    res.status(400).send(page("Email template not saved", `<main class="card"><h1>Invitation email not saved</h1><p>Enter a subject and body within the displayed limits. The body must contain <code>{{link}}</code> so every player receives their personalized invitation.</p><a href="/admin/players#invitation-template">Return to invitation email</a></main>`));
     return;
   }
   setInvitationTemplate({ subject, body });
   logEvent(null, "invitation_email_template_updated");
-  res.redirect("/admin#invitation-template");
+  res.redirect("/admin/players#invitation-template");
 });
 
 adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) => {
@@ -271,7 +297,7 @@ adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) =
     players = parsePlayerImport(String(req.body.players ?? ""));
   } catch (error) {
     const message = error instanceof Error ? error.message : "The player data could not be read.";
-    res.status(400).send(page("Invalid players", `<main class="card"><h1>Import rejected</h1><p>${escapeHtml(message)}</p><a href="/admin#players">Return to players</a></main>`));
+    res.status(400).send(page("Invalid players", `<main class="card"><h1>Import rejected</h1><p>${escapeHtml(message)}</p><a href="/admin/players#players">Return to players</a></main>`));
     return;
   }
   const insert = db.prepare(
@@ -310,7 +336,7 @@ adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) =
        <p><strong>${links.length} added</strong> &middot; <strong>${updated} updated</strong> &middot; <strong>${skipped.length} skipped</strong>. No email was sent.</p>
        ${links.length ? `<p>New personalized links are shown below. They also remain recoverable for controlled Workspace delivery.</p><textarea rows="12" readonly>${escapeHtml(links.join("\n"))}</textarea>` : ""}
        ${skipped.length ? `<p class="muted">Skipped ${skipped.length}: ${escapeHtml(skipped.join("; "))}</p>` : ""}
-       <p><a href="/admin#invitations">Continue to invitation setup</a></p></main>`,
+       <p><a href="/admin/players#invitations">Continue to invitation setup</a></p></main>`,
     ),
   );
 });
@@ -341,21 +367,21 @@ adminRouter.post("/admin/player/:id/rotate-invitation", requireAdmin, (req: Requ
 adminRouter.post("/admin/invitations/quota", requireAdmin, async (_req: Request, res: Response) => {
   try {
     const remaining = await remainingEmailQuota();
-    res.send(page("Workspace capacity", `<main class="card"><h1>${remaining} email recipient${remaining === 1 ? "" : "s"} available</h1><p>This is the capacity currently reported by the configured Workspace relay.</p><a href="/admin#invitations">Return to invitations</a></main>`));
+    res.send(page("Workspace capacity", `<main class="card"><h1>${remaining} email recipient${remaining === 1 ? "" : "s"} available</h1><p>This is the capacity currently reported by the configured Workspace relay.</p><a href="/admin/players#invitations">Return to invitations</a></main>`));
   } catch (error) {
-    res.status(502).send(page("Quota unavailable", `<main class="card"><h1>Could not read Workspace quota</h1><p>${escapeHtml(error instanceof Error ? error.message : "Unknown relay error")}</p><a href="/admin#invitations">Return to invitations</a></main>`));
+    res.status(502).send(page("Quota unavailable", `<main class="card"><h1>Could not read Workspace quota</h1><p>${escapeHtml(error instanceof Error ? error.message : "Unknown relay error")}</p><a href="/admin/players#invitations">Return to invitations</a></main>`));
   }
 });
 
 adminRouter.post("/admin/invitations/test", requireAdmin, async (req: Request, res: Response) => {
   const to = String(req.body.email ?? "").trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(to)) {
-    res.status(400).send(page("Invalid email", `<main class="card"><h1>Enter a valid test address</h1><a href="/admin#invitations">Return to invitations</a></main>`));
+    res.status(400).send(page("Invalid email", `<main class="card"><h1>Enter a valid test address</h1><a href="/admin/players#invitations">Return to invitations</a></main>`));
     return;
   }
   const player = testPlayerForRecipient(to);
   if (!player) {
-    res.status(409).send(page("No matching test player", `<main class="card"><h1>No matching test player</h1><p>Import ${escapeHtml(to)} as a test player first. Test sends never borrow another player's personalized link.</p><a href="/admin#players">Return to players</a></main>`));
+    res.status(409).send(page("No matching test player", `<main class="card"><h1>No matching test player</h1><p>Import ${escapeHtml(to)} as a test player first. Test sends never borrow another player's personalized link.</p><a href="/admin/players#players">Return to players</a></main>`));
     return;
   }
   if (!player.token_ciphertext) {
@@ -369,7 +395,7 @@ adminRouter.post("/admin/invitations/test", requireAdmin, async (req: Request, r
   const link = `${config.appOrigin}/invite/${decryptInvitationToken(player.token_ciphertext)}`;
   const result = await sendInvitationEmail(to, player.display_name || "Test Player", link, true);
   logEvent(null, "invitation_test_email", { playerId: player.id, ok: result.ok, quotaExhausted: result.quotaExhausted });
-  res.status(result.ok ? 200 : 502).send(page("Test invitation", `<main class="card"><h1>${result.ok ? "Test invitation sent" : "Test invitation failed"}</h1><p>${result.ok ? `Sent to ${escapeHtml(to)}.${result.remaining === null ? "" : ` Relay quota remaining: ${result.remaining}.`}` : escapeHtml(result.error)}</p><a href="/admin#invitations">Return to invitations</a></main>`));
+  res.status(result.ok ? 200 : 502).send(page("Test invitation", `<main class="card"><h1>${result.ok ? "Test invitation sent" : "Test invitation failed"}</h1><p>${result.ok ? `Sent to ${escapeHtml(to)}.${result.remaining === null ? "" : ` Relay quota remaining: ${result.remaining}.`}` : escapeHtml(result.error)}</p><a href="/admin/players#invitations">Return to invitations</a></main>`));
 });
 
 adminRouter.post("/admin/invitations/send-batch", requireAdmin, async (_req: Request, res: Response) => {
@@ -459,7 +485,7 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
     throw error;
   }
   logEvent(null, "questions_imported", { count: parsed.length });
-  res.redirect("/admin");
+  res.redirect("/admin/questions");
 });
 
 adminRouter.get("/admin/questions.csv", requireAdmin, (_req: Request, res: Response) => {
@@ -480,7 +506,7 @@ adminRouter.get("/admin/preview/:position", requireAdmin, (req: Request, res: Re
   const position = Number(req.params.position);
   const question = db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json FROM questions WHERE position = ?").get(position) as unknown as AdminQuestionRow | undefined;
   if (!question) {
-    res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
+    res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin/questions#questions">Return to questions</a></main>`));
     return;
   }
   res.send(questionPreviewPage(question, questionCountRow(), config.questionDurationMs / 1000));
@@ -488,7 +514,7 @@ adminRouter.get("/admin/preview/:position", requireAdmin, (req: Request, res: Re
 
 adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Response) => {
   if (questionEditingLocked()) {
-    res.status(409).send(page("Edit blocked", `<main class="card"><h1>Question edit blocked</h1><p>A real participant has started, so the active question bank is frozen. Test-player attempts alone do not trigger this lock.</p><a href="/admin#questions">Return to questions</a></main>`));
+    res.status(409).send(page("Edit blocked", `<main class="card"><h1>Question edit blocked</h1><p>A real participant has started, so the active question bank is frozen. Test-player attempts alone do not trigger this lock.</p><a href="/admin/questions#questions">Return to questions</a></main>`));
     return;
   }
   const id = Number(req.params.id);
@@ -511,7 +537,7 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
     return;
   }
   logEvent(null, "question_edited", { questionId: id });
-  res.redirect(`/admin#question-${id}`);
+  res.redirect(`/admin/questions#question-${id}`);
 });
 
 adminRouter.post("/admin/review", requireAdmin, (req: Request, res: Response) => {
@@ -521,7 +547,7 @@ adminRouter.post("/admin/review", requireAdmin, (req: Request, res: Response) =>
   const note = String(req.body.note ?? "").slice(0, 500);
   applyReviewRuling(questionId, normalize(answer), verdict, note);
   logEvent(null, "answer_reviewed", { questionId, answer, verdict });
-  res.redirect("/admin#review");
+  res.redirect("/admin/review");
 });
 
 adminRouter.post("/admin/restart", requireAdmin, (req: Request, res: Response) => {
@@ -531,7 +557,7 @@ adminRouter.post("/admin/restart", requireAdmin, (req: Request, res: Response) =
     "UPDATE attempts SET status = 'superseded', superseded_at = ?, restart_reason = ? WHERE player_id = ? AND status IN ('in_progress', 'completed')",
   ).run(nowIso(), reason, playerId);
   logEvent(null, "restart_granted", { playerId, reason });
-  res.redirect("/admin");
+  res.redirect("/admin/progress");
 });
 
 adminRouter.get("/admin/player/:id/answers", requireAdmin, (req: Request, res: Response) => {

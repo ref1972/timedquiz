@@ -44,6 +44,10 @@ body {
   box-shadow: var(--shadow);
 }
 .admin { max-width: 1180px; margin: 24px auto; }
+.admin-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 24px 0 8px; }
+.admin-nav a { padding: 13px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); color: var(--ink); font-weight: 800; text-align: center; text-decoration: none; }
+.admin-nav a[aria-current="page"] { border-color: var(--cass-purple); background: var(--cass-purple); color: #fff; }
+[hidden] { display: none !important; }
 .narrow { max-width: 480px; }
 .wide { max-width: 900px; }
 .theme-toggle {
@@ -69,12 +73,14 @@ body {
 }
 .category {
   display: inline-block;
-  margin-top: 28px;
-  padding: 8px 12px;
+  align-self: flex-start;
+  margin-top: 20px;
+  padding: 12px 20px;
   color: #fff;
   background: var(--cass-purple);
-  border-radius: 999px;
-  letter-spacing: .09em;
+  border-radius: 14px;
+  letter-spacing: .08em;
+  font-size: 1.05rem;
 }
 h1 { font-size: clamp(2rem, 6vw, 4rem); line-height: 1.02; margin: .3em 0; }
 h2 { font-size: 1.5rem; }
@@ -121,12 +127,23 @@ button:disabled { opacity: .55; }
 }
 .prompt {
   max-width: none;
-  font-size: clamp(1.45rem, 3.2vw, 2.25rem);
+  font-size: 38px;
   font-weight: 750;
   line-height: 1.28;
   letter-spacing: -.02em;
-  margin: 18px 0 28px;
+  margin: 0;
 }
+.play-stage { min-height: 560px; display: flex; flex-direction: column; }
+.play-stage > .eyebrow, .play-stage > .quizhead { min-height: 51px; margin: 0; }
+.play-stage > .eyebrow { display: flex; align-items: center; }
+.prompt-stage { height: 220px; display: flex; align-items: center; overflow: hidden; margin: 16px 0; }
+.ready-copy { text-align: center; justify-content: center; }
+.ready-copy h1 { margin-bottom: 12px; }
+.ready-copy p { margin: 0; }
+.answer-zone { min-height: 164px; margin-top: auto; }
+.ready-action { display: flex; align-items: flex-end; }
+.ready-action .submit-answer { margin-bottom: 0; }
+.save-status { min-height: 21px; margin: 8px 0 0; }
 .highlighted-text { color: var(--cass-orange); }
 .quiz label { margin-top: 0; }
 .quiz input { min-height: 58px; font-size: 1.3rem; }
@@ -195,6 +212,8 @@ code { color: var(--cass-purple); }
   .prompt { font-size: clamp(1.35rem, 5.5vw, 1.9rem); }
   .review { grid-template-columns: 1fr; }
   .admin { padding: 20px; }
+  .admin-nav { grid-template-columns: 1fr 1fr; }
+  .preview-nav { flex-wrap: wrap; margin-bottom: 0; }
   .invite-summary { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   h1 { font-size: 2.25rem; }

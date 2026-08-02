@@ -1,5 +1,32 @@
 # Current handoff
 
+## 2026-08-02 — Tester-feedback player layout ready for release
+
+- Removed the confusing abandonment warning from the player intro and hid its
+  now-unused admin controls without deleting stored copy, making rollback easy.
+- Enlarged the category badge. Ready and question states now share a fixed
+  play stage and action zone; prompt text starts at 38px and shrinks only as
+  needed, down to 18px, within a fixed 220px prompt area.
+- Automated Chrome checks at 1280x900 and 390x844 measured a 0px button-position
+  difference between Show question and Submit Answer. Tested prompts had no
+  overflow (38px desktop and 24px mobile); the warning was absent, content was
+  present, and no error overlay appeared. The sole console error was a harmless
+  missing favicon request.
+- All 32 tests, TypeScript, JavaScript syntax, and diff checks pass. This is a
+  reversible source-only experiment at this point: not yet committed, pushed,
+  or deployed.
+- Split the formerly single long admin page into real routed screens at
+  `/admin/questions`, `/admin/players`, `/admin/progress`, and `/admin/review`
+  with persistent active navigation. Browser verification confirmed only the
+  intended panels are visible on each route.
+- Review Queue now includes all existing manual rulings and Correct/Incorrect
+  controls for correcting mistakes; changing one uses the same global
+  retrospective/prospective regrading path.
+- Question preview now shares the exact fixed stage and prompt-fitting helper
+  with player mode. Questions 1, 4, and 32 all placed Submit at y=655 (0px
+  range), with fitted fonts of 37px, 34px, and 28px and no overflow. The final
+  admin/preview browser run reported no errors.
+
 ## 2026-08-01 — Completion notification deployed and enabled
 
 - Added configurable admin email for every completed real or test attempt.

@@ -16,6 +16,24 @@ Last updated: 2026-08-01.
   answer-sheet link. A database claim prevents refresh/race duplicates, and
   the Progress table surfaces sent, failed, or ambiguous outcomes. Failed or
   ambiguous sends are not automatically retried.
+- The player intro no longer renders the abandonment warning box; testers
+  found it confusing. Warning values remain harmlessly stored for rollback but
+  are no longer exposed in the intro editor.
+- The player question/Ready states use a reversible fixed-stage layout
+  experiment: the category is a larger fitted badge, the prompt occupies a
+  fixed 220px area and scales from 38px down to 18px to fit, and Show question
+  and Submit Answer share the same measured screen position.
+- Admin is split into four routed screens with persistent navigation:
+  Questions & Answers, Players, Progress, and Review Queue. Player intro,
+  invitation, and security tools live under Players; completion notification
+  controls live under Progress.
+- Review Queue also lists every prior manual correct/incorrect ruling with its
+  question, normalized submitted answer, affected-player count, note, and
+  controls to change the ruling. Changes continue to regrade every matching
+  past submission and apply prospectively.
+- Admin question preview now uses the same shared player stage and prompt-fit
+  function. Browser checks across questions 1, 4, and 32 measured an identical
+  Submit y-coordinate with no prompt overflow.
 - The live admin can change its own password by supplying the current password
   and a nonblank replacement of at most 256 characters. Length is recommended,
   not enforced, at the owner's direction. Only a salted scrypt hash is stored in
