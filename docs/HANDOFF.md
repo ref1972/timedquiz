@@ -2,8 +2,15 @@
 
 ## 2026-08-02 — Review Queue rebuilt as a CASS-style Grading panel
 
-**Status: source present locally and committed. Not deployed.** Production runs
-rc27, which still has the old unresolved-only Review Queue.
+Commit `4ad6de7` and tag `timed-quiz-v0.1.0-rc28` are pushed and deployed after
+verified backup `quiz-20260802T204831Z.sqlite.gz`, with no question in flight.
+Deployment sent no email.
+
+Verified in production: public health and `RELEASE_ID` report rc28; the
+deployed source carries `gradingReview` and the panel markup and styling, and
+no longer contains `unresolvedAnswers` or `reviewedRules`; `/admin/review`
+gates to sign-in; data is unchanged at 9 attempts / 436 exposures / 103 rules /
+10 person-flagged questions / 324 correct answers; and CASS remains HTTP 200.
 
 The Review Queue is now a **Grading** screen modelled on the CASS host Grading
 panel, at the owner's request. The reasoning and the two deliberate departures
@@ -33,7 +40,10 @@ all previously ruled, which the old screen rendered as an empty queue):
 38 tests, TypeScript, and `git diff --check` pass. The local copy of production
 data was deleted after the check.
 
-Next: deploy as rc28 after a verified backup, or review the screen first.
+Next: the `questions.included_in_score` column is respected by every ranking
+and scoring query but no interface ever sets it. A per-question "drop from
+scoring" control on the Grading screen would make it usable if a question
+turns out to be flawed after players have answered it.
 
 ## 2026-08-02 — rc27: person flag editable while the question bank stays frozen
 

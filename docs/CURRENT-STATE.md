@@ -118,10 +118,15 @@ Last updated: 2026-08-02.
   grading rules, all four admin routes gate to sign-in, and CASS remains HTTP
   200. Preceded by verified backup `quiz-20260802T201145Z.sqlite.gz`; no email
   was sent.
-- Release `timed-quiz-v0.1.0-rc27` is deployed and verified after backup
-  `quiz-20260802T202931Z.sqlite.gz`: health and `RELEASE_ID` report rc27, the
-  grading route is present, counts are unchanged, CASS remains HTTP 200, and no
-  email was sent.
+- Release `timed-quiz-v0.1.0-rc27` was deployed and verified after backup
+  `quiz-20260802T202931Z.sqlite.gz`: health and `RELEASE_ID` reported rc27, the
+  grading route was present, counts were unchanged, CASS remained HTTP 200, and
+  no email was sent.
+- Release `timed-quiz-v0.1.0-rc28` is deployed and verified after backup
+  `quiz-20260802T204831Z.sqlite.gz`: health and `RELEASE_ID` report rc28, the
+  Grading panel markup and query are present and the old unresolved-only
+  queries are gone, data is unchanged at 9 attempts / 436 exposures / 103 rules
+  / 324 correct answers, CASS remains HTTP 200, and no email was sent.
 - The question bank is frozen by a real completed attempt, so question content
   cannot be edited. The `answer_is_person` grading flag is deliberately exempt
   and has its own admin route; it changes no content and no stored verdict.
