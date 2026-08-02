@@ -324,7 +324,7 @@ adminRouter.post("/admin/player/:id/rotate-invitation", requireAdmin, (req: Requ
 adminRouter.post("/admin/invitations/quota", requireAdmin, async (_req: Request, res: Response) => {
   try {
     const remaining = await remainingEmailQuota();
-    res.send(page("Workspace quota", `<main class="card"><h1>${remaining} email recipient${remaining === 1 ? "" : "s"} remaining</h1><p>This is the Apps Script account's current daily email-service quota.</p><a href="/admin#invitations">Return to invitations</a></main>`));
+    res.send(page("Workspace capacity", `<main class="card"><h1>${remaining} email recipient${remaining === 1 ? "" : "s"} available</h1><p>This is the capacity currently reported by the configured Workspace relay.</p><a href="/admin#invitations">Return to invitations</a></main>`));
   } catch (error) {
     res.status(502).send(page("Quota unavailable", `<main class="card"><h1>Could not read Workspace quota</h1><p>${escapeHtml(error instanceof Error ? error.message : "Unknown relay error")}</p><a href="/admin#invitations">Return to invitations</a></main>`));
   }
@@ -370,7 +370,7 @@ adminRouter.post("/admin/invitations/send-batch", requireAdmin, async (_req: Req
     return;
   }
   if (quota < 1) {
-    res.status(429).send(page("Quota exhausted", `<main class="card"><h1>Invitation send paused</h1><p>The Workspace relay reports zero remaining recipients today. No invitation was advanced or sent through a fallback.</p><a href="/admin#invitations">Return to invitations</a></main>`));
+    res.status(429).send(page("Capacity exhausted", `<main class="card"><h1>Invitation send paused</h1><p>The Workspace relay reports zero available recipient capacity. No invitation was advanced or sent through a fallback.</p><a href="/admin#invitations">Return to invitations</a></main>`));
     return;
   }
   let sent = 0;

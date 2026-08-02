@@ -48,6 +48,11 @@ Last updated: 2026-08-01.
 - Test email sends resolve the recipient to that exact imported test player and
   refuse missing or already-completed accounts. They never reuse the first test
   player's personalized token.
+- Source now supports app-specific bearer authentication to the planned shared
+  droplet Workspace SMTP gateway when `EMAIL_RELAY_CLIENT_ID` is configured,
+  while retaining explicit compatibility with the currently deployed Apps
+  Script endpoint. This source is not deployed and production still uses Apps
+  Script.
 - Individual question editing remains available during test-player rehearsals
   and locks only after a real participant starts. Full-bank replacement remains
   blocked after any attempt because it deletes/recreates question records.

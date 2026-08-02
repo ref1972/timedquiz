@@ -21,11 +21,18 @@ export function relayConfigured(): boolean {
 
 async function relay(payload: Record<string, unknown>): Promise<RelayResponse> {
   if (!relayConfigured()) throw new Error("Workspace email relay is not configured.");
+  const directRelay = Boolean(config.emailRelayClientId);
   const response = await fetch(config.emailRelayUrl, {
     method: "POST",
     redirect: "follow",
-    headers: { "content-type": "application/json; charset=utf-8" },
-    body: JSON.stringify({ secret: config.emailRelaySecret, ...payload }),
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      ...(directRelay ? {
+        "x-relay-client": config.emailRelayClientId,
+        authorization: `Bearer ${config.emailRelaySecret}`,
+      } : {}),
+    },
+    body: JSON.stringify(directRelay ? payload : { secret: config.emailRelaySecret, ...payload }),
     signal: AbortSignal.timeout(20_000),
   });
   const text = await response.text();

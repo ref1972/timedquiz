@@ -463,18 +463,23 @@ test("answer time includes finalized incorrect answers", async () => {
   assert.ok((row?.answer_time_ms ?? 0) > 0);
 });
 
-test("Workspace invitation mail preflights quota and reports a hard quota pause without fallback", async () => {
+test("Workspace invitation mail preflights relay capacity and reports a hard pause without fallback", async () => {
   const originalUrl = config.emailRelayUrl;
   const originalSecret = config.emailRelaySecret;
+  const originalClientId = config.emailRelayClientId;
   const originalFetch = globalThis.fetch;
   const actions: string[] = [];
   try {
     config.emailRelayUrl = "https://relay.test/exec";
     config.emailRelaySecret = "test-secret";
+    config.emailRelayClientId = "timed_quiz";
     globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
-      const payload = JSON.parse(String(init?.body ?? "{}")) as { action: string; secret: string };
+      const payload = JSON.parse(String(init?.body ?? "{}")) as { action: string; secret?: string };
       actions.push(payload.action);
-      assert.equal(payload.secret, "test-secret");
+      assert.equal(payload.secret, undefined);
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("x-relay-client"), "timed_quiz");
+      assert.equal(headers.get("authorization"), "Bearer test-secret");
       if (payload.action === "email_quota") return new Response(JSON.stringify({ ok: true, remaining: 70 }), { status: 200 });
       return new Response(JSON.stringify({ ok: false, error: "Apps Script email quota exhausted", quota_exhausted: true, remaining: 0 }), { status: 200 });
     }) as typeof fetch;
@@ -486,6 +491,7 @@ test("Workspace invitation mail preflights quota and reports a hard quota pause 
   } finally {
     config.emailRelayUrl = originalUrl;
     config.emailRelaySecret = originalSecret;
+    config.emailRelayClientId = originalClientId;
     globalThis.fetch = originalFetch;
   }
 });

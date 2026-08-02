@@ -3,6 +3,11 @@
 Status: planned only. No Workspace, production, database, or mail-sending
 change has been made from this plan.
 
+Implementation update: the shared gateway now lives in the TriviaNationals
+repository under `workspace-mail-relay/`; Timed Quiz's source client supports
+its app-specific bearer authentication. Neither component is deployed or
+configured in production yet.
+
 ## Goal
 
 Send Timed Quiz invitations directly from the production droplet through

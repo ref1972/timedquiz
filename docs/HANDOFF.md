@@ -2,6 +2,18 @@
 
 Last updated: 2026-08-01.
 
+## 2026-08-01 — Shared droplet relay client prepared
+
+- Timed Quiz source now supports the planned shared droplet mail gateway with
+  `EMAIL_RELAY_CLIENT_ID=timed_quiz` plus bearer authentication. When no client
+  ID is configured it retains compatibility with the currently deployed Apps
+  Script request body, so deploying code alone cannot switch transports.
+- Admin wording now describes relay capacity rather than claiming the value is
+  necessarily Apps Script quota. The `.env.example` timer default was also
+  corrected to match the already-live 30-second setting.
+- All 31 tests and TypeScript pass. This source is not deployed; production
+  environment and email behavior are unchanged, and no email was sent.
+
 ## 2026-08-01 — Workspace SMTP relay migration planned
 
 - The owner chose direct Google Workspace SMTP relay as the intended

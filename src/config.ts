@@ -41,6 +41,7 @@ export const config = {
     : (process.env.INVITATION_ENCRYPTION_KEY ?? "local-dev-invitation-encryption-key"),
   emailRelayUrl: process.env.EMAIL_RELAY_URL?.trim() ?? "",
   emailRelaySecret: process.env.EMAIL_RELAY_SECRET?.trim() ?? "",
+  emailRelayClientId: process.env.EMAIL_RELAY_CLIENT_ID?.trim() ?? "",
   // ISO-8601 UTC. Players already in progress at this instant always finish;
   // this only gates *starting* a fresh attempt. Unset locally so the app is
   // playable at any hour during development.
