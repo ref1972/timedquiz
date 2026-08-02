@@ -104,7 +104,14 @@ Last updated: 2026-08-02.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Release candidate `timed-quiz-v0.1.0-rc25` is deployed on the selected droplet
+- Release `timed-quiz-v0.1.0-rc26` is deployed and verified: public health and
+  `RELEASE_ID` report rc26, the live schema carries `answer_is_person`, counts
+  are unchanged at 9 attempts / 436 exposures / 50 questions / 9 players / 103
+  grading rules, all four admin routes gate to sign-in, and CASS remains HTTP
+  200. Preceded by verified backup `quiz-20260802T201145Z.sqlite.gz`; no email
+  was sent. All questions are `answer_is_person = 0` and the bank is frozen by
+  a real completed attempt, so the flag cannot currently be set in the UI.
+- Release candidate `timed-quiz-v0.1.0-rc25` was previously deployed on the droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
 - Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS

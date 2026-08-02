@@ -1,10 +1,60 @@
 # Current handoff
 
+## 2026-08-02 — rc26 deployed and verified; person flag blocked by the edit lock
+
+Commit `0805278` and tag `timed-quiz-v0.1.0-rc26` are pushed and deployed after
+verified backup `quiz-20260802T201145Z.sqlite.gz` (gzip and
+`PRAGMA integrity_check` both pass; 9 attempts and 436 exposures, matching
+live). Deployment sent no email.
+
+Verified in production: public health reports rc26; `RELEASE_ID` is rc26; the
+live `questions` schema carries `answer_is_person`; attempts, exposures,
+questions, players, and grading rules are unchanged at 9 / 436 / 50 / 9 / 103;
+all four admin routes return the sign-in screen unauthenticated; the deployed
+source carries the grading, shorthand, `serverNow`, `trust proxy`, and person
+checkbox markers; and CASS remains HTTP 200. The service was restarted while
+no question was in flight — the single in-progress attempt is an abandoned
+test-player rehearsal whose last answer was eight hours earlier.
+
+Stored verdicts were not regraded, by design; the new rules apply at submit
+time. Re-grading all 305 stored `correct` answers against the deployed code
+found only three that would now go to review, **all belonging to test
+players**: "Juicy Coutore" (Q31), "Krypton" for "Krypto" (Q41), and "stephen
+frye" (Q44). The one real player's answers are unaffected.
+
+### Open decision: the person flag cannot be set through the admin UI
+
+Production has one **real** completed attempt — `birving1983@gmail.com`,
+invited in the single real batch at 02:19 UTC and completed 02:29–02:37 UTC on
+2026-08-02. `questionEditingLocked()` therefore returns true, so every question
+editor field including the new person checkbox renders disabled and
+`POST /admin/question/:id` returns 409. All 50 questions currently have
+`answer_is_person = 0`.
+
+Practical impact is small: the nine person questions that already carry a
+surname alias (Q3, Q10, Q12, Q17, Q22, Q23, Q32, Q44, Q48) get the
+wrong-first-name protection from the shorthand guard with or without the flag.
+Only Q29 "Jayne Mansfield", which has no alias, loses bare-surname acceptance —
+a submitted "Mansfield" goes to review, where one ruling covers every player.
+The real player answered all ten with the full name and scored correct on each,
+so no result depends on this either way.
+
+Three ways forward, for the owner to choose:
+
+1. Leave it. Q29 "Mansfield" answers are handled by one review ruling.
+2. Authorize a direct database update setting `answer_is_person` on the ten
+   person questions, after a fresh backup. It changes no question text or
+   answer, only future grading.
+3. Change the lock so grading-only metadata stays editable after a real attempt
+   begins. This is arguably the consistent choice, because the Review Queue
+   already lets an admin regrade every matching submission retroactively at any
+   time; the frozen bank exists to protect question *content*.
+
 ## 2026-08-02 — Code review fixes: grading, timer clock, admin throttle
 
-**Status: source present locally only. Not committed, not deployed, not
-verified in production.** Production continues to run rc25 with the old
-grading and timer behavior.
+**Status: source deployed as rc26; see the entry above for production
+verification.** The findings and reasoning below are retained as the record of
+what changed and why.
 
 A read-only review of the whole source found five defects. All five are fixed
 with tests, and the owner then asked for person-name grading (item 6). The
@@ -68,16 +118,8 @@ Next steps:
 
 1. Owner review of the grading trade-off above, particularly the seven
    short-answer questions.
-2. **Set the person checkbox on the ten person-name questions in production.**
-   The migration defaults every existing question to not-a-person, so until
-   the boxes are ticked, Q29-style bare surnames are not accepted. The ten
-   questions that already carry a partial alias are protected from the wrong
-   first name either way; the flag adds surname acceptance where no alias
-   exists.
-3. Commit, tag, and deploy as rc26 after a verified backup, then confirm
-   production health, the grading, person-flag, and timer markers, and CASS
-   availability.
-4. Two structural items from the same review remain open and were **not**
+2. Resolve the person-flag decision recorded in the rc26 entry above.
+3. Two structural items from the same review remain open and were **not**
    changed: the admin screens are split by hiding sections rather than
    rendering per route (every route still runs all queries and ships the full
    player table), and the Review Queue still cannot surface auto-`correct`
