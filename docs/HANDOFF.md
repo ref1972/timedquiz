@@ -1,6 +1,6 @@
 # Current handoff
 
-## 2026-08-02 — Tester-feedback player layout ready for release
+## 2026-08-02 — Tester-feedback layout and split admin deployed as rc25
 
 - Removed the confusing abandonment warning from the player intro and hid its
   now-unused admin controls without deleting stored copy, making rollback easy.
@@ -12,9 +12,9 @@
   overflow (38px desktop and 24px mobile); the warning was absent, content was
   present, and no error overlay appeared. The sole console error was a harmless
   missing favicon request.
-- All 32 tests, TypeScript, JavaScript syntax, and diff checks pass. This is a
-  reversible source-only experiment at this point: not yet committed, pushed,
-  or deployed.
+- All 32 tests, TypeScript, JavaScript syntax, and diff checks pass. Commit
+  `45eafd7` and tag `timed-quiz-v0.1.0-rc25` are pushed and deployed after
+  verified backup `quiz-20260802T145905Z.sqlite.gz`.
 - Split the formerly single long admin page into real routed screens at
   `/admin/questions`, `/admin/players`, `/admin/progress`, and `/admin/review`
   with persistent active navigation. Browser verification confirmed only the
@@ -26,6 +26,13 @@
   with player mode. Questions 1, 4, and 32 all placed Submit at y=655 (0px
   range), with fitted fonts of 37px, 34px, and 28px and no overflow. The final
   admin/preview browser run reported no errors.
+- Production health reports rc25. All four admin routes return authenticated
+  login gating, deployed source markers match the features, completion settings
+  remain enabled, and CASS remains HTTP 200. Deployment sent no email.
+- Natural tester activity separately verifies completion mail end to end: six
+  completion audit events succeeded, all six attempts have notification
+  timestamps, and none has an error. Two completed attempts predate the feature
+  and were not back-sent, as intended.
 
 ## 2026-08-01 — Completion notification deployed and enabled
 

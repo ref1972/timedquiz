@@ -84,7 +84,7 @@ Last updated: 2026-08-01.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Release candidate `timed-quiz-v0.1.0-rc24` is deployed on the selected droplet
+- Release candidate `timed-quiz-v0.1.0-rc25` is deployed on the selected droplet
   with a side-by-side Node 24 runtime, dedicated systemd service, rehearsal
   SQLite database, nginx, and HTTPS at `https://bee.triviaworkshop.com`.
 - Verified in production: HTTPS health/release/database response, HTTP-to-HTTPS
@@ -181,6 +181,16 @@ Last updated: 2026-08-01.
   post-configuration backup passed integrity checks as
   `quiz-20260802T021010Z.sqlite.gz`. Configuration itself sent no email; the
   next genuine real or test completion is the pending functional verification.
+- Completion notifications are now production-verified through normal tester
+  activity: six completed attempts generated six successful notification audit
+  events, with notification timestamps on all six and zero errors. Two older
+  completed attempts predate the feature and were correctly not back-sent.
+- rc25 was deployed after verified backup
+  `quiz-20260802T145905Z.sqlite.gz`. Health reports rc25; all four new admin
+  routes are present and authentication-gated; deployed markers confirm the
+  navigation, reviewed-ruling history, shared preview fitting, fixed player
+  stage, and removed warning. Completion settings remained enabled, CASS
+  remained HTTP 200, and deployment itself sent no message.
 - The closing time remains unset. The deployed database contains only the
   seeded test player and unapproved starting bank; it is not the launch
   database.
