@@ -1,6 +1,6 @@
 # Current handoff
 
-## 2026-08-01 — Completion notification ready for release
+## 2026-08-01 — Completion notification deployed and enabled
 
 - Added configurable admin email for every completed real or test attempt.
   It includes identity, test status, score, answer time, completion timestamp,
@@ -10,9 +10,14 @@
   results table shows sent, failed, or ambiguous state; failures are logged and
   never automatically retried because an ambiguous provider response could
   otherwise duplicate mail.
-- All 32 tests, TypeScript, and diff checks pass. Source is local only at this
-  point: not yet committed, pushed, deployed, or enabled in production, and no
-  notification email was sent during verification.
+- All 32 tests, TypeScript, and diff checks pass. Commit `27fd65e` and tag
+  `timed-quiz-v0.1.0-rc24` are pushed and rc24 is deployed after verified
+  backup `quiz-20260802T020906Z.sqlite.gz`.
+- Notifications are enabled for the owner address stored in SQLite. Verified
+  live release/schema/UI markers, active service, unchanged gateway audit
+  count, and CASS HTTP 200; configuration sent no email. Post-configuration
+  backup `quiz-20260802T021010Z.sqlite.gz` passes integrity checks. Functional
+  production verification awaits the next genuine real or test completion.
 
 ## 2026-08-01 — First Gmail API gateway test accepted
 

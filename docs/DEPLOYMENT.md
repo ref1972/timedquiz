@@ -14,7 +14,7 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed rehearsal release: `timed-quiz-v0.1.0-rc23`. Certbot manages
+Current deployed rehearsal release: `timed-quiz-v0.1.0-rc24`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
@@ -26,9 +26,9 @@ fallback. One owner-authorized gateway test plus header/log inspection are
 still required before a real player send.
 
 Completion notifications are configured in the admin screen and stored in
-SQLite, not environment variables. Deployment alone does not enable them or
-send a message. Verify the recipient before enabling; each future completed
-real or test attempt consumes one gateway message.
+SQLite, not environment variables. They are enabled in production for the
+owner address as of rc24; each future completed real or test attempt consumes
+one gateway message. Configuration alone does not send a message.
 
 `timed-quiz-backup.timer` creates a consistent compressed SQLite backup in
 `/var/backups/timed-quiz` daily around 04:15 UTC. Before a real invitation
