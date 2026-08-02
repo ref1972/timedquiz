@@ -11,7 +11,14 @@
   an inert anchor.
 - Sign-in now carries a validated return destination and preserves the current
   hash at submit time, so an expired session returns directly to Players →
-  Invitations after authentication. Verification and deployment remain next.
+  Invitations after authentication.
+- Commit `7910d01` and tag `timed-quiz-v0.1.0-rc29` are pushed and deployed
+  after verified backup `quiz-20260802T212542Z.sqlite.gz`, with no live question
+  window during restart. Health reports rc29; deployed return validation and
+  hash preservation are present; the live sign-in page carries the Players
+  destination; counts remain 11 / 3 real / 8 test; CASS is HTTP 200; and no
+  email was sent. The owner's existing tab is left at the sign-in screen for
+  `/admin/players#invitations`.
 
 ## 2026-08-02 — Review Queue rebuilt as a CASS-style Grading panel
 

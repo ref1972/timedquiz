@@ -131,6 +131,12 @@ Last updated: 2026-08-02.
   Grading panel markup and query are present and the old unresolved-only
   queries are gone, data is unchanged at 9 attempts / 436 exposures / 103 rules
   / 324 correct answers, CASS remains HTTP 200, and no email was sent.
+- Release `timed-quiz-v0.1.0-rc29` is deployed and verified after backup
+  `quiz-20260802T212542Z.sqlite.gz`: health reports rc29, validated return-path
+  and hash-preservation markers are live, the sign-in page at
+  `/admin/players#invitations` carries the Players return destination, player
+  counts remain 11 total / 3 real / 8 test, and CASS remains HTTP 200. No
+  email was sent.
 - The question bank is frozen by a real completed attempt, so question content
   cannot be edited. The `answer_is_person` grading flag is deliberately exempt
   and has its own admin route; it changes no content and no stored verdict.
