@@ -25,6 +25,11 @@ transport remains an explicit rollback option, but there is no automatic
 fallback. One owner-authorized gateway test plus header/log inspection are
 still required before a real player send.
 
+Completion notifications are configured in the admin screen and stored in
+SQLite, not environment variables. Deployment alone does not enable them or
+send a message. Verify the recipient before enabling; each future completed
+real or test attempt consumes one gateway message.
+
 `timed-quiz-backup.timer` creates a consistent compressed SQLite backup in
 `/var/backups/timed-quiz` daily around 04:15 UTC. Before a real invitation
 send, also trigger it manually and retain a verified off-host copy.

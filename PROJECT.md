@@ -15,6 +15,8 @@ Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
   scored questions, regardless of verdict.
 - Google Workspace relay delivery with quota checks and resumable batches;
   there is deliberately no unreliable mail fallback.
+- Configurable one-per-attempt admin email when any real or test player
+  completes, with score, answer time, and an admin answer-sheet link.
 
 ## Production target
 

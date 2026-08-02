@@ -9,7 +9,13 @@ Last updated: 2026-08-01.
 - Launch hardening includes encrypted/rotatable invitations, quota-safe email
   batches, server-measured timing tiebreaks, post-cutoff authorized restarts,
   admin login throttling, preflight, backups, and deployment packaging.
-- Automated verification passes 31 tests and TypeScript typechecking.
+- Automated verification passes 32 tests and TypeScript typechecking.
+- Admin can enable one completion email per attempt and set its recipient.
+  Real and test players are included. The notification reports identity,
+  test/real status, score, answer time, completion time, and an authenticated
+  answer-sheet link. A database claim prevents refresh/race duplicates, and
+  the Progress table surfaces sent, failed, or ambiguous outcomes. Failed or
+  ambiguous sends are not automatically retried.
 - The live admin can change its own password by supplying the current password
   and a nonblank replacement of at most 256 characters. Length is recommended,
   not enforced, at the owner's direction. Only a salted scrypt hash is stored in

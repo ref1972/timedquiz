@@ -51,6 +51,9 @@ CREATE TABLE IF NOT EXISTS attempts (
   completed_at TEXT,
   superseded_at TEXT,
   restart_reason TEXT,
+  completion_notification_started_at TEXT,
+  completion_notified_at TEXT,
+  completion_notification_error TEXT,
   UNIQUE (player_id, generation)
 );
 
@@ -144,6 +147,17 @@ if (!exposureColumns.some((column) => column.name === "elapsed_ms")) {
     CAST((julianday(submitted_at) - julianday(served_at)) * 86400000 AS INTEGER),
     CAST((julianday(deadline_at) - julianday(served_at)) * 86400000 AS INTEGER)
   ) WHERE submitted_at IS NOT NULL`);
+}
+
+const attemptColumns = db.prepare("PRAGMA table_info(attempts)").all() as unknown as Array<{ name: string }>;
+if (!attemptColumns.some((column) => column.name === "completion_notification_started_at")) {
+  db.exec("ALTER TABLE attempts ADD COLUMN completion_notification_started_at TEXT");
+}
+if (!attemptColumns.some((column) => column.name === "completion_notified_at")) {
+  db.exec("ALTER TABLE attempts ADD COLUMN completion_notified_at TEXT");
+}
+if (!attemptColumns.some((column) => column.name === "completion_notification_error")) {
+  db.exec("ALTER TABLE attempts ADD COLUMN completion_notification_error TEXT");
 }
 
 export function nowIso(): string {

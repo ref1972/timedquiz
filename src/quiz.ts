@@ -2,6 +2,7 @@ import { config } from "./config.ts";
 import { db, logEvent, nowIso } from "./db.ts";
 import { autoVerdict, type QuestionRow } from "./grading.ts";
 import { randomToken } from "./crypto.ts";
+import { sendCompletionNotification } from "./completion-notification.ts";
 import { getIntroCopy, type IntroCopy } from "./intro-copy.ts";
 
 export interface Player {
@@ -126,10 +127,13 @@ function finalize(exposure: Exposure, reason: "manual" | "timeout", text: string
   }
 
   if (finalizedCount(exposure.attempt_id) >= questionCount()) {
-    db.prepare("UPDATE attempts SET status = 'completed', completed_at = ? WHERE id = ? AND status = 'in_progress'").run(
+    const completed = db.prepare("UPDATE attempts SET status = 'completed', completed_at = ? WHERE id = ? AND status = 'in_progress'").run(
       nowIso(),
       exposure.attempt_id,
-    );
+    ).changes;
+    if (completed) void sendCompletionNotification(exposure.attempt_id).catch((error) => {
+      console.error("Completion notification failed", error);
+    });
   }
 }
 

@@ -1,5 +1,19 @@
 # Current handoff
 
+## 2026-08-01 — Completion notification ready for release
+
+- Added configurable admin email for every completed real or test attempt.
+  It includes identity, test status, score, answer time, completion timestamp,
+  and a direct authenticated answer-sheet link.
+- Each attempt is claimed in SQLite before the asynchronous gateway call, so
+  repeated completion requests and sweeps cannot duplicate the message. The
+  results table shows sent, failed, or ambiguous state; failures are logged and
+  never automatically retried because an ambiguous provider response could
+  otherwise duplicate mail.
+- All 32 tests, TypeScript, and diff checks pass. Source is local only at this
+  point: not yet committed, pushed, deployed, or enabled in production, and no
+  notification email was sent during verification.
+
 ## 2026-08-01 — First Gmail API gateway test accepted
 
 - With explicit owner authorization, imported `friedewald@gmail.com` as test

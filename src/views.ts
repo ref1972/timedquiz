@@ -1,6 +1,7 @@
 import type { AdminQuestionRow, InvitationStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow, UnresolvedRow } from "./admin.ts";
 import type { IntroCopy } from "./intro-copy.ts";
 import type { InvitationTemplate } from "./invitation-template.ts";
+import type { CompletionNotificationSettings } from "./completion-notification.ts";
 import { visiblePromptText } from "./question-import.ts";
 
 function esc(value: unknown): string {
@@ -66,6 +67,7 @@ export interface AdminPageData {
   invitationStats: InvitationStats;
   introCopy: IntroCopy;
   invitationTemplate: InvitationTemplate;
+  completionNotifications: CompletionNotificationSettings;
 }
 
 export function questionPreviewPage(question: AdminQuestionRow, total: number, durationSeconds = 30): string {
@@ -122,6 +124,7 @@ export function adminPage(data: AdminPageData): string {
         <td>${(p.answer_time_ms / 1000).toFixed(1)}s</td>
         <td>${p.is_test ? "yes" : ""}</td>
         <td><a class="button small secondary" href="/admin/player/${p.id}/answers">View answers</a></td>
+        <td>${p.completion_notified_at ? `sent ${esc(new Date(p.completion_notified_at).toLocaleString())}` : p.completion_notification_error ? `failed: ${esc(p.completion_notification_error)}` : p.status === "completed" && p.completion_notification_started_at ? "send outcome unknown" : "—"}</td>
         <td>${p.is_test ? "Test account — use Step 3" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</td>
         <td><form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form></td>
         <td><form method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}">
@@ -252,9 +255,20 @@ export function adminPage(data: AdminPageData): string {
         <p><a class="button" href="/admin/results.csv">Download real results CSV</a> <a class="button secondary" href="/admin/test-results.csv">Download test results CSV</a></p>
         <p class="muted">The two files remain separate so rehearsal accounts never appear in the real rankings.</p>
         <div class="table"><table>
-          <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Answer time</th><th>Test</th><th>Answers</th><th>Invitation</th><th>Link</th><th>Restart</th></tr></thead>
+          <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Answer time</th><th>Test</th><th>Answers</th><th>Completion email</th><th>Invitation</th><th>Link</th><th>Restart</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
+      </section>
+
+      <section class="panel" id="completion-notifications">
+        <h2>Completion notifications</h2>
+        <p>Send one admin email when any player—including a test player—submits all answers. Each attempt is claimed before sending so completion-page refreshes cannot create duplicates.</p>
+        <form method="post" action="/admin/completion-notifications">
+          <label>Notification email<input type="email" name="recipient" value="${esc(data.completionNotifications.recipient)}" placeholder="you@example.com"></label>
+          <label><input type="checkbox" name="enabled" value="1" ${data.completionNotifications.enabled ? "checked" : ""}> Email me when an attempt is completed</label>
+          <button>Save completion notifications</button>
+        </form>
+        <p class="muted">The message includes test/real status, score, answer time, completion time, and a link to the player’s admin answer sheet.</p>
       </section>
 
       <section class="panel" id="review">

@@ -32,6 +32,7 @@ const playerImport = await import("./player-import.ts");
 const introCopy = await import("./intro-copy.ts");
 const views = await import("./views.ts");
 const invitationTemplate = await import("./invitation-template.ts");
+const completionNotification = await import("./completion-notification.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -489,6 +490,44 @@ test("Workspace invitation mail preflights relay capacity and reports a hard pau
     assert.equal(result.quotaExhausted, true);
     assert.deepEqual(actions, ["email_quota", "send_email"]);
   } finally {
+    config.emailRelayUrl = originalUrl;
+    config.emailRelaySecret = originalSecret;
+    config.emailRelayClientId = originalClientId;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("completion notifications include testers and claim each attempt before one relay send", async () => {
+  const player = freshPlayer();
+  const started = new Date().toISOString();
+  const attemptResult = db.prepare("INSERT INTO attempts (player_id, generation, status, started_at, completed_at) VALUES (?, 1, 'completed', ?, ?)").run(player.id, started, started);
+  const attemptId = Number(attemptResult.lastInsertRowid);
+  const originalUrl = config.emailRelayUrl;
+  const originalSecret = config.emailRelaySecret;
+  const originalClientId = config.emailRelayClientId;
+  const originalFetch = globalThis.fetch;
+  const payloads: Array<Record<string, unknown>> = [];
+  try {
+    config.emailRelayUrl = "https://relay.test/v1/mail";
+    config.emailRelaySecret = "test-secret";
+    config.emailRelayClientId = "timed_quiz";
+    completionNotification.setCompletionNotificationSettings({ enabled: true, recipient: "owner@example.com" });
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      payloads.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
+      return new Response(JSON.stringify({ ok: true, remaining: 998 }), { status: 200 });
+    }) as typeof fetch;
+    assert.equal(await completionNotification.sendCompletionNotification(attemptId), true);
+    assert.equal(await completionNotification.sendCompletionNotification(attemptId), false);
+    assert.equal(payloads.length, 1);
+    assert.equal(payloads[0]?.to, "owner@example.com");
+    assert.match(String(payloads[0]?.subject), /^\[TEST\] Bee Quiz completed:/);
+    assert.match(String(payloads[0]?.plain_body), new RegExp(`/admin/player/${player.id}/answers`));
+    const stored = db.prepare("SELECT completion_notification_started_at, completion_notified_at, completion_notification_error FROM attempts WHERE id = ?").get(attemptId) as { completion_notification_started_at: string | null; completion_notified_at: string | null; completion_notification_error: string | null };
+    assert.ok(stored.completion_notification_started_at);
+    assert.ok(stored.completion_notified_at);
+    assert.equal(stored.completion_notification_error, null);
+  } finally {
+    completionNotification.setCompletionNotificationSettings({ enabled: false, recipient: "" });
     config.emailRelayUrl = originalUrl;
     config.emailRelaySecret = originalSecret;
     config.emailRelayClientId = originalClientId;

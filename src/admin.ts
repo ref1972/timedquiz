@@ -12,6 +12,7 @@ import { parseQuestionImport, questionsToCsv, visiblePromptText } from "./questi
 import { parsePlayerImport, playersToCsv } from "./player-import.ts";
 import { getIntroCopy, setIntroCopy, type IntroCopy } from "./intro-copy.ts";
 import { getInvitationTemplate, setInvitationTemplate } from "./invitation-template.ts";
+import { getCompletionNotificationSettings, setCompletionNotificationSettings } from "./completion-notification.ts";
 
 export interface ResultRow {
   id: number;
@@ -25,6 +26,9 @@ export interface ResultRow {
   invite_sent_at: string | null;
   invite_last_error: string | null;
   invite_send_attempts: number;
+  completion_notification_started_at: string | null;
+  completion_notified_at: string | null;
+  completion_notification_error: string | null;
 }
 
 export interface PlayerAnswerAttempt {
@@ -66,6 +70,7 @@ export function results(): ResultRow[] {
   return db
     .prepare(
       `SELECT p.id, p.email, p.display_name, p.is_test, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
+        a.completion_notification_started_at, a.completion_notified_at, a.completion_notification_error,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.verdict = 'correct' THEN 1 ELSE 0 END), 0) AS score,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.submitted_at IS NOT NULL THEN e.elapsed_ms ELSE 0 END), 0) AS answer_time_ms
        FROM players p
@@ -178,7 +183,19 @@ adminRouter.get("/admin", (req: Request, res: Response) => {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate() }));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }));
+});
+
+adminRouter.post("/admin/completion-notifications", requireAdmin, (req: Request, res: Response) => {
+  const recipient = String(req.body.recipient ?? "").trim().toLowerCase();
+  const enabled = req.body.enabled === "1";
+  if (enabled && !/^\S+@\S+\.\S+$/.test(recipient)) {
+    res.status(400).send(page("Notification settings not saved", `<main class="card"><h1>Enter a valid notification address</h1><a href="/admin#completion-notifications">Return to settings</a></main>`));
+    return;
+  }
+  setCompletionNotificationSettings({ enabled, recipient });
+  logEvent(null, "completion_notification_settings_updated", { enabled });
+  res.redirect("/admin#completion-notifications");
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {

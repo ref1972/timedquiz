@@ -19,6 +19,18 @@ export function relayConfigured(): boolean {
   return Boolean(config.emailRelayUrl && config.emailRelaySecret);
 }
 
+export async function sendRelayEmail(to: string, subject: string, html: string, plain: string): Promise<MailResult> {
+  try {
+    const result = await relay({ action: "send_email", to, subject, html_body: html, plain_body: plain });
+    const error = result.error || "Workspace relay rejected the message.";
+    const quotaExhausted = Boolean(result.quota_exhausted) || /quota|too many times/i.test(error);
+    return { ok: Boolean(result.ok), error: result.ok ? "" : error, quotaExhausted, remaining: Number.isFinite(result.remaining) ? Number(result.remaining) : null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Workspace relay failed.";
+    return { ok: false, error: message, quotaExhausted: /quota|too many times/i.test(message), remaining: null };
+  }
+}
+
 async function relay(payload: Record<string, unknown>): Promise<RelayResponse> {
   if (!relayConfigured()) throw new Error("Workspace email relay is not configured.");
   const directRelay = Boolean(config.emailRelayClientId);
@@ -54,13 +66,5 @@ export async function remainingEmailQuota(): Promise<number> {
 
 export async function sendInvitationEmail(to: string, name: string, invitationUrl: string, test = false): Promise<MailResult> {
   const { subject, html, plain } = renderInvitationTemplate(name, invitationUrl, test);
-  try {
-    const result = await relay({ action: "send_email", to, subject, html_body: html, plain_body: plain });
-    const error = result.error || "Workspace relay rejected the message.";
-    const quotaExhausted = Boolean(result.quota_exhausted) || /quota|too many times/i.test(error);
-    return { ok: Boolean(result.ok), error: result.ok ? "" : error, quotaExhausted, remaining: Number.isFinite(result.remaining) ? Number(result.remaining) : null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Workspace relay failed.";
-    return { ok: false, error: message, quotaExhausted: /quota|too many times/i.test(message), remaining: null };
-  }
+  return sendRelayEmail(to, subject, html, plain);
 }
