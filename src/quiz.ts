@@ -39,7 +39,12 @@ export type QuizState =
   | { state: "prestart"; questionCount: number; closesAt: string | null; intro: IntroCopy; durationSeconds: number }
   | { state: "closed" }
   | { state: "ready"; nextPosition: number; category: string; durationSeconds: number }
-  | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; draft: string; durationSeconds: number }
+  // serverNow is the server's own clock at the instant this state was built.
+  // The player's countdown is (deadlineAt - serverNow), measured forward with
+  // the device's clock only as a stopwatch -- never as the source of "what
+  // time is it". A device whose clock is minutes off would otherwise show 0.0
+  // the moment a question appears and auto-submit every answer blank.
+  | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; serverNow: string; draft: string; durationSeconds: number }
   | { state: "complete" };
 
 export function questionCount(): number {
@@ -205,6 +210,7 @@ export function getStatus(player: Player): QuizState {
       highlightedText: question.highlighted_text,
       nonce: exposure.nonce,
       deadlineAt: exposure.deadline_at,
+      serverNow: nowIso(),
       draft: exposure.draft_text,
       durationSeconds: durationSeconds(),
     };
@@ -263,6 +269,7 @@ export function serveNext(player: Player): QuizState {
       highlightedText: question.highlighted_text,
       nonce: existing.nonce,
       deadlineAt: existing.deadline_at,
+      serverNow: nowIso(),
       draft: existing.draft_text,
       durationSeconds: durationSeconds(),
     };
@@ -273,18 +280,21 @@ export function serveNext(player: Player): QuizState {
 
   const question = questionByPosition(position);
   const served = Date.now();
+  const servedAt = new Date(served).toISOString();
   const deadlineAt = new Date(served + config.questionDurationMs).toISOString();
   const nonce = randomToken(18);
   db.prepare("INSERT INTO exposures (attempt_id, question_id, nonce, served_at, deadline_at) VALUES (?, ?, ?, ?, ?)").run(
     refreshed.id,
     question.id,
     nonce,
-    new Date(served).toISOString(),
+    servedAt,
     deadlineAt,
   );
   logEvent(refreshed.id, "question_served", { position });
 
-  return { state: "question", position, category: question.category, prompt: question.prompt, highlightedText: question.highlighted_text, nonce, deadlineAt, draft: "", durationSeconds: durationSeconds() };
+  // serverNow is served_at itself here, so the player's first tick shows the
+  // full window rather than the window minus this response's own latency.
+  return { state: "question", position, category: question.category, prompt: question.prompt, highlightedText: question.highlighted_text, nonce, deadlineAt, serverNow: servedAt, draft: "", durationSeconds: durationSeconds() };
 }
 
 /** Marks any exposure abandoned since the last check as finalized, across all in-progress attempts. Safe to run on an interval. */

@@ -39,9 +39,14 @@ export function unsign(value: string | undefined): string | null {
   const dot = value.lastIndexOf(".");
   if (dot < 1) return null;
   const raw = value.slice(0, dot);
-  const expected = sign(raw);
-  if (expected.length !== value.length) return null;
-  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(value))) return null;
+  // Compared as bytes, not characters: equal string lengths do not imply
+  // equal byte lengths, and a tampered cookie carrying multibyte characters
+  // would otherwise make timingSafeEqual throw a RangeError -- a 500 where a
+  // clean "not signed by us" is the right answer.
+  const expected = Buffer.from(sign(raw));
+  const actual = Buffer.from(value);
+  if (expected.length !== actual.length) return null;
+  if (!crypto.timingSafeEqual(expected, actual)) return null;
   return raw;
 }
 

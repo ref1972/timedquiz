@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS questions (
   highlighted_text TEXT NOT NULL DEFAULT '',
   canonical_answer TEXT NOT NULL,
   aliases_json TEXT NOT NULL DEFAULT '[]',
+  -- Marks the answer as a person's name, which accepts the bare surname and
+  -- refuses that surname behind a different first name. See grading.ts.
+  answer_is_person INTEGER NOT NULL DEFAULT 0,
   included_in_score INTEGER NOT NULL DEFAULT 1
 );
 
@@ -124,6 +127,9 @@ if (!questionColumns.some((column) => column.name === "category")) {
 }
 if (!questionColumns.some((column) => column.name === "highlighted_text")) {
   db.exec("ALTER TABLE questions ADD COLUMN highlighted_text TEXT NOT NULL DEFAULT ''");
+}
+if (!questionColumns.some((column) => column.name === "answer_is_person")) {
+  db.exec("ALTER TABLE questions ADD COLUMN answer_is_person INTEGER NOT NULL DEFAULT 0");
 }
 
 const playerColumns = db.prepare("PRAGMA table_info(players)").all() as unknown as Array<{ name: string }>;

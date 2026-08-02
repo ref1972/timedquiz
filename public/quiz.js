@@ -111,7 +111,17 @@
     // Ready serve) or from a prior one (resuming after a refresh) -- either
     // way it is always the true, authoritative deadline, never a locally
     // guessed one.
+    //
+    // The device clock is used only to measure elapsed time forward from the
+    // moment this response arrived, never to decide what time it is now: a
+    // phone running minutes fast or slow would otherwise read the absolute
+    // deadline as long past (auto-submitting all 50 answers blank) or far
+    // away. `skew` converts local time to server time; it also absorbs this
+    // response's transit, which can only ever be in the player's favor and is
+    // far inside the server's own grace allowance.
     var deadline = new Date(state.deadlineAt).getTime();
+    var serverNow = state.serverNow ? new Date(state.serverNow).getTime() : NaN;
+    var skew = isFinite(serverNow) ? Date.now() - serverNow : 0;
     root.innerHTML = '<div class="play-stage">' +
       '<div class="quizhead"><span>Question ' +
       state.position +
@@ -142,7 +152,7 @@
     };
 
     function tick() {
-      var left = Math.max(0, deadline - Date.now());
+      var left = Math.max(0, deadline - (Date.now() - skew));
       var clock = document.querySelector("#clock");
       if (clock) clock.textContent = (left / 1000).toFixed(1);
       if (left <= 0) {

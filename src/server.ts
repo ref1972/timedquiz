@@ -9,6 +9,12 @@ import { finalizeStaleSessions } from "./quiz.ts";
 
 const app = express();
 app.disable("x-powered-by");
+// Exactly one hop: nginx on the same droplet (see ops/nginx-bee.conf), which
+// sets X-Forwarded-For, and the app binds to 127.0.0.1 so nothing else can
+// reach it directly. Without this every request reads as 127.0.0.1 and the
+// admin sign-in throttle becomes one shared bucket -- ten failures from any
+// stranger would lock the owner out mid-event.
+app.set("trust proxy", 1);
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 app.use(express.json({ limit: "64kb" }));
 

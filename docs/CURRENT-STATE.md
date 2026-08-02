@@ -1,6 +1,6 @@
 # Current state
 
-Last updated: 2026-08-01.
+Last updated: 2026-08-02.
 
 ## Source and verification
 
@@ -9,7 +9,27 @@ Last updated: 2026-08-01.
 - Launch hardening includes encrypted/rotatable invitations, quota-safe email
   batches, server-measured timing tiebreaks, post-cutoff authorized restarts,
   admin login throttling, preflight, backups, and deployment packaging.
-- Automated verification passes 32 tests and TypeScript typechecking.
+- Automated verification passes 36 tests and TypeScript typechecking.
+- Questions carry `answer_is_person`, set by a checkbox in the question editor
+  or a `person` column in the question CSV. It accepts the canonical answer's
+  last word as a bare surname without needing an alias, and refuses that
+  surname behind a different first name. A hand-written partial alias such as
+  "Bush" on "Kate Bush" gets the same treatment with or without the flag.
+  Refused submissions go to the review queue rather than being auto-marked
+  incorrect.
+- Automatic grading accepts an exact answer, or one contained in a longer
+  submission only when the accepted answer matches on a whole-word boundary and
+  is at least four characters unless it contains a space. Everything else is
+  `unresolved` for the review queue. This closed a defect in which short
+  answers auto-accepted wrong submissions and hid them from review, because the
+  queue surfaces only unresolved answers.
+- Served question states carry `serverNow` beside `deadlineAt`, and the player
+  countdown measures from it using the device clock only as a stopwatch. A
+  device with a wrong clock can no longer show an already-expired question and
+  auto-submit blank answers.
+- The application trusts one proxy hop, so the admin sign-in throttle applies
+  per client address instead of grouping every request under nginx's localhost
+  address. Expired throttle buckets are pruned.
 - Admin can enable one completion email per attempt and set its recipient.
   Real and test players are included. The notification reports identity,
   test/real status, score, answer time, completion time, and an authenticated

@@ -88,11 +88,39 @@ test("Ready serves question 1 and returns the prompt in the same response (no se
   assert.ok(Date.parse(served.deadlineAt) > Date.now(), "deadline must be in the future at serve time");
 });
 
+test("a served question carries the server's own clock so a skewed device cannot break the timer", async () => {
+  const player = freshPlayer();
+  const served = quiz.serveNext(player);
+  assert.equal(served.state, "question");
+  if (served.state !== "question") return;
+  assert.equal(
+    Date.parse(served.deadlineAt) - Date.parse(served.serverNow),
+    config.questionDurationMs,
+    "a fresh serve must offer the whole window measured against the server's clock, not the device's",
+  );
+
+  await sleep(150);
+
+  const resumed = quiz.getStatus(player);
+  assert.equal(resumed.state, "question");
+  if (resumed.state !== "question") return;
+  const remaining = Date.parse(resumed.deadlineAt) - Date.parse(resumed.serverNow);
+  assert.ok(remaining < config.questionDurationMs, "resuming must report the time actually left, not a fresh window");
+  assert.ok(remaining > 0, "the window had not closed yet");
+});
+
 test("a duplicate Ready click is idempotent, not a second question", () => {
   const player = freshPlayer();
   const first = quiz.serveNext(player);
   const second = quiz.serveNext(player);
-  assert.deepEqual(first, second);
+  // Everything that identifies the question in flight must be identical --
+  // above all the nonce and the deadline. serverNow is deliberately excluded:
+  // it is the current instant on every response, which is what lets a client
+  // measure the real time left rather than trusting its own clock.
+  assert.deepEqual({ ...first, serverNow: undefined }, { ...second, serverNow: undefined });
+  assert.equal(first.state, "question");
+  if (first.state !== "question" || second.state !== "question") return;
+  assert.ok(Date.parse(second.serverNow) >= Date.parse(first.serverNow), "the second response carries its own later clock");
 });
 
 test("reloading (getStatus) returns the same question with less time, not a fresh window", async () => {
@@ -326,6 +354,90 @@ test("automatic grading matches CASS leading-article and contained-answer behavi
   db.prepare("UPDATE questions SET canonical_answer = ?, aliases_json = ? WHERE id = ?").run("answer1", "[]", question.id);
 });
 
+test("containment never grades a wrong answer correct just for sharing letters", () => {
+  const question = db.prepare("SELECT * FROM questions WHERE position = 1").get() as any;
+  const withAnswer = (answer: string, aliases: string[] = []) => {
+    db.prepare("UPDATE questions SET canonical_answer = ?, aliases_json = ? WHERE id = ?").run(answer, JSON.stringify(aliases), question.id);
+    return db.prepare("SELECT * FROM questions WHERE id = ?").get(question.id) as any;
+  };
+
+  // Every one of these graded "correct" before the boundary/length guard, on
+  // the real Pop Culture Bee bank: Q15 "T", Q2 "The Who", Q36 "You",
+  // Q20 "The Body", Q41 "Krypto", and Q44's bare "Fry" alias.
+  const esrb = withAnswer("T");
+  assert.equal(grading.autoVerdict(esrb, "I don't know").verdict, "unresolved");
+  assert.equal(grading.autoVerdict(esrb, "Mature").verdict, "unresolved");
+  assert.equal(grading.autoVerdict(esrb, "T").verdict, "correct", "the exact answer still stands on its own");
+  assert.equal(grading.autoVerdict(esrb, "t ").verdict, "correct", "normalization still applies to short answers");
+
+  const theWho = withAnswer("The Who");
+  assert.equal(grading.autoVerdict(theWho, "I have no idea who").verdict, "unresolved");
+  assert.equal(grading.autoVerdict(theWho, "Whodunit").verdict, "unresolved");
+  assert.equal(grading.autoVerdict(theWho, "the who").verdict, "correct");
+
+  assert.equal(grading.autoVerdict(withAnswer("You"), "Youth").verdict, "unresolved");
+  assert.equal(grading.autoVerdict(withAnswer("The Body"), "everybody loves raymond").verdict, "unresolved");
+
+  // Four characters or longer may still be contained, but only as a whole
+  // word -- "Kryptonite" is a different thing than "Krypto".
+  const krypto = withAnswer("Krypto");
+  assert.equal(grading.autoVerdict(krypto, "Kryptonite").verdict, "unresolved");
+  assert.equal(grading.autoVerdict(krypto, "the dog Krypto").verdict, "correct");
+
+  // A bare short alias no longer drags in unrelated answers, while the
+  // multi-word canonical answer stays containable.
+  const fry = withAnswer("Stephen Fry", ["Fry"]);
+  assert.equal(grading.autoVerdict(fry, "french fry").verdict, "unresolved");
+  assert.equal(grading.autoVerdict(fry, "Fry").verdict, "correct", "the alias still matches exactly");
+  assert.equal(grading.autoVerdict(fry, "I think it was Stephen Fry").verdict, "correct");
+
+  // A stray empty alias (a trailing "|" in an imported CSV) must not accept
+  // every non-blank answer on that question.
+  assert.equal(grading.autoVerdict(withAnswer("Labubu", [""]), "no idea").verdict, "unresolved");
+
+  db.prepare("UPDATE questions SET canonical_answer = ?, aliases_json = ? WHERE id = ?").run("answer1", "[]", question.id);
+});
+
+test("a surname counts on its own, but not behind somebody else's first name", () => {
+  const question = db.prepare("SELECT * FROM questions WHERE position = 1").get() as any;
+  const withPerson = (answer: string, aliases: string[], isPerson: boolean) => {
+    db.prepare("UPDATE questions SET canonical_answer = ?, aliases_json = ?, answer_is_person = ? WHERE id = ?").run(answer, JSON.stringify(aliases), isPerson ? 1 : 0, question.id);
+    return db.prepare("SELECT * FROM questions WHERE id = ?").get(question.id) as any;
+  };
+
+  // The flag alone accepts the surname -- no hand-written alias needed. This
+  // is Q29 "Jayne Mansfield", which has no surname alias in the bank.
+  const flagged = withPerson("Jayne Mansfield", [], true);
+  assert.equal(grading.autoVerdict(flagged, "Mansfield").verdict, "correct");
+  assert.equal(grading.autoVerdict(flagged, "Jayne Mansfield").verdict, "correct");
+  assert.equal(grading.autoVerdict(flagged, "it was jayne mansfield").verdict, "correct");
+  assert.equal(grading.autoVerdict(flagged, "Mansfield!").verdict, "correct", "punctuation alone is not a different answer");
+  assert.equal(grading.autoVerdict(flagged, "Marilyn Mansfield").verdict, "unresolved", "a different first name is not auto-correct");
+
+  // The same guard applies to a hand-written partial alias, flag or not --
+  // this is the Kate Bush / George Bush case from the real bank.
+  for (const isPerson of [true, false]) {
+    const bush = withPerson("Kate Bush", ["Bush"], isPerson);
+    assert.equal(grading.autoVerdict(bush, "Bush").verdict, "correct");
+    assert.equal(grading.autoVerdict(bush, "kate bush").verdict, "correct");
+    assert.equal(grading.autoVerdict(bush, "George Bush").verdict, "unresolved", `wrong first name must not score (person flag: ${isPerson})`);
+    assert.equal(grading.autoVerdict(bush, "George W. Bush").verdict, "unresolved");
+  }
+
+  // A reviewer still has the final say in both directions, and one ruling
+  // covers everyone who typed the same thing.
+  const bush = withPerson("Kate Bush", ["Bush"], true);
+  grading.applyReviewRuling(question.id, grading.normalize("George Bush"), "incorrect", "different person");
+  assert.equal(grading.autoVerdict(bush, "george bush").verdict, "incorrect");
+
+  // An alias that is not a shorthand of the canonical answer is unaffected.
+  const pilots = withPerson("Twenty-One Pilots", ["21 Pilots"], false);
+  assert.equal(grading.autoVerdict(pilots, "21 pilots").verdict, "correct");
+
+  db.prepare("UPDATE questions SET canonical_answer = ?, aliases_json = ?, answer_is_person = 0 WHERE id = ?").run("answer1", "[]", question.id);
+  db.prepare("DELETE FROM grading_rules WHERE question_id = ?").run(question.id);
+});
+
 test("a restarted attempt starts a new generation and the old one is superseded, not deleted", () => {
   const player = freshPlayer();
   const served = quiz.serveNext(player);
@@ -407,6 +519,21 @@ test("recoverable invitation tokens round-trip under authenticated encryption", 
   assert.ok(ciphertext);
   parts[2] = `${ciphertext[0] === "A" ? "B" : "A"}${ciphertext.slice(1)}`;
   assert.throws(() => cryptoHelpers.decryptInvitationToken(parts.join(".")));
+});
+
+test("a tampered signed cookie is rejected, never raised as an error", () => {
+  const signed = cryptoHelpers.sign("42");
+  assert.equal(cryptoHelpers.unsign(signed), "42");
+  assert.equal(cryptoHelpers.unsign(undefined), null);
+  assert.equal(cryptoHelpers.unsign("42"), null, "an unsigned value carries no signature to check");
+  assert.equal(cryptoHelpers.unsign(`43.${signed.split(".")[1]}`), null, "another value's signature does not transfer");
+
+  // Same character count as a real signature, but more bytes: comparing as
+  // characters instead of bytes made this throw a RangeError, turning a
+  // forged cookie into a 500 instead of a plain rejection.
+  const multibyte = `42.${"é".repeat(signed.length - 3)}`;
+  assert.equal(multibyte.length, signed.length);
+  assert.equal(cryptoHelpers.unsign(multibyte), null);
 });
 
 test("test invitation lookup never substitutes a different test player's link", () => {
@@ -546,11 +673,21 @@ test("administrator password changes are salted, hashed, and immediately replace
   assert.equal(auth.checkAdminPassword(replacement), true);
 });
 
-test("question CSV round-trips quoted punctuation, newlines, and aliases", () => {
-  const questions = [{ position: 1, category: "Movies, TV & More", prompt: "Who said *\"Hello\"*?\nName the character.", highlightedText: "Name the character", answer: "A, B", aliases: ["A", "B"] }];
+test("question CSV round-trips quoted punctuation, newlines, aliases, and the person flag", () => {
+  const questions = [
+    { position: 1, category: "Movies, TV & More", prompt: "Who said *\"Hello\"*?\nName the character.", highlightedText: "Name the character", answer: "A, B", aliases: ["A", "B"], answerIsPerson: false },
+    { position: 2, category: "Music", prompt: "Who sang it?", highlightedText: "", answer: "Kate Bush", aliases: [], answerIsPerson: true },
+  ];
   const csv = questionImport.questionsToCsv(questions);
   assert.deepEqual(questionImport.parseQuestionImport(csv), questions);
   assert.equal(questionImport.visiblePromptText(questions[0]!.prompt), "Who said \"Hello\"?\nName the character.");
+
+  // A bank exported before the column existed must still import, defaulting
+  // to "not a person" rather than failing.
+  const legacy = "position,category,question,highlighted_text,answer,aliases\r\n1,Music,Who sang it?,,Kate Bush,Bush\r\n";
+  assert.deepEqual(questionImport.parseQuestionImport(legacy), [
+    { position: 1, category: "Music", prompt: "Who sang it?", highlightedText: "", answer: "Kate Bush", aliases: ["Bush"], answerIsPerson: undefined },
+  ]);
 });
 
 test("player CSV round-trips names with commas and test flags", () => {
@@ -568,7 +705,7 @@ test("saved player intro copy is returned before an attempt starts", () => {
 });
 
 test("admin question preview safely embeds prompt data without creating executable markup", () => {
-  const html = views.questionPreviewPage({ id: 7, position: 2, category: "TV", prompt: "*Title* </script><script>alert(1)</script>", highlighted_text: "Title", canonical_answer: "Answer", aliases_json: "[]" }, 50);
+  const html = views.questionPreviewPage({ id: 7, position: 2, category: "TV", prompt: "*Title* </script><script>alert(1)</script>", highlighted_text: "Title", canonical_answer: "Answer", aliases_json: "[]", answer_is_person: 0 }, 50);
   assert.equal(html.includes("</script><script>alert(1)</script>"), false);
   assert.match(html, /Admin preview/);
   assert.match(html, /\/admin\/preview\/1/);

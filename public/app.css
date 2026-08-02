@@ -190,6 +190,15 @@ code { color: var(--cass-purple); }
 .question-editor input, .question-editor textarea { margin-top: 6px; padding: 10px; font-size: .9rem; }
 .question-editor button { margin: 0; }
 .question-editor .italic-button { margin-top: 6px; }
+.question-editor .checkbox {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.question-editor .checkbox input { margin-top: 0; width: auto; }
+.question-editor .checkbox .muted { font-weight: 400; }
 .question-actions { display: flex; gap: 8px; align-items: end; }
 .question-actions .button, .question-actions button { margin: 0; }
 .preview-nav { max-width: 780px; margin: 18px auto -3vh; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -203,6 +212,7 @@ code { color: var(--cass-purple); }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }
   .question-editor label, .question-editor button { grid-column: 2; }
+  .question-editor .checkbox { grid-column: 2; }
   .invitation-steps { grid-template-columns: 1fr; }
 }
 @media (max-width: 750px) {

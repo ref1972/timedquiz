@@ -169,6 +169,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
       <label>Highlighted text <span class="muted">(optional)</span><input name="highlightedText" value="${esc(q.highlighted_text)}" ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Answer<input name="answer" value="${esc(q.canonical_answer)}" required ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Aliases <span class="muted">(comma or line separated)</span><input name="aliases" value="${esc(aliases)}" ${data.questionsLocked ? "disabled" : ""}></label>
+      <label class="checkbox"><input type="checkbox" name="answerIsPerson" value="1" ${q.answer_is_person ? "checked" : ""} ${data.questionsLocked ? "disabled" : ""}> Answer is a person’s name <span class="muted">(accepts the surname alone; sends a surname with a different first name to review)</span></label>
       <div class="question-actions">${data.questionsLocked ? "" : '<button class="small">Save question</button>'}<a class="button small secondary" href="/admin/preview/${q.position}" target="_blank" rel="noopener">Preview</a></div>
     </form>`;
   }).join("");
@@ -204,11 +205,11 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
 
       <section class="panel" ${section === "questions" ? "" : "hidden"}>
         <h2>Import questions</h2>
-        <p>Download the current question bank, edit it in Excel or Google Sheets, and upload the CSV. Keep the header row; wrap titles in <code>*asterisks*</code> for italics, use <code>highlighted_text</code> for an optional gold phrase, and separate multiple accepted aliases with <code>|</code>. Import locks after the first attempt starts.</p>
+        <p>Download the current question bank, edit it in Excel or Google Sheets, and upload the CSV. Keep the header row; wrap titles in <code>*asterisks*</code> for italics, use <code>highlighted_text</code> for an optional gold phrase, and separate multiple accepted aliases with <code>|</code>. Set <code>person</code> to <code>yes</code> when the answer is someone’s name, which accepts the surname on its own and sends that surname behind a different first name to review. Import locks after the first attempt starts.</p>
         <p><a class="button secondary" href="/admin/questions.csv">Download current questions CSV</a></p>
         <form method="post" action="/admin/questions">
           <label>Question CSV<input id="questionCsvFile" type="file" accept=".csv,text/csv"></label>
-          <label>CSV preview or pasted CSV<textarea id="questionImportData" name="questions" rows="7" required placeholder="position,category,question,highlighted_text,answer,aliases"></textarea></label>
+          <label>CSV preview or pasted CSV<textarea id="questionImportData" name="questions" rows="7" required placeholder="position,category,question,highlighted_text,answer,aliases,person"></textarea></label>
           <button>Validate and import 50 questions</button>
         </form>
         <p class="muted">JSON imports are still accepted for compatibility.</p>

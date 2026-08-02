@@ -1,5 +1,55 @@
 # Decisions
 
+## 2026-08-02 — A surname counts alone, but not behind a different first name
+
+Questions carry an `answer_is_person` flag, set with a checkbox in the question
+editor or a `person` column in the CSV. When set, the last word of the
+canonical answer is accepted as a surname without the editor writing it out as
+an alias.
+
+A surname — whether flagged or written as an alias like "Bush" on "Kate Bush" —
+is treated as shorthand for the canonical answer. It may only be *contained* in
+a submission that introduces no word of its own: "Bush" and "Kate Bush" count,
+"George Bush" and "Barbara Bush" do not. The same guard covers non-person
+shorthand such as "Juicy" on "Juicy Couture".
+
+A surname behind a different first name goes to the **review queue as
+unresolved rather than being auto-marked incorrect**. The code cannot
+distinguish a wrong person from a misspelled right one ("Katie Bush"), and a
+silent incorrect verdict is exactly as unreviewable as the silent correct
+verdict this release fixed — the queue surfaces only unresolved answers. One
+reviewer ruling then applies to every matching submission, retroactively and
+prospectively.
+
+## 2026-08-02 — Contained-answer grading requires a word boundary and length
+
+Automatic grading still accepts an answer that contains an accepted answer, so
+"I think it is The Electric Company" counts. Containment now additionally
+requires the accepted answer to match on a whole-word boundary, and to be at
+least four characters unless it contains a space. Anything else falls to
+`unresolved` for the review queue rather than being auto-accepted.
+
+The previous unguarded `includes` check graded a wrong answer correct and hid
+it from review, because the queue only ever surfaces `unresolved`. On the real
+bank this accepted any answer containing the letter "t" for Q15 (canonical
+answer "T"), "Kryptonite" for Q41 "Krypto", "everybody loves raymond" for Q20
+"The Body", and "french fry" for Q44's bare "Fry" alias.
+
+The deliberate cost: seven questions with answers under four characters
+("T", "The Who", "You", "TLC", "NPC", "PBR", "Fry") now require an exact match,
+so a player who writes "it's the who" needs one reviewer ruling — which then
+applies to every other player who typed the same thing, retroactively and
+prospectively.
+
+## 2026-08-02 — The player countdown measures against the server's clock
+
+Every served question state carries `serverNow` beside `deadlineAt`. The
+browser derives the remaining time from the difference and uses the device
+clock only as a stopwatch from that point. A device whose clock is wrong is no
+longer able to display an expired question (auto-submitting all fifty answers
+blank) or an overlong one. Server enforcement was already correct and is
+unchanged; this fixes only what the player sees.
+
 ## 2026-08-01 — Per-question timer is 30 seconds
 
 At the owner's direction, each question receives a server-authoritative

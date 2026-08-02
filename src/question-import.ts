@@ -5,6 +5,7 @@ export interface ImportedQuestion {
   highlightedText?: string;
   answer: string;
   aliases?: string[];
+  answerIsPerson?: boolean;
 }
 
 export function visiblePromptText(prompt: string): string {
@@ -62,6 +63,7 @@ export function parseQuestionImport(input: string): ImportedQuestion[] {
   const highlightedText = column(["highlighted_text", "highlighted text", "highlight"]);
   const answer = column(["answer", "canonical_answer", "canonical answer"]);
   const aliases = column(["aliases", "accepted answers", "accepted_answers"]);
+  const answerIsPerson = column(["person", "answer_is_person", "answer is person", "is_person"]);
   if (position < 0 || prompt < 0 || answer < 0) {
     throw new Error("CSV headers must include position, question, and answer. Category and aliases are optional.");
   }
@@ -73,6 +75,7 @@ export function parseQuestionImport(input: string): ImportedQuestion[] {
     highlightedText: highlightedText >= 0 ? row[highlightedText]?.trim() : undefined,
     answer: row[answer]?.trim() ?? "",
     aliases: aliases >= 0 ? (row[aliases] ?? "").split("|").map((value) => value.trim()).filter(Boolean) : [],
+    answerIsPerson: answerIsPerson >= 0 ? /^(1|yes|true|person|y)$/i.test((row[answerIsPerson] ?? "").trim()) : undefined,
   }));
 }
 
@@ -82,6 +85,6 @@ export function csvCell(value: unknown): string {
 }
 
 export function questionsToCsv(questions: ImportedQuestion[]): string {
-  const rows = questions.map((q) => [q.position, q.category ?? "", q.prompt, q.highlightedText ?? "", q.answer, (q.aliases ?? []).join("|")].map(csvCell).join(","));
-  return ["position,category,question,highlighted_text,answer,aliases", ...rows].join("\r\n") + "\r\n";
+  const rows = questions.map((q) => [q.position, q.category ?? "", q.prompt, q.highlightedText ?? "", q.answer, (q.aliases ?? []).join("|"), q.answerIsPerson ? "yes" : "no"].map(csvCell).join(","));
+  return ["position,category,question,highlighted_text,answer,aliases,person", ...rows].join("\r\n") + "\r\n";
 }

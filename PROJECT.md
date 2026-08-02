@@ -8,7 +8,9 @@ Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
 
 - 50 sequential questions with a server-authoritative 30-second window.
 - Passwordless personalized invitation links.
-- CASS-compatible automatic grading plus a grouped human-review queue.
+- CASS-compatible automatic grading plus a grouped human-review queue. A
+  contained answer counts only on a whole-word boundary and above a minimum
+  length; anything else goes to review rather than being auto-accepted.
 - Administrative question editing, player import, technical restarts, ranked
   results, and CSV export.
 - Ranking by score, then total server-measured answer time across all finalized

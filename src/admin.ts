@@ -8,7 +8,7 @@ import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mai
 import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
 import { adminLoginPage, adminPage, page, playerAnswersPage, questionPreviewPage, type AdminSection } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
-import { parseQuestionImport, questionsToCsv, visiblePromptText } from "./question-import.ts";
+import { parseQuestionImport, questionsToCsv, visiblePromptText, type ImportedQuestion } from "./question-import.ts";
 import { parsePlayerImport, playersToCsv } from "./player-import.ts";
 import { getIntroCopy, setIntroCopy, type IntroCopy } from "./intro-copy.ts";
 import { getInvitationTemplate, setInvitationTemplate } from "./invitation-template.ts";
@@ -117,6 +117,7 @@ export interface AdminQuestionRow {
   highlighted_text: string;
   canonical_answer: string;
   aliases_json: string;
+  answer_is_person: number;
 }
 
 export interface InvitationStats {
@@ -137,7 +138,7 @@ export function invitationStats(): InvitationStats {
 }
 
 export function adminQuestions(): AdminQuestionRow[] {
-  return db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json FROM questions ORDER BY position").all() as unknown as AdminQuestionRow[];
+  return db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json, answer_is_person FROM questions ORDER BY position").all() as unknown as AdminQuestionRow[];
 }
 
 function questionImportLocked(): boolean {
@@ -181,6 +182,11 @@ const loginAttempts = new Map<string, { count: number; resetsAt: number }>();
 
 function loginRateLimited(ip: string): boolean {
   const now = Date.now();
+  // Drop expired buckets so a long-running event cannot accumulate one entry
+  // per address that ever attempted a sign-in.
+  for (const [key, value] of loginAttempts) {
+    if (value.resetsAt <= now) loginAttempts.delete(key);
+  }
   const existing = loginAttempts.get(ip);
   if (!existing || existing.resetsAt <= now) {
     loginAttempts.set(ip, { count: 1, resetsAt: now + 15 * 60_000 });
@@ -451,7 +457,7 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
     return;
   }
 
-  let parsed: Array<{ position: number; category?: string; prompt: string; highlightedText?: string; answer: string; aliases?: string[] }>;
+  let parsed: ImportedQuestion[];
   try {
     parsed = parseQuestionImport(String(req.body.questions ?? ""));
   } catch (error) {
@@ -475,9 +481,9 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
   db.exec("BEGIN");
   try {
     db.exec("DELETE FROM questions");
-    const insert = db.prepare("INSERT INTO questions (position, category, prompt, highlighted_text, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?, ?)");
+    const insert = db.prepare("INSERT INTO questions (position, category, prompt, highlighted_text, canonical_answer, aliases_json, answer_is_person) VALUES (?, ?, ?, ?, ?, ?, ?)");
     for (const q of [...parsed].sort((a, b) => a.position - b.position)) {
-      insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt.trim(), q.highlightedText?.trim() || "", q.answer.trim(), JSON.stringify(q.aliases ?? []));
+      insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt.trim(), q.highlightedText?.trim() || "", q.answer.trim(), JSON.stringify(q.aliases ?? []), q.answerIsPerson ? 1 : 0);
     }
     db.exec("COMMIT");
   } catch (error) {
@@ -496,6 +502,7 @@ adminRouter.get("/admin/questions.csv", requireAdmin, (_req: Request, res: Respo
     highlightedText: q.highlighted_text,
     answer: q.canonical_answer,
     aliases: JSON.parse(q.aliases_json) as string[],
+    answerIsPerson: Boolean(q.answer_is_person),
   }));
   res.type("text/csv");
   res.setHeader("Content-Disposition", 'attachment; filename="timed-quiz-questions.csv"');
@@ -504,7 +511,7 @@ adminRouter.get("/admin/questions.csv", requireAdmin, (_req: Request, res: Respo
 
 adminRouter.get("/admin/preview/:position", requireAdmin, (req: Request, res: Response) => {
   const position = Number(req.params.position);
-  const question = db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json FROM questions WHERE position = ?").get(position) as unknown as AdminQuestionRow | undefined;
+  const question = db.prepare("SELECT id, position, category, prompt, highlighted_text, canonical_answer, aliases_json, answer_is_person FROM questions WHERE position = ?").get(position) as unknown as AdminQuestionRow | undefined;
   if (!question) {
     res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin/questions#questions">Return to questions</a></main>`));
     return;
@@ -523,6 +530,7 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
   const highlightedText = String(req.body.highlightedText ?? "").trim();
   const answer = String(req.body.answer ?? "").trim();
   const aliases = String(req.body.aliases ?? "").split(/\r?\n|,/).map((alias) => alias.trim()).filter(Boolean);
+  const answerIsPerson = req.body.answerIsPerson === "1";
   if (!Number.isInteger(id) || !category || !prompt || !answer) {
     res.status(400).send(page("Invalid question", `<main class="card"><h1>Question not saved</h1><p>Category, question, and answer are required.</p><a href="/admin#questions">Return to questions</a></main>`));
     return;
@@ -531,7 +539,7 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
     res.status(400).send(page("Invalid highlight", `<main class="card"><h1>Question not saved</h1><p>The highlighted text must appear exactly in the question (capitalization may differ).</p><a href="/admin#question-${id}">Return to question</a></main>`));
     return;
   }
-  const result = db.prepare("UPDATE questions SET category = ?, prompt = ?, highlighted_text = ?, canonical_answer = ?, aliases_json = ? WHERE id = ?").run(category, prompt, highlightedText, answer, JSON.stringify(aliases), id);
+  const result = db.prepare("UPDATE questions SET category = ?, prompt = ?, highlighted_text = ?, canonical_answer = ?, aliases_json = ?, answer_is_person = ? WHERE id = ?").run(category, prompt, highlightedText, answer, JSON.stringify(aliases), answerIsPerson ? 1 : 0, id);
   if (!result.changes) {
     res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
     return;
@@ -542,10 +550,16 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
 
 adminRouter.post("/admin/review", requireAdmin, (req: Request, res: Response) => {
   const questionId = Number(req.body.questionId);
-  const answer = String(req.body.answer ?? "");
+  const answer = normalize(String(req.body.answer ?? ""));
   const verdict = req.body.verdict === "correct" ? "correct" : "incorrect";
   const note = String(req.body.note ?? "").slice(0, 500);
-  applyReviewRuling(questionId, normalize(answer), verdict, note);
+  const questionExists =
+    Number.isInteger(questionId) && Boolean(db.prepare("SELECT 1 AS ok FROM questions WHERE id = ?").get(questionId));
+  if (!questionExists || !answer) {
+    res.status(400).send(page("Ruling not saved", `<main class="card"><h1>Ruling not saved</h1><p>A ruling needs an existing question and a non-blank submitted answer.</p><a href="/admin/review">Return to the review queue</a></main>`));
+    return;
+  }
+  applyReviewRuling(questionId, answer, verdict, note);
   logEvent(null, "answer_reviewed", { questionId, answer, verdict });
   res.redirect("/admin/review");
 });

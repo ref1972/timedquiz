@@ -1,5 +1,88 @@
 # Current handoff
 
+## 2026-08-02 — Code review fixes: grading, timer clock, admin throttle
+
+**Status: source present locally only. Not committed, not deployed, not
+verified in production.** Production continues to run rc25 with the old
+grading and timer behavior.
+
+A read-only review of the whole source found five defects. All five are fixed
+with tests, and the owner then asked for person-name grading (item 6). The
+suite is now 36 tests, and TypeScript, `git diff --check`, and
+`node --check public/quiz.js` all pass.
+
+1. **Automatic grading accepted wrong answers and hid them from review.**
+   `autoVerdict` accepted any submission *containing* an accepted answer, with
+   no length or word-boundary guard. Verified against the real Pop Culture Bee
+   bank: Q15 (canonical answer "T") graded any submission containing the letter
+   t as correct, including "I don't know" and "Mature"; Q2 "The Who" accepted
+   "I have no idea who" and "Whodunit"; Q20 "The Body" accepted "everybody
+   loves raymond"; Q41 "Krypto" accepted "Kryptonite"; Q44's bare "Fry" alias
+   accepted "french fry" and "Philip J. Fry". Because the review queue lists
+   only `unresolved` answers, none of these was visible to a reviewer.
+   Containment now requires a whole-word boundary and a minimum length; see
+   `docs/DECISIONS.md`. An empty alias from a trailing `|` in an imported CSV
+   also no longer accepts every non-blank answer.
+2. **The player countdown trusted the device clock.** The browser compared the
+   absolute `deadlineAt` against `Date.now()`, so a phone running minutes fast
+   would show 0.0 the instant each question appeared and auto-submit all fifty
+   answers blank. States now carry `serverNow`; the device clock is used only
+   as a stopwatch. Server-side enforcement was already correct and is unchanged.
+3. **Admin sign-in throttling was global, not per-address.** `req.ip` read as
+   127.0.0.1 for every request because the app never trusted nginx's
+   `X-Forwarded-For`, so ten failed attempts from any stranger locked the owner
+   out for fifteen minutes — worst case during a live event. `trust proxy` is
+   now set to one hop, and expired throttle buckets are pruned.
+4. **A tampered session cookie could return 500 instead of 401.** `unsign`
+   compared character length, then called `timingSafeEqual` on buffers; a
+   forged cookie with multibyte characters threw a RangeError. It now compares
+   byte lengths.
+5. **`POST /admin/review` accepted a nonexistent question id or blank answer**,
+   reaching a foreign-key error. It now validates and returns 400.
+6. **Person-name grading**, at the owner's request. Questions gained
+   `answer_is_person` (checkbox in the editor, `person` column in the CSV,
+   backward-compatible migration and import). A surname now counts on its own
+   and is refused behind a different first name; see `docs/DECISIONS.md` for
+   why the refusal is `unresolved` rather than auto-incorrect.
+
+Verification performed locally:
+
+- All 13 previously-confirmed false-positive gradings now return `unresolved`.
+- Regression sweep over all 50 questions: every canonical answer and alias,
+  including uppercase and padded variants, still grades correct.
+- Seven questions with answers under four characters ("T", "The Who", "You",
+  "TLC", "NPC", "PBR", "Fry") now need an exact match, so filler phrasing like
+  "it's the who" requires one reviewer ruling that then applies to every
+  matching submission retroactively and prospectively. This is a deliberate
+  trade and should be expected in the Review Queue during the event.
+
+- Person grading checked against the bank with the flag set on the ten
+  person-name questions (Q3, Q10, Q12, Q17, Q22, Q23, Q29, Q32, Q44, Q48): the
+  bare surname and the full name grade correct in every case, and the surname
+  behind a different first name is unresolved in every case. "Mel Brooks" for
+  Garth Brooks and "George Bush" / "Barbara Bush" for Kate Bush no longer
+  score. Q29 "Jayne Mansfield" gains bare-surname acceptance, which it never
+  had because it carries no surname alias.
+
+Next steps:
+
+1. Owner review of the grading trade-off above, particularly the seven
+   short-answer questions.
+2. **Set the person checkbox on the ten person-name questions in production.**
+   The migration defaults every existing question to not-a-person, so until
+   the boxes are ticked, Q29-style bare surnames are not accepted. The ten
+   questions that already carry a partial alias are protected from the wrong
+   first name either way; the flag adds surname acceptance where no alias
+   exists.
+3. Commit, tag, and deploy as rc26 after a verified backup, then confirm
+   production health, the grading, person-flag, and timer markers, and CASS
+   availability.
+4. Two structural items from the same review remain open and were **not**
+   changed: the admin screens are split by hiding sections rather than
+   rendering per route (every route still runs all queries and ships the full
+   player table), and the Review Queue still cannot surface auto-`correct`
+   answers for spot-checking.
+
 ## 2026-08-02 — Tester-feedback layout and split admin deployed as rc25
 
 - Removed the confusing abandonment warning from the player intro and hid its
