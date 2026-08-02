@@ -1,12 +1,20 @@
-# Google Workspace SMTP relay migration plan
+# Google Workspace mail migration plan
+
+> **Transport correction (2026-08-01):** DigitalOcean blocks outbound SMTP
+> ports 25, 465, and 587 on all Droplets. Do not follow the direct-SMTP details
+> retained below as investigation history. The authoritative implementation and
+> rollout plan is now TriviaNationals
+> `docs/WORKSPACE-SMTP-RELAY.md`: an isolated paced HTTPS gateway on the droplet
+> sends through the Gmail API using a service account delegated only
+> `gmail.send`. Timed Quiz remains an authenticated client of that gateway.
 
 Status: planned only. No Workspace, production, database, or mail-sending
 change has been made from this plan.
 
-Implementation update: the shared gateway now lives in the TriviaNationals
-repository under `workspace-mail-relay/`; Timed Quiz's source client supports
-its app-specific bearer authentication. Neither component is deployed or
-configured in production yet.
+Implementation update: the shared Gmail API gateway now lives in the
+TriviaNationals repository under `workspace-mail-relay/`; Timed Quiz's source
+client supports its app-specific bearer authentication. Neither component is
+deployed or configured in production yet.
 
 ## Goal
 

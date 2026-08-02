@@ -49,7 +49,7 @@ Last updated: 2026-08-01.
   refuse missing or already-completed accounts. They never reuse the first test
   player's personalized token.
 - Source now supports app-specific bearer authentication to the planned shared
-  droplet Workspace SMTP gateway when `EMAIL_RELAY_CLIENT_ID` is configured,
+  droplet Workspace Gmail API gateway when `EMAIL_RELAY_CLIENT_ID` is configured,
   while retaining explicit compatibility with the currently deployed Apps
   Script endpoint. This source is not deployed and production still uses Apps
   Script.

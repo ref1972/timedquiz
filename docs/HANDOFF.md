@@ -13,6 +13,10 @@ Last updated: 2026-08-01.
   corrected to match the already-live 30-second setting.
 - All 31 tests and TypeScript pass. This source is not deployed; production
   environment and email behavior are unchanged, and no email was sent.
+- Subsequent read-only infrastructure verification found DigitalOcean blocks
+  all droplet SMTP ports. The shared gateway has been corrected to use the
+  Gmail API over HTTPS with global three-second pacing and rolling hourly/day
+  safety limits. Timed Quiz's HTTP client contract is unchanged by that pivot.
 
 ## 2026-08-01 — Workspace SMTP relay migration planned
 
