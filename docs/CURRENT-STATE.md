@@ -141,6 +141,14 @@ Last updated: 2026-08-01.
   was accepted and the relay reported 96 remaining. The owner confirmed inbox
   delivery and that the personalized production link worked. Header inspection
   remains pending. No batch or real-player invitation has been sent.
+- Timed Quiz rc23 is now cut over from that Apps Script path to the shared
+  Gmail API gateway at `mail.triviaworkshop.com`. On 2026-08-01, exactly one
+  newly authorized test invitation to test player 8 was accepted by Gmail API
+  (HTTP 200 with a provider message ID); the gateway and app audits agree and
+  report 999 remaining under the configured 24-hour safety ceiling. The owner
+  confirmed inbox delivery; link operation and header inspection remain
+  pending. Do not repeat this send. No real-player invitation has been sent
+  through the gateway.
 - The closing time remains unset. The deployed database contains only the
   seeded test player and unapproved starting bank; it is not the launch
   database.

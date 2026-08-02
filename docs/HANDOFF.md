@@ -1,5 +1,21 @@
 # Current handoff
 
+## 2026-08-01 — First Gmail API gateway test accepted
+
+- With explicit owner authorization, imported `friedewald@gmail.com` as test
+  player 8 and attempted exactly one personalized invitation through the
+  shared gateway. No retry or fallback occurred.
+- Independent audits show one gateway attempt and one acceptance for
+  `timed_quiz`; Gmail API returned HTTP 200 with a provider message ID, and
+  Timed Quiz logged a successful `invitation_test_email`. The gateway reported
+  999 remaining under its configured 24-hour safety ceiling.
+- Fresh post-send backups are
+  `/var/backups/trivia-mail-relay/audit-20260802T020009Z.sqlite.gz` and
+  `/var/backups/timed-quiz/quiz-20260802T020009Z.sqlite.gz`.
+- The owner confirmed inbox delivery. Do not repeat the send. Personalized-link
+  operation and header / Workspace Email Log Search inspection remain pending
+  before the WordPress cutover.
+
 Last updated: 2026-08-01.
 
 ## 2026-08-01 — Timed Quiz switched to Gmail API gateway, no mail sent
