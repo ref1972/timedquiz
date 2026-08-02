@@ -65,6 +65,10 @@ does not configure email, a cutoff, or TLS and does not send anything.
 
 Run exactly one application process against the SQLite database.
 
+Admin sessions last 12 hours. Login return paths are restricted to the four
+known `/admin/...` screens and an optional simple section hash; never broaden
+this validation to arbitrary URLs because that would create an open redirect.
+
 ## Rollback
 
 - Code-only fault: restore the prior tagged code and restart the service while

@@ -768,6 +768,12 @@ test("administrator password changes are salted, hashed, and immediately replace
   assert.equal(auth.checkAdminPassword(replacement), true);
 });
 
+test("admin sign-in preserves a safe destination and invitation anchor", () => {
+  const html = views.adminLoginPage(false, "/admin/players#invitations");
+  assert.match(html, /name="next" value="\/admin\/players#invitations"/);
+  assert.match(html, /location\.hash/);
+});
+
 test("question CSV round-trips quoted punctuation, newlines, aliases, and the person flag", () => {
   const questions = [
     { position: 1, category: "Movies, TV & More", prompt: "Who said *\"Hello\"*?\nName the character.", highlightedText: "Name the character", answer: "A, B", aliases: ["A", "B"], answerIsPerson: false },

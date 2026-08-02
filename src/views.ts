@@ -22,17 +22,19 @@ export function page(title: string, body: string): string {
 </html>`;
 }
 
-export function adminLoginPage(failed: boolean): string {
+export function adminLoginPage(failed: boolean, next = "/admin/questions"): string {
   return page(
     "Admin sign in",
     `<main class="card narrow">
       <p class="eyebrow">Quiz administration</p>
       <h1>Sign in</h1>
       ${failed ? '<p class="notice">Sign-in failed. Try again.</p>' : ""}
-      <form method="post" action="/admin/login">
+      <form id="adminLoginForm" method="post" action="/admin/login">
+        <input id="adminLoginNext" type="hidden" name="next" value="${esc(next)}">
         <label>Password<input name="password" type="password" required autofocus></label>
         <button>Sign in</button>
       </form>
+      <script>document.querySelector('#adminLoginForm').addEventListener('submit',function(){var n=document.querySelector('#adminLoginNext');if(location.hash)n.value=n.value.split('#')[0]+location.hash;});</script>
     </main>`,
   );
 }

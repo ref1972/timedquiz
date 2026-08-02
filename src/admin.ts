@@ -279,7 +279,7 @@ function loginRateLimited(ip: string): boolean {
 
 function renderAdmin(req: Request, res: Response, section: AdminSection): void {
   if (!isAdmin(req)) {
-    res.send(adminLoginPage(false));
+    res.send(adminLoginPage(false, `/admin/${section}`));
     return;
   }
   // Finalize anything that timed out while the player never came back to
@@ -312,17 +312,21 @@ adminRouter.post("/admin/completion-notifications", requireAdmin, (req: Request,
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {
+  const requestedNext = String(req.body.next ?? "");
+  const next = /^\/admin\/(questions|players|progress|review)(#[A-Za-z0-9_-]+)?$/.test(requestedNext)
+    ? requestedNext
+    : "/admin/questions";
   if (loginRateLimited(req.ip || req.socket.remoteAddress || "unknown")) {
     res.status(429).send(page("Too many attempts", `<main class="card"><h1>Try again later</h1><p>Too many administrator sign-in attempts came from this address.</p></main>`));
     return;
   }
   if (!checkAdminPassword(String(req.body.password ?? ""))) {
-    res.status(403).send(adminLoginPage(true));
+    res.status(403).send(adminLoginPage(true, next));
     return;
   }
   loginAttempts.delete(req.ip || req.socket.remoteAddress || "unknown");
   setAdminSession(res);
-  res.redirect("/admin/questions");
+  res.redirect(next);
 });
 
 adminRouter.post("/admin/password", requireAdmin, (req: Request, res: Response) => {

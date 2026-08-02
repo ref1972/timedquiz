@@ -9,7 +9,11 @@ Last updated: 2026-08-02.
 - Launch hardening includes encrypted/rotatable invitations, quota-safe email
   batches, server-measured timing tiebreaks, post-cutoff authorized restarts,
   admin login throttling, preflight, backups, and deployment packaging.
-- Automated verification passes 38 tests and TypeScript typechecking.
+- Automated verification passes 39 tests and TypeScript typechecking.
+- Admin sign-in accepts only validated internal admin return destinations and
+  preserves the current section hash. If the 12-hour session expires while an
+  admin follows Players → Invitations, signing in returns to that exact panel
+  instead of silently dropping the operator on Questions.
 - Questions carry `answer_is_person`, set by a checkbox in the question editor
   or a `person` column in the question CSV. It accepts the canonical answer's
   last word as a bare surname without needing an alias, and refuses that

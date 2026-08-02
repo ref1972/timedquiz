@@ -1,5 +1,18 @@
 # Current handoff
 
+## 2026-08-02 — Player import navigation/session issue diagnosed
+
+- Owner imported two players at 21:15:10 UTC; production audit confirms
+  `added=2`, `updated=0`, `skipped=0`, and the database now has 11 players.
+  No import data was lost.
+- The open admin document was still rc5 and its 12-hour admin session had
+  expired. Following the current Continue link therefore displayed sign-in at
+  `/admin/players#invitations`, while the old visible page made this look like
+  an inert anchor.
+- Sign-in now carries a validated return destination and preserves the current
+  hash at submit time, so an expired session returns directly to Players →
+  Invitations after authentication. Verification and deployment remain next.
+
 ## 2026-08-02 — Review Queue rebuilt as a CASS-style Grading panel
 
 Commit `4ad6de7` and tag `timed-quiz-v0.1.0-rc28` are pushed and deployed after
