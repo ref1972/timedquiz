@@ -1,4 +1,4 @@
-import type { AdminQuestionRow, InvitationStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow, ReviewedRuleRow, UnresolvedRow } from "./admin.ts";
+import type { AdminQuestionRow, GradingQuestion, GradingVariant, InvitationStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow } from "./admin.ts";
 import type { IntroCopy } from "./intro-copy.ts";
 import type { InvitationTemplate } from "./invitation-template.ts";
 import type { CompletionNotificationSettings } from "./completion-notification.ts";
@@ -60,8 +60,8 @@ export interface AdminPageData {
   questionCount: number;
   closesAt: number | null;
   results: ResultRow[];
-  unresolved: UnresolvedRow[];
-  reviewedRules: ReviewedRuleRow[];
+  grading: GradingQuestion[];
+  unresolvedCount: number;
   questions: AdminQuestionRow[];
   questionsLocked: boolean;
   emailRelayConfigured: boolean;
@@ -115,6 +115,71 @@ export function playerAnswersPage(player: { id: number; email: string; display_n
 
 export type AdminSection = "questions" | "players" | "progress" | "review";
 
+/**
+ * One answer variant. Every player who typed the same thing shares one row and
+ * one decision, because a ruling is stored per (question, normalized answer)
+ * and applies to all of them -- retroactively and to anyone who types it
+ * later.
+ */
+function gradingVariantRow(question: GradingQuestion, variant: GradingVariant): string {
+  const label = variant.normalized_answer ? esc(variant.sample_text || variant.normalized_answer) : '<span class="muted">(blank)</span>';
+  const counts = [
+    `${variant.players} player${variant.players === 1 ? "" : "s"}`,
+    variant.test_players && variant.real_players ? `${variant.real_players} real` : variant.test_players ? "test only" : "",
+  ].filter(Boolean).join(" · ");
+  const badge = variant.ruling
+    ? `<span class="grade-badge manual">ruled ${esc(variant.ruling)}</span>`
+    : variant.verdict === "mixed"
+      ? '<span class="grade-badge mixed">mixed verdicts</span>'
+      : '<span class="grade-badge auto">auto</span>';
+  const button = (verdict: "correct" | "incorrect", text: string, className: string) =>
+    `<form method="post" action="/admin/review">
+      <input type="hidden" name="questionId" value="${question.question_id}">
+      <input type="hidden" name="answer" value="${esc(variant.normalized_answer)}">
+      <input type="hidden" name="note" value="${esc(variant.note ?? "")}">
+      <button class="small ${className}" name="verdict" value="${verdict}">${text}</button>
+    </form>`;
+  // Whichever way this answer currently counts, the opposite action is always
+  // one click away -- including on answers the grader decided by itself.
+  const actions =
+    variant.verdict === "correct"
+      ? button("incorrect", "Reject", "reject")
+      : variant.verdict === "incorrect"
+        ? button("correct", "Accept", "accept")
+        : `${button("correct", "Correct", "accept")}${button("incorrect", "Incorrect", "reject")}`;
+  return `<div class="grade-row ${esc(variant.verdict)}">
+    <div class="grade-answer"><strong>${label}</strong>${badge}</div>
+    <div class="grade-meta"><span title="${esc(variant.who)}">${esc(counts)}</span>${variant.note ? `<span class="muted">${esc(variant.note)}</span>` : ""}</div>
+    <div class="grade-actions">${actions}</div>
+  </div>`;
+}
+
+function gradingQuestionSection(question: GradingQuestion): string {
+  const tier = (verdicts: GradingVariant["verdict"][]) => question.variants.filter((v) => verdicts.includes(v.verdict));
+  const needsReview = tier(["unresolved", "mixed"]);
+  const incorrect = tier(["incorrect"]);
+  const correct = tier(["correct"]);
+  const rows = (list: GradingVariant[]) => list.map((variant) => gradingVariantRow(question, variant)).join("");
+  const percent = question.answered ? Math.round((question.correct / question.answered) * 100) : 0;
+
+  const disclosure = (list: GradingVariant[], summary: string, className: string) =>
+    list.length
+      ? `<details class="grade-tier ${className}"><summary>${list.length} ${summary}</summary><div class="grade-rows">${rows(list)}</div></details>`
+      : "";
+
+  return `<section class="grade-question" id="grade-q${question.position}">
+    <header>
+      <h3>Question ${question.position} <span class="muted">${esc(question.category)}</span></h3>
+      <p class="grade-accepted">Counted correct: ${question.accepted.map((answer) => `<strong>${esc(answer)}</strong>`).join('<span aria-hidden="true"> · </span>')}${question.answer_is_person ? '<span class="grade-badge person">person</span>' : ""}</p>
+      <p class="grade-stat">${question.correct} of ${question.answered} correct${question.answered ? ` (${percent}%)` : ""}${question.unresolved ? ` &middot; <strong>${question.unresolved} awaiting review</strong>` : ""}</p>
+    </header>
+    ${needsReview.length ? `<div class="grade-rows">${rows(needsReview)}</div>` : ""}
+    ${disclosure(incorrect, `counted incorrect`, "incorrect")}
+    ${disclosure(correct, `counted correct`, "correct")}
+    ${question.answered ? "" : '<p class="muted">No answers submitted yet.</p>'}
+  </section>`;
+}
+
 export function adminPage(data: AdminPageData, section: AdminSection): string {
   const closesLabel = data.closesAt
     ? new Date(data.closesAt).toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })
@@ -138,28 +203,15 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
       </tr>`,
     )
     .join("");
-  const unresolved = data.unresolved.length
-    ? data.unresolved
-        .map((v) => {
-          const accepted = [v.canonical_answer, ...(JSON.parse(v.aliases_json) as string[])];
-          return `<form class="review" method="post" action="/admin/review">
-        <input type="hidden" name="questionId" value="${v.question_id}">
-        <input type="hidden" name="answer" value="${esc(v.normalized_answer)}">
-        <strong>Q${v.position}</strong>
-        <span class="submitted-answer"><small>Submitted</small>“${esc(v.normalized_answer)}”</span>
-        <span class="accepted-answers"><small>Counted correct</small>${accepted.map((answer) => `<strong>${esc(answer)}</strong>`).join('<span aria-hidden="true"> · </span>')}</span>
-        <span>${v.n} player${v.n === 1 ? "" : "s"}</span>
-        <input name="note" placeholder="Optional note">
-        <button name="verdict" value="correct">Correct</button>
-        <button class="secondary" name="verdict" value="incorrect">Incorrect</button>
-      </form>`;
-        })
-        .join("")
-    : "<p>No unresolved answers yet.</p>";
-  const reviewed = data.reviewedRules.length ? `<div class="table"><table><thead><tr><th>Question</th><th>Submitted answer</th><th>Current ruling</th><th>Players</th><th>Note</th><th>Change ruling</th></tr></thead><tbody>${data.reviewedRules.map((rule) => `<tr>
-    <td>Q${rule.position}</td><td>“${esc(rule.normalized_answer)}”</td><td><strong>${esc(rule.verdict)}</strong></td><td>${rule.affected}</td><td>${rule.note ? esc(rule.note) : "—"}</td>
-    <td><form method="post" action="/admin/review"><input type="hidden" name="questionId" value="${rule.question_id}"><input type="hidden" name="answer" value="${esc(rule.normalized_answer)}"><input type="hidden" name="note" value="${esc(rule.note)}"><button class="small" name="verdict" value="correct" ${rule.verdict === "correct" ? "disabled" : ""}>Correct</button> <button class="small secondary" name="verdict" value="incorrect" ${rule.verdict === "incorrect" ? "disabled" : ""}>Incorrect</button></form></td>
-  </tr>`).join("")}</tbody></table></div>` : "<p>No answers have been manually reviewed yet.</p>";
+  const answeredQuestions = data.grading.filter((question) => question.answered > 0);
+  const gradingSections = answeredQuestions.length
+    ? answeredQuestions.map(gradingQuestionSection).join("")
+    : "<p>No answers have been submitted yet.</p>";
+  const gradingJump = answeredQuestions.length
+    ? `<nav class="grade-jump" aria-label="Jump to question">${answeredQuestions
+        .map((question) => `<a href="#grade-q${question.position}" class="${question.unresolved ? "has-unresolved" : ""}">${question.position}</a>`)
+        .join("")}</nav>`
+    : "";
   const questionForms = data.questions.map((q) => {
     const aliases = (JSON.parse(q.aliases_json) as string[]).join(", ");
     return `<div class="question-block" id="question-${q.id}">
@@ -191,7 +243,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <a href="/admin/questions" ${section === "questions" ? 'aria-current="page"' : ""}>Questions &amp; Answers</a>
         <a href="/admin/players" ${section === "players" ? 'aria-current="page"' : ""}>Players</a>
         <a href="/admin/progress" ${section === "progress" ? 'aria-current="page"' : ""}>Progress</a>
-        <a href="/admin/review" ${section === "review" ? 'aria-current="page"' : ""}>Review Queue${data.unresolved.length ? ` (${data.unresolved.length})` : ""}</a>
+        <a href="/admin/review" ${section === "review" ? 'aria-current="page"' : ""}>Grading${data.unresolvedCount ? ` (${data.unresolvedCount})` : ""}</a>
       </nav>
 
       <section class="panel" id="player-intro" ${section === "players" ? "" : "hidden"}>
@@ -289,11 +341,11 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
       </section>
 
       <section class="panel" id="review" ${section === "review" ? "" : "hidden"}>
-        <h2>Review queue</h2>
-        ${unresolved}
-        <h2>Reviewed answers</h2>
-        <p>These rulings apply to every player who submitted the same normalized answer. Change a ruling here to regrade all matching submissions.</p>
-        ${reviewed}
+        <h2>Grading</h2>
+        <p>Every distinct answer given to every question, grouped by question. Answers awaiting a decision are listed first; answers already counted correct or incorrect are collapsed but always one click from being changed — including the ones the grader decided on its own.</p>
+        <p class="muted">Each decision applies to every player who typed the same answer, and to anyone who types it later. Identical answers share one row.</p>
+        ${gradingJump}
+        ${gradingSections}
       </section>
 
       <section class="panel" id="security" ${section === "players" ? "" : "hidden"}>

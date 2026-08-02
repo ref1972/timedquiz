@@ -313,9 +313,10 @@ test("a reviewer's ruling applies immediately to a later player's identical answ
     questionId,
   ) as any;
   assert.equal(earlyStored.verdict, "unresolved", "unreviewed near-miss starts unresolved");
-  const reviewRow = admin.unresolvedAnswers().find((row) => row.question_id === questionId);
-  assert.equal(reviewRow?.canonical_answer, "answer5");
-  assert.equal(reviewRow?.aliases_json, "[]");
+  const reviewQuestion = admin.gradingReview().find((row) => row.question_id === questionId);
+  assert.equal(reviewQuestion?.canonical_answer, "answer5");
+  assert.deepEqual(reviewQuestion?.accepted, ["answer5"]);
+  assert.equal(reviewQuestion?.variants.find((v) => v.normalized_answer === grading.normalize("a near miss"))?.verdict, "unresolved");
 
   grading.applyReviewRuling(questionId, grading.normalize("a near miss"), "correct", "accept this phrasing");
 
@@ -337,6 +338,66 @@ test("a reviewer's ruling applies immediately to a later player's identical answ
     questionId,
   ) as any;
   assert.equal(laterStored.verdict, "correct", "a later identical answer must not need a second manual review");
+});
+
+test("grading review shows every answer, including the ones graded automatically", () => {
+  const position = 7;
+  const questionId = (db.prepare("SELECT id FROM questions WHERE position = ?").get(position) as any).id;
+  // Earlier tests in this file have already answered every question, so
+  // measure against a baseline rather than assuming a clean slate.
+  const before = admin.gradingReview().find((q) => q.question_id === questionId)!;
+  const autoBefore = before.variants.find((v) => v.normalized_answer === "answer7")?.players ?? 0;
+
+  for (const submitted of ["answer7", "answer7", "answer seven", ""]) {
+    const player = freshPlayer();
+    for (let i = 1; i <= position; i++) {
+      const served = quiz.serveNext(player);
+      if (served.state !== "question") return assert.fail();
+      quiz.submitAnswer(quiz.currentAttempt(player.id)!.id, served.nonce, i === position ? submitted : `answer${i}`);
+    }
+  }
+
+  const question = admin.gradingReview().find((q) => q.question_id === questionId)!;
+  assert.equal(question.answered, before.answered + 4);
+  assert.equal(question.correct, before.correct + 2, "two players typed the canonical answer");
+  assert.equal(question.unresolved, before.unresolved + 1);
+
+  // The whole point: an answer the grader accepted by itself is present and
+  // carries no manual ruling, so a reviewer can see and reverse it. The old
+  // queue listed unresolved answers only, which hid exactly this row.
+  const auto = question.variants.find((v) => v.normalized_answer === "answer7")!;
+  assert.equal(auto.verdict, "correct");
+  assert.equal(auto.ruling, null, "no human has ruled on it");
+  assert.equal(auto.players, autoBefore + 2, "identical answers share one row and one decision");
+
+  const blank = question.variants.find((v) => v.normalized_answer === "")!;
+  assert.equal(blank.verdict, "incorrect");
+  assert.equal(question.variants.find((v) => v.normalized_answer === "answer seven")!.verdict, "unresolved");
+
+  // Reversing an automatic verdict works through the same ruling path, and
+  // reports itself as a human decision afterwards.
+  grading.applyReviewRuling(questionId, "answer7", "incorrect", "disallowed on appeal");
+  const afterRuling = admin.gradingReview().find((q) => q.question_id === questionId)!;
+  assert.equal(afterRuling.correct, question.correct - auto.players, "every matching answer was regraded, not just the one reviewed");
+  const reversed = afterRuling.variants.find((v) => v.normalized_answer === "answer7")!;
+  assert.equal(reversed.verdict, "incorrect");
+  assert.equal(reversed.ruling, "incorrect");
+  assert.equal(reversed.note, "disallowed on appeal");
+
+  // The panel renders it, in the collapsed "counted incorrect" tier, with the
+  // opposite action available.
+  const html = views.adminPage(
+    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    "review",
+  );
+  assert.match(html, /counted incorrect/);
+  assert.match(html, /ruled incorrect/);
+  assert.match(html, />Accept</, "a rejected answer can be accepted back");
+  assert.match(html, />Reject</, "an accepted answer can be rejected");
+  assert.match(html, /grade-badge auto/, "automatic verdicts are labelled as such");
+  assert.match(html, /\(blank\)/);
+
+  db.prepare("DELETE FROM grading_rules WHERE question_id = ?").run(questionId);
 });
 
 test("automatic grading matches CASS leading-article and contained-answer behavior", () => {
@@ -572,7 +633,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   // The control must still be rendered and enabled on a frozen bank, and it
   // must post to its own route rather than the locked content editor.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], unresolved: [], reviewedRules: [], questions: admin.adminQuestions(), questionsLocked: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
     "questions",
   );
   assert.match(html, new RegExp(`action="/admin/question/${question.id}/grading"`));

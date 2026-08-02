@@ -1,5 +1,40 @@
 # Current handoff
 
+## 2026-08-02 — Review Queue rebuilt as a CASS-style Grading panel
+
+**Status: source present locally and committed. Not deployed.** Production runs
+rc27, which still has the old unresolved-only Review Queue.
+
+The Review Queue is now a **Grading** screen modelled on the CASS host Grading
+panel, at the owner's request. The reasoning and the two deliberate departures
+from CASS are in `docs/DECISIONS.md`. The substance: it shows every distinct
+answer to every question rather than only unresolved ones, so an answer the
+grader accepted by itself is finally visible and reversible.
+
+`unresolvedAnswers()` and `reviewedRules()` are replaced by `gradingReview()`
+and `unresolvedVariantCount()`. The `POST /admin/review` ruling path is
+unchanged, so the retroactive/prospective semantics are exactly as before.
+
+Verified against a `sqlite3 .backup` copy of the live database (436 answers,
+all previously ruled, which the old screen rendered as an empty queue):
+
+- Every question renders its accepted answers, an "N of M correct (P%)"
+  statistic, and collapsed correct/incorrect tiers; the person questions carry
+  a `person` badge.
+- Rejecting "Brooks" on Q3 through the UI regraded all three players who typed
+  it in one click, moved the row to the incorrect tier, flipped its badge from
+  `auto` to `ruled incorrect`, flipped the button to Accept, and moved the
+  question statistic from 8 of 9 (89%) to 5 of 9 (56%).
+- Forcing two answers to unresolved showed them uncollapsed at the top of their
+  question in the awaiting-review tier with Correct/Incorrect buttons, the
+  header reading "2 awaiting review", the jump nav highlighting that question,
+  and the nav badge reading "Grading (2)".
+
+38 tests, TypeScript, and `git diff --check` pass. The local copy of production
+data was deleted after the check.
+
+Next: deploy as rc28 after a verified backup, or review the screen first.
+
 ## 2026-08-02 — rc27: person flag editable while the question bank stays frozen
 
 The person checkbox moved out of the frozen content editor into its own form

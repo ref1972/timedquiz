@@ -11,6 +11,15 @@
   --line: #d7e0e8;
   --input: #ffffff;
   --shadow: 0 18px 45px rgba(20, 58, 82, .2);
+  --grade-wait-bg: #fdf6e3;
+  --grade-wait-line: #f0d9a0;
+  --grade-wait-ink: #8a6100;
+  --grade-no-bg: #fdf0f0;
+  --grade-no-line: #f0c4c4;
+  --grade-no-ink: #a12d2d;
+  --grade-yes-bg: #eff9f1;
+  --grade-yes-line: #b9e0c4;
+  --grade-yes-ink: #1f7a3d;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 :root[data-theme="dark"] {
@@ -23,6 +32,15 @@
   --line: #475569;
   --input: #111827;
   --shadow: 0 18px 45px rgba(0, 0, 0, .4);
+  --grade-wait-bg: #3a3320;
+  --grade-wait-line: #6b5a2a;
+  --grade-wait-ink: #f5cf7a;
+  --grade-no-bg: #3b2529;
+  --grade-no-line: #6d3a3f;
+  --grade-no-ink: #f5a3a3;
+  --grade-yes-bg: #1e3629;
+  --grade-yes-line: #2f5f42;
+  --grade-yes-ink: #86e0a6;
 }
 * { box-sizing: border-box; }
 body {
@@ -153,10 +171,61 @@ button:disabled { opacity: .55; }
 .table { overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.review { display: grid; grid-template-columns: 60px minmax(150px, 1fr) minmax(190px, 1.2fr) 90px minmax(140px, 1fr) auto auto; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.review small { display: block; margin-bottom: 3px; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.submitted-answer { font-size: 1.05rem; }
-.accepted-answers { color: var(--cass-purple); }
+/* Grading panel -- answer variants tiered by verdict, after the CASS host
+   Grading panel. Colour carries the state: waiting, counted incorrect,
+   counted correct. */
+.grade-jump { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 24px; }
+.grade-jump a {
+  min-width: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+.grade-jump a.has-unresolved { border-color: var(--grade-wait-line); background: var(--grade-wait-bg); color: var(--grade-wait-ink); }
+.grade-question { padding: 18px 0; border-top: 1px solid var(--line); }
+.grade-question header h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.grade-question header h3 .muted { font-size: .8rem; font-weight: 500; }
+.grade-accepted, .grade-stat { margin: 0 0 6px; font-size: .85rem; }
+.grade-accepted strong { color: var(--cass-purple); }
+.grade-rows { display: grid; gap: 6px; margin: 10px 0; }
+.grade-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 2fr) minmax(120px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+.grade-row.unresolved, .grade-row.mixed { background: var(--grade-wait-bg); border-color: var(--grade-wait-line); }
+.grade-row.incorrect { background: var(--grade-no-bg); border-color: var(--grade-no-line); }
+.grade-row.correct { background: var(--grade-yes-bg); border-color: var(--grade-yes-line); }
+.grade-answer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 1rem; }
+.grade-meta { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: .78rem; }
+.grade-actions { display: flex; gap: 6px; }
+.grade-actions form { margin: 0; }
+.grade-actions button { margin: 0; }
+.grade-actions .accept { background: var(--grade-yes-ink); border-color: var(--grade-yes-ink); color: #fff; }
+.grade-actions .reject { background: var(--grade-no-ink); border-color: var(--grade-no-ink); color: #fff; }
+.grade-badge { padding: 2px 8px; border-radius: 999px; font-size: .65rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.grade-badge.auto { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+.grade-badge.manual { background: var(--cass-purple); color: #fff; }
+.grade-badge.mixed { background: var(--grade-wait-ink); color: var(--panel); }
+.grade-badge.person { margin-left: 8px; background: var(--cass-blue); color: #10202b; }
+.grade-tier { margin-top: 8px; }
+.grade-tier > summary { cursor: pointer; font-size: .8rem; font-weight: 700; }
+.grade-tier.incorrect > summary { color: var(--grade-no-ink); }
+.grade-tier.correct > summary { color: var(--grade-yes-ink); }
+@media (max-width: 750px) {
+  .grade-row { grid-template-columns: 1fr; }
+}
 code { color: var(--cass-purple); }
 .question-list { display: grid; gap: 14px; }
 .admin-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }

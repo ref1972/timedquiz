@@ -83,30 +83,93 @@ export function results(): ResultRow[] {
     .all() as unknown as ResultRow[];
 }
 
-export interface UnresolvedRow {
+/** One distinct submitted answer to one question, with everyone who gave it. */
+export interface GradingVariant {
+  question_id: number;
+  normalized_answer: string;
+  sample_text: string | null;
+  players: number;
+  real_players: number;
+  test_players: number;
+  verdict: "correct" | "incorrect" | "unresolved" | "mixed";
+  ruling: "correct" | "incorrect" | null;
+  note: string | null;
+  who: string;
+}
+
+export interface GradingQuestion {
   question_id: number;
   position: number;
-  normalized_answer: string;
+  category: string;
   canonical_answer: string;
-  aliases_json: string;
-  n: number;
+  accepted: string[];
+  answer_is_person: number;
+  answered: number;
+  correct: number;
+  unresolved: number;
+  variants: GradingVariant[];
 }
 
-export interface ReviewedRuleRow {
-  question_id: number;
-  position: number;
-  normalized_answer: string;
-  verdict: "correct" | "incorrect";
-  note: string;
-  reviewed_at: string;
-  affected: number;
-}
+/**
+ * Every distinct answer given to every question, grouped by question and then
+ * by normalized answer, with its current verdict and whether a human ruled on
+ * it. Modelled on the CASS host Grading panel.
+ *
+ * Deliberately not filtered to unresolved answers: the review queue used to
+ * show only those, which meant an answer the grader accepted on its own was
+ * invisible to the reviewer. A wrong auto-`correct` is exactly as costly as an
+ * unreviewed near-miss, and only shows up here.
+ */
+export function gradingReview(): GradingQuestion[] {
+  const questions = db
+    .prepare(
+      `SELECT q.id AS question_id, q.position, q.category, q.canonical_answer, q.aliases_json, q.answer_is_person,
+        COUNT(e.id) AS answered,
+        COALESCE(SUM(CASE WHEN e.verdict = 'correct' THEN 1 ELSE 0 END), 0) AS correct,
+        COALESCE(SUM(CASE WHEN e.verdict = 'unresolved' THEN 1 ELSE 0 END), 0) AS unresolved
+       FROM questions q
+       LEFT JOIN exposures e ON e.question_id = q.id AND e.submitted_at IS NOT NULL
+       GROUP BY q.id ORDER BY q.position`,
+    )
+    .all() as unknown as Array<Omit<GradingQuestion, "accepted" | "variants"> & { aliases_json: string }>;
 
-export function reviewedRules(): ReviewedRuleRow[] {
-  return db.prepare(`SELECT r.question_id, q.position, r.normalized_answer, r.verdict, r.note, r.reviewed_at,
-    COUNT(e.id) AS affected FROM grading_rules r JOIN questions q ON q.id = r.question_id
-    LEFT JOIN exposures e ON e.question_id = r.question_id AND e.normalized_answer = r.normalized_answer
-    GROUP BY r.id ORDER BY q.position, r.normalized_answer`).all() as unknown as ReviewedRuleRow[];
+  const variants = db
+    .prepare(
+      `SELECT e.question_id, e.normalized_answer,
+        MIN(e.submitted_text) AS sample_text,
+        COUNT(*) AS players,
+        COALESCE(SUM(CASE WHEN p.is_test = 0 THEN 1 ELSE 0 END), 0) AS real_players,
+        COALESCE(SUM(CASE WHEN p.is_test = 1 THEN 1 ELSE 0 END), 0) AS test_players,
+        MIN(e.verdict) AS min_verdict, MAX(e.verdict) AS max_verdict,
+        r.verdict AS ruling, r.note AS note,
+        GROUP_CONCAT(COALESCE(NULLIF(p.display_name, ''), p.email), ', ') AS who
+       FROM exposures e
+       JOIN attempts a ON a.id = e.attempt_id
+       JOIN players p ON p.id = a.player_id
+       LEFT JOIN grading_rules r ON r.question_id = e.question_id AND r.normalized_answer = e.normalized_answer
+       WHERE e.submitted_at IS NOT NULL
+       GROUP BY e.question_id, e.normalized_answer
+       ORDER BY players DESC, e.normalized_answer`,
+    )
+    .all() as unknown as Array<Omit<GradingVariant, "verdict"> & { min_verdict: string | null; max_verdict: string | null }>;
+
+  const byQuestion = new Map<number, GradingVariant[]>();
+  for (const row of variants) {
+    const { min_verdict, max_verdict, ...rest } = row;
+    // A single normalized answer can in principle hold two verdicts if the
+    // question's aliases changed between two players submitting it. Surface
+    // that rather than picking one silently; one ruling resolves it.
+    const verdict = (min_verdict !== max_verdict ? "mixed" : (min_verdict ?? "unresolved")) as GradingVariant["verdict"];
+    const list = byQuestion.get(row.question_id) ?? [];
+    list.push({ ...rest, verdict });
+    byQuestion.set(row.question_id, list);
+  }
+
+  return questions.map(({ aliases_json, ...question }) => ({
+    ...question,
+    accepted: [question.canonical_answer, ...(JSON.parse(aliases_json) as string[])],
+    variants: byQuestion.get(question.question_id) ?? [],
+  }));
 }
 
 export interface AdminQuestionRow {
@@ -167,16 +230,16 @@ export function setQuestionAnswerIsPerson(questionId: number, answerIsPerson: bo
   );
 }
 
-export function unresolvedAnswers(): UnresolvedRow[] {
-  return db
-    .prepare(
-      `SELECT q.id AS question_id, q.position, q.canonical_answer, q.aliases_json, e.normalized_answer, COUNT(*) AS n
-       FROM exposures e JOIN questions q ON q.id = e.question_id
-       WHERE e.verdict = 'unresolved'
-       GROUP BY q.id, q.position, q.canonical_answer, q.aliases_json, e.normalized_answer
-       ORDER BY q.position, n DESC`,
-    )
-    .all() as unknown as UnresolvedRow[];
+/** Count of distinct answers still awaiting a human decision, for the nav badge. */
+export function unresolvedVariantCount(): number {
+  return Number(
+    (db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM (SELECT 1 FROM exposures WHERE verdict = 'unresolved' AND submitted_at IS NOT NULL
+          GROUP BY question_id, normalized_answer)`,
+      )
+      .get() as { n: number }).n,
+  );
 }
 
 export function questionCountRow(): number {
@@ -224,7 +287,7 @@ function renderAdmin(req: Request, res: Response, section: AdminSection): void {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), unresolved: unresolvedAnswers(), reviewedRules: reviewedRules(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }, section));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }, section));
 }
 
 adminRouter.get("/admin", (req: Request, res: Response) => {

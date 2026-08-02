@@ -9,7 +9,7 @@ Last updated: 2026-08-02.
 - Launch hardening includes encrypted/rotatable invitations, quota-safe email
   batches, server-measured timing tiebreaks, post-cutoff authorized restarts,
   admin login throttling, preflight, backups, and deployment packaging.
-- Automated verification passes 37 tests and TypeScript typechecking.
+- Automated verification passes 38 tests and TypeScript typechecking.
 - Questions carry `answer_is_person`, set by a checkbox in the question editor
   or a `person` column in the question CSV. It accepts the canonical answer's
   last word as a bare surname without needing an alias, and refuses that
@@ -47,10 +47,15 @@ Last updated: 2026-08-02.
   Questions & Answers, Players, Progress, and Review Queue. Player intro,
   invitation, and security tools live under Players; completion notification
   controls live under Progress.
-- Review Queue also lists every prior manual correct/incorrect ruling with its
-  question, normalized submitted answer, affected-player count, note, and
-  controls to change the ruling. Changes continue to regrade every matching
-  past submission and apply prospectively.
+- The admin Grading screen (formerly Review Queue) lists **every** distinct
+  answer given to every question, grouped by question, after the CASS host
+  Grading panel. Each question header shows its accepted answers and an
+  "N of M correct (P%)" statistic. Answers awaiting a decision appear first;
+  answers already counted correct or incorrect are collapsed but always one
+  click from reversal. Automatic verdicts are badged `auto` and human ones
+  `ruled correct/incorrect`. Identical answers share one row and one decision,
+  which continues to regrade every matching past submission and to apply
+  prospectively.
 - Admin question preview now uses the same shared player stage and prompt-fit
   function. Browser checks across questions 1, 4, and 32 measured an identical
   Submit y-coordinate with no prompt overflow.
@@ -74,8 +79,8 @@ Last updated: 2026-08-02.
   but creates no player, attempt, timer, answer, invitation, or email activity.
 - Between questions, the Ready screen shows the upcoming category while keeping
   the prompt hidden until the player deliberately starts the 30-second window.
-- Each Review Queue row shows the canonical answer and all accepted aliases
-  beside the grouped submitted answer for rapid grading comparison.
+- Each Grading row shows the submitted answer, how many players gave it, how
+  many of those are real rather than test accounts, and any reviewer note.
 - Admin provides separate real-results and test-results CSV downloads so
   rehearsal accounts can be analyzed without entering real rankings.
 - Every player row links to an authenticated answer sheet showing all attempt

@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-08-02 — Grading shows every answer, not only the unresolved ones
+
+At the owner's direction, the Review Queue was rebuilt as a **Grading** panel
+modelled on the CASS host Grading panel
+(`ref1972/CASS`, `src/app/host/[gameId]/page.tsx`).
+
+The old queue listed only answers with an `unresolved` verdict. That made an
+answer the grader accepted on its own invisible to the reviewer, which is how
+a wrong auto-`correct` could reach the final results unseen — the exact defect
+found in the 2026-08-02 review. A wrong automatic verdict costs precisely as
+much as an unreviewed near-miss.
+
+The panel is organised by question, mirroring CASS: the question header carries
+the accepted answers and a "N of M correct (P%)" statistic, answers awaiting a
+decision are listed first and uncollapsed, and answers already counted correct
+or incorrect are collapsed into disclosures that are always one click from
+being reversed — Accept on an incorrect answer, Reject on a correct one.
+Automatic verdicts are badged `auto` and human ones `ruled correct/incorrect`,
+so it is obvious which answers a person has actually looked at.
+
+Two deliberate differences from CASS:
+
+- Identical answers share one row with a player count, rather than one row per
+  player. Timed Quiz stores rulings per (question, normalized answer), so the
+  row *is* the unit of decision. CASS shows one row per team but applies each
+  toggle to all matching submissions anyway; grouping makes that visible.
+- A decision applies prospectively as well as retroactively, because Timed
+  Quiz's window is open for days and later players will type the same answers.
+  CASS grades a round that has already closed.
+
 ## 2026-08-02 — The frozen bank protects question content, not grading metadata
 
 At the owner's direction, the person flag remains editable after a real
