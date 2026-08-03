@@ -787,6 +787,26 @@ test("admin sign-in preserves a safe destination and invitation anchor", () => {
   assert.match(html, /location\.hash/);
 });
 
+test("player import continuation forces a GET instead of a same-document hash change", () => {
+  const postDocument = new URL("https://bee.test/admin/players");
+  const continuation = new URL(admin.playerImportContinueUrl, postDocument);
+  assert.equal(continuation.pathname, "/admin/players");
+  assert.equal(continuation.hash, "#invitations");
+  assert.notEqual(continuation.search, "", "a distinct URL makes the browser request the admin page");
+});
+
+test("Progress renders a persistent test-player visibility control", () => {
+  const testPlayer = freshPlayer();
+  const html = views.adminPage(
+    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    "progress",
+  );
+  assert.match(html, /id="showTestPlayers"/);
+  assert.match(html, /data-test-player="1"/);
+  assert.match(html, /pcb-show-test-players/);
+  db.prepare("DELETE FROM players WHERE id = ?").run(testPlayer.id);
+});
+
 test("question CSV round-trips quoted punctuation, newlines, aliases, and the person flag", () => {
   const questions = [
     { position: 1, category: "Movies, TV & More", prompt: "Who said *\"Hello\"*?\nName the character.", highlightedText: "Name the character", answer: "A, B", aliases: ["A", "B"], answerIsPerson: false },

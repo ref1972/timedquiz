@@ -267,6 +267,11 @@ function csvField(value: unknown): string {
 }
 
 export const adminRouter: RouterType = Router();
+// The import success document is the response to POST /admin/players. A plain
+// /admin/players#invitations link is therefore only a fragment change on that
+// same document, so the browser never performs the GET that renders the admin
+// screen. The harmless query forces a real navigation.
+export const playerImportContinueUrl = "/admin/players?afterImport=1#invitations";
 const loginAttempts = new Map<string, { count: number; resetsAt: number }>();
 
 function loginRateLimited(ip: string): boolean {
@@ -435,7 +440,7 @@ adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) =
        <p><strong>${links.length} added</strong> &middot; <strong>${updated} updated</strong> &middot; <strong>${skipped.length} skipped</strong>. No email was sent.</p>
        ${links.length ? `<p>New personalized links are shown below. They also remain recoverable for controlled Workspace delivery.</p><textarea rows="12" readonly>${escapeHtml(links.join("\n"))}</textarea>` : ""}
        ${skipped.length ? `<p class="muted">Skipped ${skipped.length}: ${escapeHtml(skipped.join("; "))}</p>` : ""}
-       <p><a href="/admin/players#invitations">Continue to invitation setup</a></p></main>`,
+       <p><a href="${playerImportContinueUrl}">Continue to invitation setup</a></p></main>`,
     ),
   );
 });

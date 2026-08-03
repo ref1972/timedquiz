@@ -1,5 +1,29 @@
 # Current handoff
 
+## 2026-08-02 — Progress test-player filter implemented locally
+
+- Progress now has a Show test players checkbox with the number of test
+  accounts. Turning it off hides only test-player cards and remembers the
+  choice in that browser; exports, rankings, and stored player data are not
+  changed.
+- A regression test verifies the control, test-card marker, and persistent
+  browser preference wiring.
+- Status: local source only; included with the pending player-import Continue
+  link fix and not yet committed, pushed, or deployed.
+
+## 2026-08-02 — Player-import Continue link fixed locally
+
+- Root cause: the import success page is the POST response at
+  `/admin/players`. Its link to `/admin/players#invitations` was therefore
+  treated as a same-document fragment change, and that standalone success page
+  has no `invitations` target. The browser never issued the GET needed to render
+  the Players admin screen.
+- The continuation now includes a harmless, narrowly scoped query parameter,
+  forcing a GET of the Players screen before applying `#invitations`.
+- A regression test confirms that the destination retains the Players path and
+  invitation anchor while being a distinct URL from the POST document.
+- Status: local source only; not committed, pushed, or deployed.
+
 ## 2026-08-02 — 25-second timer deployed as rc31
 
 - The authoritative default, environment example, deployment bootstrap,

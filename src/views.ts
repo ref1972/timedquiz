@@ -189,7 +189,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
     : "not set";
   const progressCards = data.results
     .map(
-      (p) => `<article class="progress-card">
+      (p) => `<article class="progress-card" data-test-player="${p.is_test ? "1" : "0"}">
         <header><div><h3>${esc(p.display_name || p.email)}</h3><p>${esc(p.email)}</p></div><span class="status-pill">${esc(p.status ?? "not started")}${p.is_test ? " · test" : ""}</span></header>
         <dl class="progress-stats"><div><dt>Score</dt><dd>${p.score}</dd></div><div><dt>Answer time</dt><dd>${(p.answer_time_ms / 1000).toFixed(1)}s</dd></div></dl>
         <div class="progress-details"><p><strong>Completion email</strong><br>${p.completion_notified_at ? `sent ${esc(new Date(p.completion_notified_at).toLocaleString())}` : p.completion_notification_error ? `failed: ${esc(p.completion_notification_error)}` : p.status === "completed" && p.completion_notification_started_at ? "send outcome unknown" : "—"}</p><p><strong>Invitation</strong><br>${p.is_test ? "Test account — use Step 3" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</p></div>
@@ -318,6 +318,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <h2>Progress and results</h2>
         <p><a class="button" href="/admin/results.csv">Download real results CSV</a> <a class="button secondary" href="/admin/test-results.csv">Download test results CSV</a></p>
         <p class="muted">The two files remain separate so rehearsal accounts never appear in the real rankings.</p>
+        <label class="progress-filter"><input id="showTestPlayers" type="checkbox" checked> Show test players <span id="testPlayerCount" class="muted">(${data.results.filter((player) => player.is_test).length})</span></label>
         <div class="progress-list">${progressCards || "<p>No players have been imported.</p>"}</div>
       </section>
 
@@ -371,6 +372,19 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
             textarea.focus();
           });
         });
+        (function () {
+          var toggle = document.querySelector('#showTestPlayers');
+          if (!toggle) return;
+          try { toggle.checked = localStorage.getItem('pcb-show-test-players') !== '0'; } catch (error) {}
+          function applyTestPlayerFilter() {
+            document.querySelectorAll('.progress-card[data-test-player="1"]').forEach(function (card) {
+              card.hidden = !toggle.checked;
+            });
+            try { localStorage.setItem('pcb-show-test-players', toggle.checked ? '1' : '0'); } catch (error) {}
+          }
+          toggle.addEventListener('change', applyTestPlayerFilter);
+          applyTestPlayerFilter();
+        })();
       </script>
     </main>`,
   );

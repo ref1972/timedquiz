@@ -289,6 +289,8 @@ code { color: var(--cass-purple); }
 .edit-unlock { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .edit-unlock p, .edit-unlock form, .edit-unlock button { margin: 0; }
 .progress-list { display: grid; gap: 14px; margin-top: 20px; }
+.progress-filter { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 0; }
+.progress-filter input { width: auto; margin: 0; }
 .progress-card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-soft); }
 .progress-card > header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .progress-card h3, .progress-card header p { margin: 0; }
