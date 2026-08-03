@@ -1,7 +1,7 @@
 import type { Request, Response, Router as RouterType } from "express";
 import { Router } from "express";
 import { config } from "./config.ts";
-import { db, logEvent, nowIso } from "./db.ts";
+import { db, getAppSetting, logEvent, nowIso, setAppSetting } from "./db.ts";
 import { decryptInvitationToken, encryptInvitationToken, sha256, randomToken } from "./crypto.ts";
 import { normalize, applyReviewRuling } from "./grading.ts";
 import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mail.ts";
@@ -212,6 +212,14 @@ export function questionEditingLocked(): boolean {
   return Number((db.prepare("SELECT COUNT(*) AS n FROM attempts a JOIN players p ON p.id = a.player_id WHERE p.is_test = 0").get() as { n: number }).n) > 0;
 }
 
+export function questionTextEditingEnabled(): boolean {
+  return getAppSetting("question_text_editing_enabled") === "1";
+}
+
+export function setQuestionTextEditingEnabled(enabled: boolean): void {
+  setAppSetting("question_text_editing_enabled", enabled ? "1" : "0");
+}
+
 /**
  * Sets the person flag, deliberately *outside* the frozen-bank lock. The lock
  * protects question content -- prompt, answer, aliases -- because changing
@@ -287,7 +295,7 @@ function renderAdmin(req: Request, res: Response, section: AdminSection): void {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }, section));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), questionTextEditingEnabled: questionTextEditingEnabled(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }, section));
 }
 
 adminRouter.get("/admin", (req: Request, res: Response) => {
@@ -605,17 +613,32 @@ adminRouter.get("/admin/preview/:position", requireAdmin, (req: Request, res: Re
 });
 
 adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Response) => {
-  if (questionEditingLocked()) {
+  const locked = questionEditingLocked();
+  if (locked && !questionTextEditingEnabled()) {
     res.status(409).send(page("Edit blocked", `<main class="card"><h1>Question edit blocked</h1><p>A real participant has started, so the active question bank is frozen. Test-player attempts alone do not trigger this lock.</p><a href="/admin/questions#questions">Return to questions</a></main>`));
     return;
   }
   const id = Number(req.params.id);
   const category = String(req.body.category ?? "").trim();
   const prompt = String(req.body.prompt ?? "").trim();
+  if (!Number.isInteger(id) || !category || !prompt) {
+    res.status(400).send(page("Invalid question", `<main class="card"><h1>Question not saved</h1><p>Category, question, and answer are required.</p><a href="/admin#questions">Return to questions</a></main>`));
+    return;
+  }
+  if (locked) {
+    const result = db.prepare("UPDATE questions SET category = ?, prompt = ? WHERE id = ?").run(category, prompt, id);
+    if (!result.changes) {
+      res.status(404).send(page("Question not found", `<main class="card"><h1>Question not found</h1><a href="/admin#questions">Return to questions</a></main>`));
+      return;
+    }
+    logEvent(null, "question_text_edited", { questionId: id });
+    res.redirect(`/admin/questions#question-${id}`);
+    return;
+  }
   const highlightedText = String(req.body.highlightedText ?? "").trim();
   const answer = String(req.body.answer ?? "").trim();
   const aliases = String(req.body.aliases ?? "").split(/\r?\n|,/).map((alias) => alias.trim()).filter(Boolean);
-  if (!Number.isInteger(id) || !category || !prompt || !answer) {
+  if (!answer) {
     res.status(400).send(page("Invalid question", `<main class="card"><h1>Question not saved</h1><p>Category, question, and answer are required.</p><a href="/admin#questions">Return to questions</a></main>`));
     return;
   }
@@ -633,6 +656,13 @@ adminRouter.post("/admin/question/:id", requireAdmin, (req: Request, res: Respon
   }
   logEvent(null, "question_edited", { questionId: id });
   res.redirect(`/admin/questions#question-${id}`);
+});
+
+adminRouter.post("/admin/question-text-editing", requireAdmin, (req: Request, res: Response) => {
+  const enabled = req.body.enabled === "1";
+  setQuestionTextEditingEnabled(enabled);
+  logEvent(null, "question_text_editing_toggled", { enabled });
+  res.redirect("/admin/questions#questions");
 });
 
 adminRouter.post("/admin/question/:id/grading", requireAdmin, (req: Request, res: Response) => {

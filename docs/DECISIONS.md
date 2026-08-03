@@ -1,5 +1,14 @@
 # Decisions
 
+## Frozen-bank text override is narrow and explicit
+
+After a real player starts, an administrator may turn on category/question
+wording edits from the Questions screen. The override is stored in
+`app_settings` and audit-logged so it remains visible and deliberate across
+requests. It does not unlock canonical answers, aliases, highlighted text,
+score inclusion, or full-bank import. This permits copy and category cleanup
+without silently changing how previously submitted answers are graded.
+
 ## 2026-08-02 — Grading shows every answer, not only the unresolved ones
 
 At the owner's direction, the Review Queue was rebuilt as a **Grading** panel

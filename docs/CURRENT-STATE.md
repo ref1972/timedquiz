@@ -110,6 +110,13 @@ Last updated: 2026-08-02.
   `answer_is_person` grading flag is exempt from the content lock and has its
   own route; the content editor never writes it, so saving a question cannot
   clear it.
+- Locally, the frozen Questions screen now has an explicit, persistent switch
+  that unlocks only category and question wording. Answers, aliases,
+  highlighted text, scoring, and full-bank import remain protected. Each
+  toggle and saved text change is audit-logged.
+- Locally, Progress uses responsive per-player cards instead of an 11-column
+  horizontally scrolling table. The cards retain score/time, status, answer
+  sheets, completion/invitation state, link rotation, and restart controls.
 
 ## Production
 

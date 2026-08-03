@@ -66,6 +66,7 @@ export interface AdminPageData {
   unresolvedCount: number;
   questions: AdminQuestionRow[];
   questionsLocked: boolean;
+  questionTextEditingEnabled: boolean;
   emailRelayConfigured: boolean;
   invitationStats: InvitationStats;
   introCopy: IntroCopy;
@@ -186,23 +187,14 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
   const closesLabel = data.closesAt
     ? new Date(data.closesAt).toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })
     : "not set";
-  const rows = data.results
+  const progressCards = data.results
     .map(
-      (p) => `<tr>
-        <td>${esc(p.email)}</td>
-        <td>${esc(p.display_name)}</td>
-        <td>${esc(p.status ?? "not started")}</td>
-        <td>${p.score}</td>
-        <td>${(p.answer_time_ms / 1000).toFixed(1)}s</td>
-        <td>${p.is_test ? "yes" : ""}</td>
-        <td><a class="button small secondary" href="/admin/player/${p.id}/answers">View answers</a></td>
-        <td>${p.completion_notified_at ? `sent ${esc(new Date(p.completion_notified_at).toLocaleString())}` : p.completion_notification_error ? `failed: ${esc(p.completion_notification_error)}` : p.status === "completed" && p.completion_notification_started_at ? "send outcome unknown" : "—"}</td>
-        <td>${p.is_test ? "Test account — use Step 3" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</td>
-        <td><form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form></td>
-        <td><form method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}">
-          <input name="reason" aria-label="Restart reason" placeholder="Reason" required>
-          <button class="small">Grant restart</button></form></td>
-      </tr>`,
+      (p) => `<article class="progress-card">
+        <header><div><h3>${esc(p.display_name || p.email)}</h3><p>${esc(p.email)}</p></div><span class="status-pill">${esc(p.status ?? "not started")}${p.is_test ? " · test" : ""}</span></header>
+        <dl class="progress-stats"><div><dt>Score</dt><dd>${p.score}</dd></div><div><dt>Answer time</dt><dd>${(p.answer_time_ms / 1000).toFixed(1)}s</dd></div></dl>
+        <div class="progress-details"><p><strong>Completion email</strong><br>${p.completion_notified_at ? `sent ${esc(new Date(p.completion_notified_at).toLocaleString())}` : p.completion_notification_error ? `failed: ${esc(p.completion_notification_error)}` : p.status === "completed" && p.completion_notification_started_at ? "send outcome unknown" : "—"}</p><p><strong>Invitation</strong><br>${p.is_test ? "Test account — use Step 3" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</p></div>
+        <div class="progress-actions"><a class="button small secondary" href="/admin/player/${p.id}/answers">View answers</a><form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form><form class="restart-form" method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}"><input name="reason" aria-label="Restart reason for ${esc(p.display_name || p.email)}" placeholder="Restart reason" required><button class="small">Grant restart</button></form></div>
+      </article>`,
     )
     .join("");
   const answeredQuestions = data.grading.filter((question) => question.answered > 0);
@@ -216,15 +208,16 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
     : "";
   const questionForms = data.questions.map((q) => {
     const aliases = (JSON.parse(q.aliases_json) as string[]).join(", ");
+    const textEditable = !data.questionsLocked || data.questionTextEditingEnabled;
     return `<div class="question-block" id="question-${q.id}">
     <form class="question-editor" method="post" action="/admin/question/${q.id}">
       <div class="question-number">${q.position}</div>
-      <label>Category<input name="category" value="${esc(q.category)}" required ${data.questionsLocked ? "disabled" : ""}></label>
-      <label>Question <span class="muted">(*italics*)</span><textarea class="question-prompt" name="prompt" rows="3" required ${data.questionsLocked ? "disabled" : ""}>${esc(q.prompt)}</textarea>${data.questionsLocked ? "" : '<button class="small secondary italic-button" type="button">Italicize selection</button>'}</label>
+      <label>Category<input name="category" value="${esc(q.category)}" required ${textEditable ? "" : "disabled"}></label>
+      <label>Question <span class="muted">(*italics*)</span><textarea class="question-prompt" name="prompt" rows="3" required ${textEditable ? "" : "disabled"}>${esc(q.prompt)}</textarea>${textEditable ? '<button class="small secondary italic-button" type="button">Italicize selection</button>' : ""}</label>
       <label>Highlighted text <span class="muted">(optional)</span><input name="highlightedText" value="${esc(q.highlighted_text)}" ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Answer<input name="answer" value="${esc(q.canonical_answer)}" required ${data.questionsLocked ? "disabled" : ""}></label>
       <label>Aliases <span class="muted">(comma or line separated)</span><input name="aliases" value="${esc(aliases)}" ${data.questionsLocked ? "disabled" : ""}></label>
-      <div class="question-actions">${data.questionsLocked ? "" : '<button class="small">Save question</button>'}<a class="button small secondary" href="/admin/preview/${q.position}" target="_blank" rel="noopener">Preview</a></div>
+      <div class="question-actions">${textEditable ? '<button class="small">Save question</button>' : ""}<a class="button small secondary" href="/admin/preview/${q.position}" target="_blank" rel="noopener">Preview</a></div>
     </form>
     <form class="question-grading" method="post" action="/admin/question/${q.id}/grading">
       <label class="checkbox"><input type="checkbox" name="answerIsPerson" value="1" ${q.answer_is_person ? "checked" : ""}> Answer is a person’s name <span class="muted">(accepts the surname alone; sends that surname behind a different first name to review)</span></label>
@@ -276,7 +269,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
 
       <section class="panel" id="questions" ${section === "questions" ? "" : "hidden"}>
         <h2>Edit questions</h2>
-        <p>${data.questionsLocked ? "Question editing is locked because a real participant has started." : "Edit the category, question, optional gold-highlighted phrase, canonical answer, or accepted aliases. Test-player activity does not lock individual edits."}</p>
+        ${data.questionsLocked ? `<div class="notice edit-unlock"><p><strong>Question content is frozen because a real participant has started.</strong> You can temporarily unlock category and question wording. Answers, aliases, highlighted text, and scoring remain locked.</p><form method="post" action="/admin/question-text-editing" onsubmit="return ${data.questionTextEditingEnabled ? "true" : "confirm('Unlock category and question wording for editing? Changes will affect what future players see.')"}"><input type="hidden" name="enabled" value="${data.questionTextEditingEnabled ? "0" : "1"}"><button class="small ${data.questionTextEditingEnabled ? "secondary" : ""}">${data.questionTextEditingEnabled ? "Turn editing off" : "Turn editing on"}</button></form></div>` : "<p>Edit the category, question, optional gold-highlighted phrase, canonical answer, or accepted aliases. Test-player activity does not lock individual edits.</p>"}
         <div class="question-list">${questionForms}</div>
       </section>
 
@@ -325,10 +318,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <h2>Progress and results</h2>
         <p><a class="button" href="/admin/results.csv">Download real results CSV</a> <a class="button secondary" href="/admin/test-results.csv">Download test results CSV</a></p>
         <p class="muted">The two files remain separate so rehearsal accounts never appear in the real rankings.</p>
-        <div class="table"><table>
-          <thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Score</th><th>Answer time</th><th>Test</th><th>Answers</th><th>Completion email</th><th>Invitation</th><th>Link</th><th>Restart</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>
+        <div class="progress-list">${progressCards || "<p>No players have been imported.</p>"}</div>
       </section>
 
       <section class="panel" id="completion-notifications" ${section === "progress" ? "" : "hidden"}>

@@ -1,5 +1,22 @@
 # Current handoff
 
+## 2026-08-02 — Question-text switch and responsive Progress implemented locally
+
+- The frozen Questions screen now offers a confirmed Turn editing on/off
+  control. While on, category and question wording are editable and saveable;
+  answers, aliases, highlighted text, scoring, and question import remain
+  locked. The setting and every frozen-bank text save are audit-logged.
+- Progress is now a responsive card list instead of an 11-column table, so the
+  main Progress screen no longer depends on horizontal scrolling. All existing
+  player status, score/time, answer-sheet, notification, invitation, rotation,
+  and restart information/actions remain available.
+- Verification: 39 tests pass, TypeScript typechecking passes, and
+  `git diff --check` passes. The production-style local server starts normally.
+  Automated browser verification could not run because `agent-browser` is not
+  installed in this environment; watch-mode also hit the host's open-file
+  limit, so the server was checked using the non-watch production runtime.
+- Status: local source only; not committed, pushed, or deployed.
+
 ## 2026-08-02 — Player import navigation/session issue diagnosed
 
 - Owner imported two players at 21:15:10 UTC; production audit confirms

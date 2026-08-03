@@ -387,7 +387,7 @@ test("grading review shows every answer, including the ones graded automatically
   // The panel renders it, in the collapsed "counted incorrect" tier, with the
   // opposite action available.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
     "review",
   );
   assert.match(html, /counted incorrect/);
@@ -633,13 +633,26 @@ test("the person flag stays settable after a real attempt freezes the question b
   // The control must still be rendered and enabled on a frozen bank, and it
   // must post to its own route rather than the locked content editor.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
     "questions",
   );
   assert.match(html, new RegExp(`action="/admin/question/${question.id}/grading"`));
   assert.equal(/name="answerIsPerson"[^>]*disabled/.test(html), false, "the person checkbox must not be disabled by the content lock");
   assert.match(html, /Save grading/);
   assert.equal(html.includes("Save question"), false, "question content stays frozen");
+  assert.match(html, /Turn editing on/, "the frozen bank offers an explicit text-editing switch");
+
+  admin.setQuestionTextEditingEnabled(true);
+  assert.equal(admin.questionTextEditingEnabled(), true);
+  const unlockedHtml = views.adminPage(
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    "questions",
+  );
+  assert.match(unlockedHtml, /Turn editing off/);
+  assert.match(unlockedHtml, /Save question/);
+  assert.equal(/name="category"[^>]*disabled/.test(unlockedHtml), false);
+  assert.match(unlockedHtml, /name="answer"[^>]*disabled/, "answers remain protected while text editing is on");
+  admin.setQuestionTextEditingEnabled(false);
 
   // audit_events references attempts, so it has to go first.
   db.prepare("DELETE FROM audit_events WHERE attempt_id IN (SELECT id FROM attempts WHERE player_id = ?)").run(realPlayer.id);

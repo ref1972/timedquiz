@@ -286,6 +286,23 @@ code { color: var(--cass-purple); }
 .answer-sheet table { min-width: 1150px; }
 .answer-sheet td:nth-child(3) { min-width: 280px; }
 .status-pill { display: inline-block; margin-left: 8px; padding: 5px 8px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); font-size: .72rem; text-transform: uppercase; vertical-align: middle; }
+.edit-unlock { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.edit-unlock p, .edit-unlock form, .edit-unlock button { margin: 0; }
+.progress-list { display: grid; gap: 14px; margin-top: 20px; }
+.progress-card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-soft); }
+.progress-card > header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.progress-card h3, .progress-card header p { margin: 0; }
+.progress-card header p { overflow-wrap: anywhere; }
+.progress-stats { display: flex; gap: 28px; margin: 16px 0; }
+.progress-stats div { min-width: 90px; }
+.progress-stats dt { color: var(--muted); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
+.progress-stats dd { margin: 2px 0 0; color: var(--ink); font-size: 1.3rem; font-weight: 800; }
+.progress-details { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.progress-details p { margin: 0; overflow-wrap: anywhere; }
+.progress-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+.progress-actions form, .progress-actions button, .progress-actions .button { margin: 0; }
+.restart-form { display: flex; flex: 1 1 360px; gap: 8px; }
+.restart-form input { min-width: 160px; padding: 9px 12px; }
 .question-number { align-self: center; color: var(--cass-purple); font-size: 1.35rem; font-weight: 900; text-align: center; }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }
@@ -304,4 +321,9 @@ code { color: var(--cass-purple); }
   .invite-summary { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   h1 { font-size: 2.25rem; }
+  .edit-unlock { align-items: stretch; flex-direction: column; }
+  .progress-card > header { flex-direction: column; }
+  .progress-card .status-pill { margin-left: 0; }
+  .progress-details { grid-template-columns: 1fr; }
+  .restart-form { flex-direction: column; flex-basis: 100%; }
 }
