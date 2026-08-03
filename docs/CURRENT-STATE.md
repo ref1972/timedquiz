@@ -117,12 +117,25 @@ Last updated: 2026-08-02.
 - Progress uses responsive per-player cards instead of an 11-column
   horizontally scrolling table. The cards retain score/time, status, answer
   sheets, completion/invitation state, link rotation, and restart controls.
+- Progress has a browser-persistent Show test players control, allowing the
+  operator to hide rehearsal accounts without changing exports, rankings, or
+  stored data.
+- The Player list imported success page uses a distinct continuation URL, so
+  Continue to invitation setup performs a GET of the Players admin screen
+  before applying the Invitations anchor instead of silently changing the hash
+  on the standalone POST response.
 
 ## Production
 
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
+- Release `timed-quiz-v0.1.0-rc32` is deployed and verified after backup
+  `quiz-20260803T045431Z.sqlite.gz`: public health and `RELEASE_ID` report
+  rc32, the import-continuation and persistent test-filter source/CSS markers
+  are live, the timer remains 25 seconds, counts remain 15 attempts / 736
+  exposures / 50 questions / 76 players / 167 grading rules, and CASS is HTTP
+  200. No email was sent.
 - Release `timed-quiz-v0.1.0-rc31` is deployed and verified after backup
   `quiz-20260803T042400Z.sqlite.gz`: public health and `RELEASE_ID` report
   rc31, `QUESTION_DURATION_MS=25000`, deployed defaults and both stored

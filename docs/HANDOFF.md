@@ -1,6 +1,6 @@
 # Current handoff
 
-## 2026-08-02 — Progress test-player filter implemented locally
+## 2026-08-02 — Progress test-player filter deployed as rc32
 
 - Progress now has a Show test players checkbox with the number of test
   accounts. Turning it off hides only test-player cards and remembers the
@@ -8,10 +8,10 @@
   changed.
 - A regression test verifies the control, test-card marker, and persistent
   browser preference wiring.
-- Status: local source only; included with the pending player-import Continue
-  link fix and not yet committed, pushed, or deployed.
+- Deployed together with the player-import Continue link fix in rc32; see the
+  verification below.
 
-## 2026-08-02 — Player-import Continue link fixed locally
+## 2026-08-02 — Player-import Continue link fixed and deployed as rc32
 
 - Root cause: the import success page is the POST response at
   `/admin/players`. Its link to `/admin/players#invitations` was therefore
@@ -22,7 +22,13 @@
   forcing a GET of the Players screen before applying `#invitations`.
 - A regression test confirms that the destination retains the Players path and
   invitation anchor while being a distinct URL from the POST document.
-- Status: local source only; not committed, pushed, or deployed.
+- Commit `f28cd23` and tag `timed-quiz-v0.1.0-rc32` are pushed and deployed.
+  There were zero active question windows before restart. Backup
+  `quiz-20260803T045431Z.sqlite.gz` passed gzip and SQLite integrity checks.
+  Public health and `RELEASE_ID` report rc32; the continuation URL, test-card
+  markers, persistent filter script, and filter CSS are live; the timer remains
+  25 seconds; counts remain 15 attempts / 736 exposures / 50 questions / 76
+  players / 167 grading rules; and CASS is HTTP 200. No email was sent.
 
 ## 2026-08-02 — 25-second timer deployed as rc31
 
