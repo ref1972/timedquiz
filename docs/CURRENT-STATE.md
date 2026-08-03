@@ -123,6 +123,12 @@ Last updated: 2026-08-02.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
+- Release `timed-quiz-v0.1.0-rc31` is deployed and verified after backup
+  `quiz-20260803T042400Z.sqlite.gz`: public health and `RELEASE_ID` report
+  rc31, `QUESTION_DURATION_MS=25000`, deployed defaults and both stored
+  player-facing messages say 25 seconds with no remaining 30-second wording,
+  counts remain 13 attempts / 588 exposures / 50 questions / 11 players / 152
+  grading rules, and CASS is HTTP 200. No email was sent.
 - Release `timed-quiz-v0.1.0-rc30` is deployed and verified after backup
   `quiz-20260803T040541Z.sqlite.gz`: public health and `RELEASE_ID` report
   rc30, the question-text override is present and defaults off, responsive

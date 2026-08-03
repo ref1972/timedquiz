@@ -1,13 +1,18 @@
 # Current handoff
 
-## 2026-08-02 — 25-second timer implemented locally
+## 2026-08-02 — 25-second timer deployed as rc31
 
 - The authoritative default, environment example, deployment bootstrap,
   preview/browser fallbacks, default intro/invitation copy, and current design
   documentation now use 25 seconds.
-- Production still reports rc30 and 30 seconds until this change is committed,
-  deployed, and the two stored player-facing copy values are updated.
-- Status: local source only; no email sent.
+- Commit `0ed7cd6` and tag `timed-quiz-v0.1.0-rc31` are pushed and deployed.
+  There were zero active question windows before the restart. Backup
+  `quiz-20260803T042400Z.sqlite.gz` passed gzip and SQLite integrity checks.
+  Public health and `RELEASE_ID` report rc31; the live environment is 25,000ms;
+  deployed defaults and both stored player-facing messages say 25 seconds and
+  contain no old 30-second wording; counts remain 13 attempts / 588 exposures /
+  50 questions / 11 players / 152 grading rules; and CASS is HTTP 200. No email
+  was sent.
 
 ## 2026-08-02 — Question-text switch and responsive Progress deployed as rc30
 
