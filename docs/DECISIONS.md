@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-08-02 — Per-question timer reduced to 25 seconds
+
+At the owner's direction, each question now receives a server-authoritative
+25-second window. Ready, countdown, preview, intro, and invitation copy all use
+the same configured duration. Existing completed answers and elapsed times are
+unchanged.
+
 ## Frozen-bank text override is narrow and explicit
 
 After a real player starts, an administrator may turn on category/question

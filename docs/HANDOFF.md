@@ -1,5 +1,14 @@
 # Current handoff
 
+## 2026-08-02 — 25-second timer implemented locally
+
+- The authoritative default, environment example, deployment bootstrap,
+  preview/browser fallbacks, default intro/invitation copy, and current design
+  documentation now use 25 seconds.
+- Production still reports rc30 and 30 seconds until this change is committed,
+  deployed, and the two stored player-facing copy values are updated.
+- Status: local source only; no email sent.
+
 ## 2026-08-02 — Question-text switch and responsive Progress deployed as rc30
 
 - The frozen Questions screen now offers a confirmed Turn editing on/off

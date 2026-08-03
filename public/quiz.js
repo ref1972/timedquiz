@@ -125,7 +125,7 @@
     root.innerHTML = '<div class="play-stage">' +
       '<div class="quizhead"><span>Question ' +
       state.position +
-      ' of 50</span><strong id="clock">' + Number(state.durationSeconds || 30).toFixed(1) + '</strong></div>' +
+      ' of 50</span><strong id="clock">' + Number(state.durationSeconds || 25).toFixed(1) + '</strong></div>' +
       '<p class="category">' + escapeHtml(state.category || "Pop Culture") + '</p>' +
       '<div class="prompt-stage"><h1 class="prompt">' +
       window.TimedQuizPrompt.format(state.prompt, state.highlightedText) +

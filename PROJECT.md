@@ -6,7 +6,7 @@ Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
 
 ## Current release
 
-- 50 sequential questions with a server-authoritative 30-second window.
+- 50 sequential questions with a server-authoritative 25-second window.
 - Passwordless personalized invitation links.
 - CASS-compatible automatic grading plus a grouped human-review queue. A
   contained answer counts only on a whole-word boundary and above a minimum

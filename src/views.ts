@@ -74,7 +74,7 @@ export interface AdminPageData {
   completionNotifications: CompletionNotificationSettings;
 }
 
-export function questionPreviewPage(question: AdminQuestionRow, total: number, durationSeconds = 30): string {
+export function questionPreviewPage(question: AdminQuestionRow, total: number, durationSeconds = 25): string {
   const previewData = JSON.stringify({ prompt: question.prompt, highlightedText: question.highlighted_text }).replaceAll("<", "\\u003c");
   const previous = question.position > 1 ? `<a class="button secondary small" href="/admin/preview/${question.position - 1}">Previous</a>` : "";
   const next = question.position < total ? `<a class="button small" href="/admin/preview/${question.position + 1}">Next</a>` : "";

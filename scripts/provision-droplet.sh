@@ -77,7 +77,7 @@ if [[ ! -f /etc/timed-quiz.env ]]; then
     'EMAIL_RELAY_URL=' \
     'EMAIL_RELAY_CLIENT_ID=' \
     'EMAIL_RELAY_SECRET=' \
-    'QUESTION_DURATION_MS=30000' \
+    'QUESTION_DURATION_MS=25000' \
     'SUBMIT_GRACE_MS=2000' \
     "RELEASE_ID=${DEPLOY_REF}" > /etc/timed-quiz.env
 fi

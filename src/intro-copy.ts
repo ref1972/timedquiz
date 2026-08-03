@@ -13,7 +13,7 @@ export interface IntroCopy {
 export const defaultIntroCopy: IntroCopy = {
   eyebrow: "Trivia Nationals",
   title: "Pop Culture Bee Preliminary",
-  instructions: "You will answer 50 text questions, one at a time. Each question has 30 seconds.",
+  instructions: "You will answer 50 text questions, one at a time. Each question has 25 seconds.",
   warningHeading: "If you leave:",
   warningBody: "the current question expires using the most recent saved draft (blank if none). When you return, you continue with the next question, so walking away costs exactly one question.",
   advancement: "You will not see correctness or a score. Your result determines whether you advance to the LIVE game Saturday.",

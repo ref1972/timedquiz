@@ -824,7 +824,7 @@ test("admin question preview safely embeds prompt data without creating executab
   assert.match(html, /Admin preview/);
   assert.match(html, /\/admin\/preview\/1/);
   assert.match(html, /\/admin\/preview\/3/);
-  assert.match(html, />30\.0</);
+  assert.match(html, />25\.0</);
 });
 
 test("invitation email template substitutes required fields and escapes HTML", () => {
