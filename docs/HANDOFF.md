@@ -1,6 +1,6 @@
 # Current handoff
 
-## 2026-08-02 — Question-text switch and responsive Progress implemented locally
+## 2026-08-02 — Question-text switch and responsive Progress deployed as rc30
 
 - The frozen Questions screen now offers a confirmed Turn editing on/off
   control. While on, category and question wording are editable and saveable;
@@ -15,7 +15,13 @@
   Automated browser verification could not run because `agent-browser` is not
   installed in this environment; watch-mode also hit the host's open-file
   limit, so the server was checked using the non-watch production runtime.
-- Status: local source only; not committed, pushed, or deployed.
+- Commit `b58d7ba` and tag `timed-quiz-v0.1.0-rc30` are pushed and deployed.
+  Pre-deployment had zero active question windows. Backup
+  `quiz-20260803T040541Z.sqlite.gz` passed gzip and SQLite integrity checks.
+  Public health and `RELEASE_ID` report rc30, both admin routes gate to sign-in,
+  deployed source/CSS markers are present, the text override defaults off,
+  counts remain 12 attempts / 586 exposures / 50 questions / 11 players / 152
+  grading rules, and CASS is HTTP 200. Deployment sent no email.
 
 ## 2026-08-02 — Player import navigation/session issue diagnosed
 

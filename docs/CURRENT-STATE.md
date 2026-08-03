@@ -110,11 +110,11 @@ Last updated: 2026-08-02.
   `answer_is_person` grading flag is exempt from the content lock and has its
   own route; the content editor never writes it, so saving a question cannot
   clear it.
-- Locally, the frozen Questions screen now has an explicit, persistent switch
+- The frozen Questions screen has an explicit, persistent switch
   that unlocks only category and question wording. Answers, aliases,
   highlighted text, scoring, and full-bank import remain protected. Each
   toggle and saved text change is audit-logged.
-- Locally, Progress uses responsive per-player cards instead of an 11-column
+- Progress uses responsive per-player cards instead of an 11-column
   horizontally scrolling table. The cards retain score/time, status, answer
   sheets, completion/invitation state, link rotation, and restart controls.
 
@@ -123,6 +123,12 @@ Last updated: 2026-08-02.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
+- Release `timed-quiz-v0.1.0-rc30` is deployed and verified after backup
+  `quiz-20260803T040541Z.sqlite.gz`: public health and `RELEASE_ID` report
+  rc30, the question-text override is present and defaults off, responsive
+  Progress CSS/source markers are live, counts remain 12 attempts / 586
+  exposures / 50 questions / 11 players / 152 grading rules, and CASS is HTTP
+  200. Deployment sent no email.
 - Release `timed-quiz-v0.1.0-rc26` is deployed and verified: public health and
   `RELEASE_ID` report rc26, the live schema carries `answer_is_person`, counts
   are unchanged at 9 attempts / 436 exposures / 50 questions / 9 players / 103
