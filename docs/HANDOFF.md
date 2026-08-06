@@ -1,6 +1,6 @@
 # Current handoff
 
-## 2026-08-05 — Incomplete-player reminder function implemented locally
+## 2026-08-05 — Incomplete-player reminders deployed as rc33
 
 - The Players screen now shows the exact number of invited real players who
   are incomplete and have not already received this reminder, with a confirmed
@@ -19,8 +19,24 @@
   additive startup migration pattern.
 - Verification: 43 tests pass, TypeScript typechecking passes, and
   `git diff --check` passes. No email was sent.
-- Status: source is present locally only; it is not committed, pushed,
-  deployed, or verified in production.
+- Commit `d0daa58` and tag `timed-quiz-v0.1.0-rc33` are pushed and deployed.
+  There were zero active question windows before the change. Production
+  preflight passes with 50 questions, 82 players, 82 recoverable links, and 64
+  attempts. Backup `quiz-20260806T044622Z.sqlite.gz` passed gzip and SQLite
+  integrity checks.
+- The owner authorized a one-hour grace period: the enforced cutoff is Friday,
+  August 7 at 1:00 AM Central Daylight Time (`2026-08-07T06:00:00Z`), while the
+  public reminder continues to state midnight Thursday. The previous
+  environment file is preserved as
+  `/etc/timed-quiz.env.pre-rc33-20260806T0450Z`.
+- Production verification: public health reports rc33; all three reminder
+  columns and the reminder route/UI/template markers are live; counts remain 64
+  attempts / 3,186 exposures / 50 questions / 82 players; reminder-send audit
+  events remain zero; Timed Quiz is active; both CASS PM2 services are online;
+  and the public CASS site reaches HTTP 200. No email was sent.
+- This Mac’s existing Ed25519 public key is now authorized on the droplet, so
+  future deployments can authenticate without entering or exposing the root
+  password.
 
 ## 2026-08-02 — Progress test-player filter deployed as rc32
 

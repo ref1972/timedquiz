@@ -14,9 +14,13 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed release: `timed-quiz-v0.1.0-rc32`. Certbot manages
+Current deployed release: `timed-quiz-v0.1.0-rc33`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
+
+The live cutoff is `2026-08-07T06:00:00Z`, which is 1:00 AM Central Daylight
+Time on Friday, August 7. The one-hour operational grace is deliberate; public
+reminder copy continues to state that the deadline is midnight Thursday.
 
 One real player has completed an attempt, so the question bank is frozen:
 individual question edits and full-bank import both return 409. The

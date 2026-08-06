@@ -136,6 +136,14 @@ Last updated: 2026-08-05.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
+- Release `timed-quiz-v0.1.0-rc33` is deployed and verified after backup
+  `quiz-20260806T044622Z.sqlite.gz`, which passed gzip and SQLite integrity
+  checks. Public health reports rc33; the reminder route, Players UI, template,
+  and additive reminder schema are live; the enforced cutoff is 1:00 AM Central
+  Friday (`2026-08-07T06:00:00Z`) while public reminder copy says midnight
+  Thursday; counts remain 64 attempts / 3,186 exposures / 50 questions / 82
+  players; both CASS PM2 services are online and its public site is HTTP 200.
+  No reminder or other email was sent during deployment.
 - Release `timed-quiz-v0.1.0-rc32` is deployed and verified after backup
   `quiz-20260803T045431Z.sqlite.gz`: public health and `RELEASE_ID` report
   rc32, the import-continuation and persistent test-filter source/CSS markers
