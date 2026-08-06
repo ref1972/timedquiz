@@ -32,6 +32,7 @@ const playerImport = await import("./player-import.ts");
 const introCopy = await import("./intro-copy.ts");
 const views = await import("./views.ts");
 const invitationTemplate = await import("./invitation-template.ts");
+const reminderTemplate = await import("./reminder-template.ts");
 const completionNotification = await import("./completion-notification.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -387,7 +388,7 @@ test("grading review shows every answer, including the ones graded automatically
   // The panel renders it, in the collapsed "counted incorrect" tier, with the
   // opposite action available.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
     "review",
   );
   assert.match(html, /counted incorrect/);
@@ -633,7 +634,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   // The control must still be rendered and enabled on a frozen bank, and it
   // must post to its own route rather than the locked content editor.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
     "questions",
   );
   assert.match(html, new RegExp(`action="/admin/question/${question.id}/grading"`));
@@ -645,7 +646,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   admin.setQuestionTextEditingEnabled(true);
   assert.equal(admin.questionTextEditingEnabled(), true);
   const unlockedHtml = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
     "questions",
   );
   assert.match(unlockedHtml, /Turn editing off/);
@@ -798,7 +799,7 @@ test("player import continuation forces a GET instead of a same-document hash ch
 test("Progress renders a persistent test-player visibility control", () => {
   const testPlayer = freshPlayer();
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
     "progress",
   );
   assert.match(html, /id="showTestPlayers"/);
@@ -856,4 +857,34 @@ test("invitation email template substitutes required fields and escapes HTML", (
   assert.equal(rendered.html.includes("<script>bad</script>"), false);
   assert.match(rendered.html, /A&amp;B/);
   assert.match(rendered.html, /href="https:\/\/quiz\.test\/invite\/a\?x=1&amp;y=2"/);
+});
+
+test("reminder email states the Central Thursday deadline and carries only the personalized link", () => {
+  const rendered = reminderTemplate.renderReminderEmail("A&B", "https://quiz.test/invite/a?x=1&y=2");
+  assert.match(rendered.subject, /Reminder/);
+  assert.match(rendered.plain, /midnight \(Central time\) Thursday/);
+  assert.match(rendered.plain, /https:\/\/quiz\.test\/invite\/a\?x=1&y=2/);
+  assert.match(rendered.html, /A&amp;B/);
+  assert.match(rendered.html, /href="https:\/\/quiz\.test\/invite\/a\?x=1&amp;y=2"/);
+});
+
+test("reminders select only invited, incomplete, unreminded real players", () => {
+  const createdAt = new Date().toISOString();
+  const insert = db.prepare(`INSERT INTO players
+    (email, display_name, token_hash, token_ciphertext, invite_sent_at, reminder_sent_at, is_test, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+  const eligible = Number(insert.run("eligible@example.com", "Eligible", "reminder-eligible", cryptoHelpers.encryptInvitationToken("eligible-token"), createdAt, null, 0, createdAt).lastInsertRowid);
+  const completed = Number(insert.run("completed@example.com", "Completed", "reminder-completed", cryptoHelpers.encryptInvitationToken("completed-token"), createdAt, null, 0, createdAt).lastInsertRowid);
+  const testPlayer = Number(insert.run("reminder-test@example.com", "Test", "reminder-test", cryptoHelpers.encryptInvitationToken("test-token"), createdAt, null, 1, createdAt).lastInsertRowid);
+  const reminded = Number(insert.run("reminded@example.com", "Reminded", "reminder-reminded", cryptoHelpers.encryptInvitationToken("reminded-token"), createdAt, createdAt, 0, createdAt).lastInsertRowid);
+  const notInvited = Number(insert.run("not-invited@example.com", "Not invited", "reminder-not-invited", cryptoHelpers.encryptInvitationToken("not-invited-token"), null, null, 0, createdAt).lastInsertRowid);
+  db.prepare("INSERT INTO attempts (player_id, generation, status, started_at, completed_at) VALUES (?, 1, 'completed', ?, ?)").run(completed, createdAt, createdAt);
+  const ids = admin.reminderCandidates().map((player) => player.id);
+  assert.ok(ids.includes(eligible));
+  assert.equal(ids.includes(completed), false);
+  assert.equal(ids.includes(testPlayer), false);
+  assert.equal(ids.includes(reminded), false);
+  assert.equal(ids.includes(notInvited), false);
+  db.prepare("DELETE FROM attempts WHERE player_id = ?").run(completed);
+  for (const id of [eligible, completed, testPlayer, reminded, notInvited]) db.prepare("DELETE FROM players WHERE id = ?").run(id);
 });

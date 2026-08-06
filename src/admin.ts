@@ -4,7 +4,7 @@ import { config } from "./config.ts";
 import { db, getAppSetting, logEvent, nowIso, setAppSetting } from "./db.ts";
 import { decryptInvitationToken, encryptInvitationToken, sha256, randomToken } from "./crypto.ts";
 import { normalize, applyReviewRuling } from "./grading.ts";
-import { relayConfigured, remainingEmailQuota, sendInvitationEmail } from "./mail.ts";
+import { relayConfigured, remainingEmailQuota, sendInvitationEmail, sendReminderEmail } from "./mail.ts";
 import { checkAdminPassword, isAdmin, requireAdmin, setAdminPassword, setAdminSession } from "./auth.ts";
 import { adminLoginPage, adminPage, page, playerAnswersPage, questionPreviewPage, type AdminSection } from "./views.ts";
 import { finalizeStaleSessions } from "./quiz.ts";
@@ -190,6 +190,38 @@ export interface InvitationStats {
   needsAttention: number;
 }
 
+export interface ReminderStats {
+  eligible: number;
+  sent: number;
+  needsAttention: number;
+}
+
+export interface ReminderCandidate {
+  id: number;
+  email: string;
+  display_name: string;
+  token_ciphertext: string;
+}
+
+export function reminderCandidates(): ReminderCandidate[] {
+  return db.prepare(`SELECT p.id, p.email, p.display_name, p.token_ciphertext FROM players p
+    WHERE p.is_test = 0
+      AND p.invite_sent_at IS NOT NULL
+      AND p.token_ciphertext IS NOT NULL
+      AND p.reminder_sent_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM attempts a WHERE a.player_id = p.id AND a.status = 'completed')
+    ORDER BY p.id`).all() as unknown as ReminderCandidate[];
+}
+
+export function reminderStats(): ReminderStats {
+  const eligible = reminderCandidates().length;
+  const row = db.prepare(`SELECT
+    SUM(CASE WHEN reminder_sent_at IS NOT NULL THEN 1 ELSE 0 END) AS sent,
+    SUM(CASE WHEN reminder_last_error IS NOT NULL THEN 1 ELSE 0 END) AS needs_attention
+    FROM players WHERE is_test = 0`).get() as { sent: number | null; needs_attention: number | null };
+  return { eligible, sent: row.sent ?? 0, needsAttention: row.needs_attention ?? 0 };
+}
+
 export function invitationStats(): InvitationStats {
   const row = db.prepare(`SELECT
     COUNT(*) AS real_players,
@@ -300,7 +332,7 @@ function renderAdmin(req: Request, res: Response, section: AdminSection): void {
   // forever as "in_progress" with an unscored question, invisible to the
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), questionTextEditingEnabled: questionTextEditingEnabled(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }, section));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: config.closesAt, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), questionTextEditingEnabled: questionTextEditingEnabled(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), reminderStats: reminderStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), completionNotifications: getCompletionNotificationSettings() }, section));
 }
 
 adminRouter.get("/admin", (req: Request, res: Response) => {
@@ -545,6 +577,50 @@ adminRouter.post("/admin/invitations/send-batch", requireAdmin, async (_req: Req
   }
   const remaining = Number((db.prepare("SELECT COUNT(*) AS n FROM players WHERE is_test = 0 AND invite_sent_at IS NULL AND token_ciphertext IS NOT NULL").get() as { n: number }).n);
   res.status(failure ? 502 : 200).send(page("Invitation batch", `<main class="card"><h1>${failure ? "Send paused" : `Sent ${sent} invitation${sent === 1 ? "" : "s"}`}</h1><p>${failure ? `Stopped safely after ${sent} successful message${sent === 1 ? "" : "s"}: ${escapeHtml(failure)}` : `${remaining} recoverable invitation${remaining === 1 ? " remains" : "s remain"}.`}</p><p>No failed message was marked sent and no fallback mailer was used.</p><a href="/admin#invitations">Return to invitations</a></main>`));
+});
+
+adminRouter.post("/admin/reminders/send", requireAdmin, async (_req: Request, res: Response) => {
+  const candidates = reminderCandidates();
+  if (!candidates.length) {
+    res.send(page("Reminders complete", `<main class="card"><h1>No players need a reminder</h1><p>Every invited real player has completed, has already received this reminder, or needs a recoverable invitation link.</p><a href="/admin/players#reminders">Return to reminders</a></main>`));
+    return;
+  }
+  let quota: number;
+  try {
+    quota = await remainingEmailQuota();
+  } catch (error) {
+    res.status(502).send(page("Reminder send paused", `<main class="card"><h1>Reminder send paused</h1><p>The quota preflight failed, so no messages were attempted: ${escapeHtml(error instanceof Error ? error.message : "Unknown relay error")}</p><a href="/admin/players#reminders">Return to reminders</a></main>`));
+    return;
+  }
+  if (quota < candidates.length) {
+    res.status(429).send(page("Insufficient capacity", `<main class="card"><h1>Reminder send paused</h1><p>The relay reports capacity for ${quota} recipient${quota === 1 ? "" : "s"}, but ${candidates.length} players need reminders. No messages were attempted, so the group is not split unexpectedly.</p><a href="/admin/players#reminders">Return to reminders</a></main>`));
+    return;
+  }
+  let sent = 0;
+  let failure = "";
+  for (const player of candidates) {
+    db.prepare("UPDATE players SET reminder_send_attempts = reminder_send_attempts + 1 WHERE id = ?").run(player.id);
+    let link: string;
+    try {
+      link = `${config.appOrigin}/invite/${decryptInvitationToken(player.token_ciphertext)}`;
+    } catch (error) {
+      failure = error instanceof Error ? error.message : "Invitation token could not be decrypted.";
+      db.prepare("UPDATE players SET reminder_last_error = ? WHERE id = ?").run(failure, player.id);
+      break;
+    }
+    const result = await sendReminderEmail(player.email, player.display_name, link);
+    if (!result.ok) {
+      failure = result.error;
+      db.prepare("UPDATE players SET reminder_last_error = ? WHERE id = ?").run(failure, player.id);
+      logEvent(null, "reminder_email_failed", { playerId: player.id, quotaExhausted: result.quotaExhausted });
+      break;
+    }
+    db.prepare("UPDATE players SET reminder_sent_at = ?, reminder_last_error = NULL WHERE id = ?").run(nowIso(), player.id);
+    logEvent(null, "reminder_email_sent", { playerId: player.id });
+    sent++;
+  }
+  const remaining = reminderCandidates().length;
+  res.status(failure ? 502 : 200).send(page("Reminder send", `<main class="card"><h1>${failure ? "Reminder send paused" : `Sent ${sent} reminder${sent === 1 ? "" : "s"}`}</h1><p>${failure ? `Stopped safely after ${sent} successful message${sent === 1 ? "" : "s"}: ${escapeHtml(failure)}` : "Every eligible player was sent a reminder with their personalized link."}</p><p>${remaining} eligible reminder${remaining === 1 ? " remains" : "s remain"}. No failed message was marked sent and no fallback mailer was used.</p><a href="/admin/players#reminders">Return to reminders</a></main>`));
 });
 
 adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response) => {

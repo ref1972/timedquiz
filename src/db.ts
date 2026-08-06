@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS players (
   invite_sent_at TEXT,
   invite_last_error TEXT,
   invite_send_attempts INTEGER NOT NULL DEFAULT 0,
+  reminder_sent_at TEXT,
+  reminder_last_error TEXT,
+  reminder_send_attempts INTEGER NOT NULL DEFAULT 0,
   is_test INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
@@ -144,6 +147,15 @@ if (!playerColumns.some((column) => column.name === "invite_last_error")) {
 }
 if (!playerColumns.some((column) => column.name === "invite_send_attempts")) {
   db.exec("ALTER TABLE players ADD COLUMN invite_send_attempts INTEGER NOT NULL DEFAULT 0");
+}
+if (!playerColumns.some((column) => column.name === "reminder_sent_at")) {
+  db.exec("ALTER TABLE players ADD COLUMN reminder_sent_at TEXT");
+}
+if (!playerColumns.some((column) => column.name === "reminder_last_error")) {
+  db.exec("ALTER TABLE players ADD COLUMN reminder_last_error TEXT");
+}
+if (!playerColumns.some((column) => column.name === "reminder_send_attempts")) {
+  db.exec("ALTER TABLE players ADD COLUMN reminder_send_attempts INTEGER NOT NULL DEFAULT 0");
 }
 
 const exposureColumns = db.prepare("PRAGMA table_info(exposures)").all() as unknown as Array<{ name: string }>;

@@ -1,4 +1,4 @@
-import type { AdminQuestionRow, GradingQuestion, GradingVariant, InvitationStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow } from "./admin.ts";
+import type { AdminQuestionRow, GradingQuestion, GradingVariant, InvitationStats, ReminderStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow } from "./admin.ts";
 import type { IntroCopy } from "./intro-copy.ts";
 import type { InvitationTemplate } from "./invitation-template.ts";
 import type { CompletionNotificationSettings } from "./completion-notification.ts";
@@ -69,6 +69,7 @@ export interface AdminPageData {
   questionTextEditingEnabled: boolean;
   emailRelayConfigured: boolean;
   invitationStats: InvitationStats;
+  reminderStats: ReminderStats;
   introCopy: IntroCopy;
   invitationTemplate: InvitationTemplate;
   completionNotifications: CompletionNotificationSettings;
@@ -312,6 +313,18 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
           <div class="action-card"><p class="step-label">Step 4</p><h3>Send the next five</h3><p>Sends only unsent real players, in order. Repeat after each successful batch.</p><form method="post" action="/admin/invitations/send-batch" onsubmit="return confirm('Send up to 5 real player invitations now? This will email actual players.')"><button class="send-real" ${data.emailRelayConfigured && data.invitationStats.ready ? "" : "disabled"}>Send next 5 real invitations</button></form></div>
         </div>
         <p class="muted">Safety behavior: the batch stops at the first failure or quota pause. That recipient remains unsent for retry, and there is no unreliable fallback mailer.</p>
+      </section>
+
+      <section class="panel" id="reminders" ${section === "players" ? "" : "hidden"}>
+        <h2>Send quiz reminders</h2>
+        <p>Send one reminder to each invited real player who has not completed the quiz. Every email includes that player’s personalized link and states that the deadline is midnight (Central time) Thursday.</p>
+        <div class="invite-summary" aria-label="Reminder status">
+          <div><strong>${data.reminderStats.eligible}</strong><span>eligible now</span></div>
+          <div><strong>${data.reminderStats.sent}</strong><span>already reminded</span></div>
+          <div><strong>${data.reminderStats.needsAttention}</strong><span>need attention</span></div>
+        </div>
+        <form method="post" action="/admin/reminders/send" onsubmit="return confirm('Send reminder email to ${data.reminderStats.eligible} incomplete real player${data.reminderStats.eligible === 1 ? "" : "s"} now?')"><button class="send-real" ${data.emailRelayConfigured && data.reminderStats.eligible ? "" : "disabled"}>Send ${data.reminderStats.eligible} reminder${data.reminderStats.eligible === 1 ? "" : "s"}</button></form>
+        <p class="muted">Test players, completed players, players who were never invited, and players already sent this reminder are skipped. The send starts only if relay capacity covers the entire group and stops at the first failure.</p>
       </section>
 
       <section class="panel" ${section === "progress" ? "" : "hidden"}>

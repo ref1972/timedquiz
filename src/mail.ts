@@ -1,5 +1,6 @@
 import { config } from "./config.ts";
 import { renderInvitationTemplate } from "./invitation-template.ts";
+import { renderReminderEmail } from "./reminder-template.ts";
 
 interface RelayResponse {
   ok?: boolean;
@@ -66,5 +67,10 @@ export async function remainingEmailQuota(): Promise<number> {
 
 export async function sendInvitationEmail(to: string, name: string, invitationUrl: string, test = false): Promise<MailResult> {
   const { subject, html, plain } = renderInvitationTemplate(name, invitationUrl, test);
+  return sendRelayEmail(to, subject, html, plain);
+}
+
+export async function sendReminderEmail(to: string, name: string, invitationUrl: string): Promise<MailResult> {
+  const { subject, html, plain } = renderReminderEmail(name, invitationUrl);
   return sendRelayEmail(to, subject, html, plain);
 }

@@ -1,6 +1,6 @@
 # Current state
 
-Last updated: 2026-08-02.
+Last updated: 2026-08-05.
 
 ## Source and verification
 
@@ -75,6 +75,12 @@ Last updated: 2026-08-02.
 - Player management supports a CSV download/edit/upload round trip with email,
   name, and test status. The invitation interface presents counts and a safe
   check-quota/test-send/resumable-real-send sequence.
+- The Players screen has a confirmed reminder action for invited real players
+  who have not completed their current quiz. It excludes test, completed,
+  never-invited, unrecoverable-link, and already-reminded accounts; preflights
+  enough relay capacity for the whole eligible group; includes each recipient’s
+  encrypted-at-rest personalized link; records success/failure for safe retry;
+  and states that the deadline is midnight Central time Thursday.
 - The admin Player intro panel controls all opening-card wording. Values are
   stored in SQLite and returned dynamically before an attempt starts; quiz
   mechanics remain code-enforced.

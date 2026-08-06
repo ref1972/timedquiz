@@ -1,5 +1,27 @@
 # Current handoff
 
+## 2026-08-05 — Incomplete-player reminder function implemented locally
+
+- The Players screen now shows the exact number of invited real players who
+  are incomplete and have not already received this reminder, with a confirmed
+  button to send the group.
+- Reminder email subject/body are code-controlled and include the recipient’s
+  own personalized invitation link plus the deadline: midnight (Central time)
+  Thursday.
+- Eligibility excludes test players, completed current attempts, players never
+  sent an invitation, players without a recoverable encrypted token, and
+  players already successfully reminded. A superseded attempt does not block a
+  reminder for an authorized restarted attempt.
+- The route preflights relay capacity for the complete eligible group before
+  sending anything, stops at the first send/decryption failure, never marks a
+  failed message sent, never uses a fallback mailer, and audit-logs each result.
+- SQLite adds per-player reminder sent/error/attempt fields through the existing
+  additive startup migration pattern.
+- Verification: 43 tests pass, TypeScript typechecking passes, and
+  `git diff --check` passes. No email was sent.
+- Status: source is present locally only; it is not committed, pushed,
+  deployed, or verified in production.
+
 ## 2026-08-02 — Progress test-player filter deployed as rc32
 
 - Progress now has a Show test players checkbox with the number of test
