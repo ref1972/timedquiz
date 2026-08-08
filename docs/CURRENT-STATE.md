@@ -4,15 +4,14 @@ Last updated: 2026-08-08.
 
 ## Source and verification
 
-- Multi-game support is implemented locally. The additive migration creates
+- Multi-game support is deployed as rc34. The additive migration creates
   Game 1 and attaches every existing player and question to it without changing
   their primary keys, so attempts, exposures, grading rules, and audit history
   remain connected. Admin can create, select, and activate numbered games;
   every question/player/progress/grading query and export is scoped to the
   selected game. Only the active game's invitation links can open a quiz, and
   invitation/reminder sends are refused for inactive games.
-- Automated verification passes 45 tests and TypeScript typechecking. This
-  multi-game source is not committed, pushed, deployed, or production-verified.
+- Automated verification passes 45 tests and TypeScript typechecking.
 
 - Extracted with path-specific Git history from the TriviaNationals repository
   into the standalone `ref1972/timedquiz` project.
@@ -149,6 +148,14 @@ Last updated: 2026-08-08.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
+- Release `timed-quiz-v0.1.0-rc34` is deployed and verified after backup
+  `quiz-20260808T181151Z.sqlite.gz`, which passed gzip and SQLite integrity
+  checks. The migration retained 85 players, 50 questions, 87 attempts, and
+  4,336 exposures in active Game 1 with no foreign-key violations. Production
+  preflight passes with the intentional existing-attempt override; public
+  health reports rc34; Timed Quiz is active; both CASS PM2 services are online;
+  and the CASS public site is HTTP 200. No invitation, reminder, or other email
+  was sent during deployment.
 - Release `timed-quiz-v0.1.0-rc33` is deployed and verified after backup
   `quiz-20260806T044622Z.sqlite.gz`, which passed gzip and SQLite integrity
   checks. Public health reports rc33; the reminder route, Players UI, template,

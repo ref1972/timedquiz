@@ -1,6 +1,6 @@
 # Current handoff
 
-## 2026-08-08 — Multi-game architecture implemented locally
+## 2026-08-08 — Multi-game architecture deployed as rc34
 
 - Added numbered games with a single active-game constraint and a per-game
   Central cutoff. A new Games panel lets admin select an isolated game, create
@@ -14,11 +14,16 @@
   active game. Email sends are refused while an inactive game is selected.
 - The preflight checks the active game and its own cutoff/data rather than a
   single global quiz dataset. Seed behavior is likewise active-game scoped.
+- Commit `a210e31` and tag `timed-quiz-v0.1.0-rc34` are pushed and deployed.
+  Pre-deployment backup `quiz-20260808T181151Z.sqlite.gz` passed gzip and SQLite
+  integrity checks, and there were no live question windows during restart.
+- Production verification: public health reports rc34; the foreign-key check
+  is clean; active Game 1 retains 85 players, 50 questions, 87 attempts, and
+  4,336 exposures; preflight passes with `ALLOW_EXISTING_ATTEMPTS=1`; the Game
+  UI source is present; Timed Quiz is active; both CASS PM2 services are online;
+  and the CASS public site is HTTP 200.
 - Verification: 45 tests pass, TypeScript typechecking passes, and
   `git diff --check` passes. No invitation, reminder, or other email was sent.
-- Status: source is local only; it is not committed, pushed, deployed, or
-  verified in production. Production remains rc33 and its database has not
-  been changed.
 
 ## 2026-08-05 — Editable reminder template implemented locally
 
