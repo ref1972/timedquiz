@@ -1,5 +1,41 @@
 # Current handoff
 
+## 2026-08-08 — Multi-game architecture implemented locally
+
+- Added numbered games with a single active-game constraint and a per-game
+  Central cutoff. A new Games panel lets admin select an isolated game, create
+  the next inactive game, and deliberately activate it.
+- The rc33 one-off database migrates additively into active Game 1. Existing
+  player and question IDs are preserved, retaining all attempt, exposure,
+  grading, and audit relationships.
+- Players, questions, progress, grading, CSV exports, invitation/reminder
+  eligibility, restarts, previews, and imports are scoped to the selected game.
+  The player routes accept only invitation/session records belonging to the
+  active game. Email sends are refused while an inactive game is selected.
+- The preflight checks the active game and its own cutoff/data rather than a
+  single global quiz dataset. Seed behavior is likewise active-game scoped.
+- Verification: 45 tests pass, TypeScript typechecking passes, and
+  `git diff --check` passes. No invitation, reminder, or other email was sent.
+- Status: source is local only; it is not committed, pushed, deployed, or
+  verified in production. Production remains rc33 and its database has not
+  been changed.
+
+## 2026-08-05 — Editable reminder template implemented locally
+
+- The Players screen now has a Reminder email editor directly above the send
+  controls. Subject and body are stored in `app_settings`; the rc33 wording is
+  retained as the default.
+- `{{name}}` is optional and `{{link}}` is required. Substitution is shared by
+  plain-text and safely escaped HTML output. Validation matches the invitation
+  editor’s 200-character subject and 10,000-character body limits.
+- Saving only updates the template and adds an audit event; it does not send a
+  reminder. Existing reminder eligibility, capacity preflight, confirmation,
+  one-time success tracking, and stop-on-failure behavior are unchanged.
+- Verification: 44 tests pass, TypeScript typechecking passes, and
+  `git diff --check` passes. No email was sent.
+- Status: source is local only; it is not committed, pushed, deployed, or
+  verified in production.
+
 ## 2026-08-05 — Incomplete-player reminders deployed as rc33
 
 - The Players screen now shows the exact number of invited real players who

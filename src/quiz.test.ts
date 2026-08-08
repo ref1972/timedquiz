@@ -34,6 +34,7 @@ const views = await import("./views.ts");
 const invitationTemplate = await import("./invitation-template.ts");
 const reminderTemplate = await import("./reminder-template.ts");
 const completionNotification = await import("./completion-notification.ts");
+const gameStore = await import("./games.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -42,8 +43,8 @@ function freshPlayer(): Player {
   nextEmail += 1;
   const email = `player${nextEmail}@test.invalid`;
   const result = db
-    .prepare("INSERT INTO players (email, display_name, token_hash, is_test, created_at) VALUES (?, ?, ?, 1, ?)")
-    .run(email, email, `hash-${nextEmail}`, new Date().toISOString());
+    .prepare("INSERT INTO players (game_id, email, display_name, token_hash, is_test, created_at) VALUES (?, ?, ?, ?, 1, ?)")
+    .run(gameStore.activeGame().id, email, email, `hash-${nextEmail}`, new Date().toISOString());
   return quiz.findPlayerById(Number(result.lastInsertRowid))!;
 }
 
@@ -54,9 +55,9 @@ before(() => {
   db.exec("DELETE FROM questions");
   db.exec("DELETE FROM grading_rules");
   db.exec("DELETE FROM app_settings");
-  const insert = db.prepare("INSERT INTO questions (position, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?)");
+  const insert = db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?)");
   for (let i = 1; i <= 50; i++) {
-    insert.run(i, `Question ${i}?`, `answer${i}`, "[]");
+    insert.run(gameStore.activeGame().id, i, `Question ${i}?`, `answer${i}`, "[]");
   }
 });
 
@@ -388,7 +389,7 @@ test("grading review shows every answer, including the ones graded automatically
   // The panel renders it, in the collapsed "counted incorrect" tier, with the
   // opposite action available.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "review",
   );
   assert.match(html, /counted incorrect/);
@@ -545,9 +546,10 @@ test("score ties rank by lower total server-measured time", async () => {
 });
 
 test("an administrator-authorized restart can begin after the general cutoff", () => {
-  const originalCutoff = config.closesAt;
+  const game = gameStore.activeGame();
+  const originalCutoff = game.closes_at;
   try {
-    config.closesAt = null;
+    db.prepare("UPDATE games SET closes_at = NULL WHERE id = ?").run(game.id);
     const player = freshPlayer();
     const first = quiz.serveNext(player);
     if (first.state !== "question") return assert.fail();
@@ -557,7 +559,7 @@ test("an administrator-authorized restart can begin after the general cutoff", (
       "Verified technical failure",
       firstAttempt.id,
     );
-    config.closesAt = Date.now() - 1;
+    db.prepare("UPDATE games SET closes_at = ? WHERE id = ?").run(new Date(Date.now() - 1).toISOString(), game.id);
     assert.equal(quiz.getStatus(player).state, "prestart");
     const restarted = quiz.serveNext(player);
     assert.equal(restarted.state, "question");
@@ -567,7 +569,7 @@ test("an administrator-authorized restart can begin after the general cutoff", (
     assert.equal(quiz.getStatus(neverStarted).state, "closed");
     assert.equal(quiz.serveNext(neverStarted).state, "closed");
   } finally {
-    config.closesAt = originalCutoff;
+    db.prepare("UPDATE games SET closes_at = ? WHERE id = ?").run(originalCutoff, game.id);
   }
 });
 
@@ -634,7 +636,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   // The control must still be rendered and enabled on a frozen bank, and it
   // must post to its own route rather than the locked content editor.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "questions",
   );
   assert.match(html, new RegExp(`action="/admin/question/${question.id}/grading"`));
@@ -646,7 +648,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   admin.setQuestionTextEditingEnabled(true);
   assert.equal(admin.questionTextEditingEnabled(), true);
   const unlockedHtml = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "questions",
   );
   assert.match(unlockedHtml, /Turn editing off/);
@@ -799,7 +801,7 @@ test("player import continuation forces a GET instead of a same-document hash ch
 test("Progress renders a persistent test-player visibility control", () => {
   const testPlayer = freshPlayer();
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, completionNotifications: { enabled: false, recipient: "" } },
+    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "progress",
   );
   assert.match(html, /id="showTestPlayers"/);
@@ -868,16 +870,29 @@ test("reminder email states the Central Thursday deadline and carries only the p
   assert.match(rendered.html, /href="https:\/\/quiz\.test\/invite\/a\?x=1&amp;y=2"/);
 });
 
+test("saved reminder templates substitute placeholders and escape HTML", () => {
+  reminderTemplate.setReminderTemplate({ subject: "Reminder for {{name}}", body: "Hello {{name}} <script>bad</script>\n\nFinish here: {{link}}" });
+  assert.deepEqual(reminderTemplate.getReminderTemplate(), { subject: "Reminder for {{name}}", body: "Hello {{name}} <script>bad</script>\n\nFinish here: {{link}}" });
+  const rendered = reminderTemplate.renderReminderEmail("A&B", "https://quiz.test/invite/a?x=1&y=2");
+  assert.equal(rendered.subject, "Reminder for A&B");
+  assert.match(rendered.plain, /Finish here: https:\/\/quiz\.test\/invite/);
+  assert.equal(rendered.html.includes("<script>bad</script>"), false);
+  assert.match(rendered.html, /A&amp;B/);
+  assert.match(rendered.html, /href="https:\/\/quiz\.test\/invite\/a\?x=1&amp;y=2"/);
+  reminderTemplate.setReminderTemplate(reminderTemplate.defaultReminderTemplate);
+});
+
 test("reminders select only invited, incomplete, unreminded real players", () => {
   const createdAt = new Date().toISOString();
   const insert = db.prepare(`INSERT INTO players
-    (email, display_name, token_hash, token_ciphertext, invite_sent_at, reminder_sent_at, is_test, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-  const eligible = Number(insert.run("eligible@example.com", "Eligible", "reminder-eligible", cryptoHelpers.encryptInvitationToken("eligible-token"), createdAt, null, 0, createdAt).lastInsertRowid);
-  const completed = Number(insert.run("completed@example.com", "Completed", "reminder-completed", cryptoHelpers.encryptInvitationToken("completed-token"), createdAt, null, 0, createdAt).lastInsertRowid);
-  const testPlayer = Number(insert.run("reminder-test@example.com", "Test", "reminder-test", cryptoHelpers.encryptInvitationToken("test-token"), createdAt, null, 1, createdAt).lastInsertRowid);
-  const reminded = Number(insert.run("reminded@example.com", "Reminded", "reminder-reminded", cryptoHelpers.encryptInvitationToken("reminded-token"), createdAt, createdAt, 0, createdAt).lastInsertRowid);
-  const notInvited = Number(insert.run("not-invited@example.com", "Not invited", "reminder-not-invited", cryptoHelpers.encryptInvitationToken("not-invited-token"), null, null, 0, createdAt).lastInsertRowid);
+    (game_id, email, display_name, token_hash, token_ciphertext, invite_sent_at, reminder_sent_at, is_test, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const gameId = gameStore.selectedGame().id;
+  const eligible = Number(insert.run(gameId, "eligible@example.com", "Eligible", "reminder-eligible", cryptoHelpers.encryptInvitationToken("eligible-token"), createdAt, null, 0, createdAt).lastInsertRowid);
+  const completed = Number(insert.run(gameId, "completed@example.com", "Completed", "reminder-completed", cryptoHelpers.encryptInvitationToken("completed-token"), createdAt, null, 0, createdAt).lastInsertRowid);
+  const testPlayer = Number(insert.run(gameId, "reminder-test@example.com", "Test", "reminder-test", cryptoHelpers.encryptInvitationToken("test-token"), createdAt, null, 1, createdAt).lastInsertRowid);
+  const reminded = Number(insert.run(gameId, "reminded@example.com", "Reminded", "reminder-reminded", cryptoHelpers.encryptInvitationToken("reminded-token"), createdAt, createdAt, 0, createdAt).lastInsertRowid);
+  const notInvited = Number(insert.run(gameId, "not-invited@example.com", "Not invited", "reminder-not-invited", cryptoHelpers.encryptInvitationToken("not-invited-token"), null, null, 0, createdAt).lastInsertRowid);
   db.prepare("INSERT INTO attempts (player_id, generation, status, started_at, completed_at) VALUES (?, 1, 'completed', ?, ?)").run(completed, createdAt, createdAt);
   const ids = admin.reminderCandidates().map((player) => player.id);
   assert.ok(ids.includes(eligible));
@@ -887,4 +902,31 @@ test("reminders select only invited, incomplete, unreminded real players", () =>
   assert.equal(ids.includes(notInvited), false);
   db.prepare("DELETE FROM attempts WHERE player_id = ?").run(completed);
   for (const id of [eligible, completed, testPlayer, reminded, notInvited]) db.prepare("DELETE FROM players WHERE id = ?").run(id);
+});
+
+test("games isolate players and questions while only the active game's links open", () => {
+  const firstGame = gameStore.activeGame();
+  const secondGame = gameStore.createGame("Second Bee", "2026-12-01T06:00:00.000Z");
+  const createdAt = new Date().toISOString();
+  const token = "second-game-token";
+  const secondPlayerId = Number(db.prepare(`INSERT INTO players
+    (game_id, email, display_name, token_hash, token_ciphertext, is_test, created_at)
+    VALUES (?, ?, ?, ?, ?, 0, ?)`).run(secondGame.id, "player1@test.invalid", "Second Game Player", cryptoHelpers.sha256(token), cryptoHelpers.encryptInvitationToken(token), createdAt).lastInsertRowid);
+  db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, 1, ?, ?, '[]')").run(secondGame.id, "Second game question?", "second");
+
+  assert.equal(quiz.findPlayerByTokenHash(cryptoHelpers.sha256(token)), null, "inactive-game links stay closed");
+  gameStore.selectGame(secondGame.id);
+  assert.equal(admin.adminQuestions().length, 1);
+  assert.equal(admin.results().some((row) => row.id === secondPlayerId), true);
+  assert.equal(admin.results().some((row) => row.game_id === firstGame.id), false);
+
+  gameStore.activateGame(secondGame.id);
+  assert.equal(quiz.findPlayerByTokenHash(cryptoHelpers.sha256(token))?.id, secondPlayerId);
+  assert.equal(gameStore.games().filter((game) => game.is_active).length, 1);
+
+  gameStore.activateGame(firstGame.id);
+  gameStore.selectGame(firstGame.id);
+  db.prepare("DELETE FROM questions WHERE game_id = ?").run(secondGame.id);
+  db.prepare("DELETE FROM players WHERE id = ?").run(secondPlayerId);
+  db.prepare("DELETE FROM games WHERE id = ?").run(secondGame.id);
 });

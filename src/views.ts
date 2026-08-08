@@ -2,6 +2,8 @@ import type { AdminQuestionRow, GradingQuestion, GradingVariant, InvitationStats
 import type { IntroCopy } from "./intro-copy.ts";
 import type { InvitationTemplate } from "./invitation-template.ts";
 import type { CompletionNotificationSettings } from "./completion-notification.ts";
+import type { ReminderTemplate } from "./reminder-template.ts";
+import type { Game } from "./games.ts";
 import { visiblePromptText } from "./question-import.ts";
 
 function esc(value: unknown): string {
@@ -70,9 +72,12 @@ export interface AdminPageData {
   emailRelayConfigured: boolean;
   invitationStats: InvitationStats;
   reminderStats: ReminderStats;
+  reminderTemplate: ReminderTemplate;
   introCopy: IntroCopy;
   invitationTemplate: InvitationTemplate;
   completionNotifications: CompletionNotificationSettings;
+  games: Game[];
+  selectedGame: Game;
 }
 
 export function questionPreviewPage(question: AdminQuestionRow, total: number, durationSeconds = 25): string {
@@ -232,8 +237,8 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
     `<main class="admin">
       <header>
         <p class="eyebrow">Trivia Nationals</p>
-        <h1>Pop Culture Bee Quiz</h1>
-        <p>${data.questionCount}/50 questions &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
+        <h1>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</h1>
+        <p>${data.questionCount}/50 questions &middot; ${data.selectedGame.is_active ? "active game" : "inactive game"} &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
       </header>
       <nav class="admin-nav" aria-label="Quiz administration">
         <a href="/admin/questions" ${section === "questions" ? 'aria-current="page"' : ""}>Questions &amp; Answers</a>
@@ -241,6 +246,14 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <a href="/admin/progress" ${section === "progress" ? 'aria-current="page"' : ""}>Progress</a>
         <a href="/admin/review" ${section === "review" ? 'aria-current="page"' : ""}>Grading${data.unresolvedCount ? ` (${data.unresolvedCount})` : ""}</a>
       </nav>
+
+      <section class="panel game-selector">
+        <h2>Games</h2>
+        <p>Viewing <strong>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</strong>${data.selectedGame.is_active ? ' <span class="status-pill">active</span>' : ' <span class="status-pill">inactive</span>'}. Questions, players, progress, grading, and exports below belong only to this game.</p>
+        <div class="game-actions">${data.games.map((game) => `<form method="post" action="/admin/game/select"><input type="hidden" name="gameId" value="${game.id}"><button class="small ${game.id === data.selectedGame.id ? "" : "secondary"}">Game ${game.game_number}: ${esc(game.name)}${game.is_active ? " · active" : ""}</button></form>`).join("")}</div>
+        ${data.selectedGame.is_active ? "" : `<form method="post" action="/admin/game/activate" onsubmit="return confirm('Make Game ${data.selectedGame.game_number} active? Existing invitation links for the current active game will stop opening the quiz.')"><input type="hidden" name="gameId" value="${data.selectedGame.id}"><button>Make this the active game</button></form>`}
+        <details><summary>Create a new game</summary><form method="post" action="/admin/game/create"><label>Game name<input name="name" maxlength="160" required></label><label>Cutoff (Central time)<input type="datetime-local" name="closesAt" required></label><button>Create inactive game</button></form></details>
+      </section>
 
       <section class="panel" id="player-intro" ${section === "players" ? "" : "hidden"}>
         <h2>Player intro</h2>
@@ -309,21 +322,32 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <p class="notice">${data.emailRelayConfigured ? "Workspace is connected. Nothing sends automatically: check quota, send yourself a test, then deliberately send each batch." : "Workspace is not connected. Configure the relay before attempting email."}</p>
         <div class="invitation-steps">
           <div class="action-card"><p class="step-label">Step 2</p><h3>Check capacity</h3><p>Check the configured Workspace relay’s available sending capacity before sending.</p><form method="post" action="/admin/invitations/quota"><button ${data.emailRelayConfigured ? "" : "disabled"}>Check email capacity</button></form></div>
-          <div class="action-card"><p class="step-label">Step 3</p><h3>Send a test player’s link</h3><p>Enter the exact email of an imported test player. The system will never substitute another player’s link.</p><form method="post" action="/admin/invitations/test"><label>Test player email<input type="email" name="email" placeholder="you@example.com" required></label><button ${data.emailRelayConfigured ? "" : "disabled"}>Send test email</button></form></div>
-          <div class="action-card"><p class="step-label">Step 4</p><h3>Send the next five</h3><p>Sends only unsent real players, in order. Repeat after each successful batch.</p><form method="post" action="/admin/invitations/send-batch" onsubmit="return confirm('Send up to 5 real player invitations now? This will email actual players.')"><button class="send-real" ${data.emailRelayConfigured && data.invitationStats.ready ? "" : "disabled"}>Send next 5 real invitations</button></form></div>
+          <div class="action-card"><p class="step-label">Step 3</p><h3>Send a test player’s link</h3><p>Enter the exact email of an imported test player. The system will never substitute another player’s link.</p><form method="post" action="/admin/invitations/test"><label>Test player email<input type="email" name="email" placeholder="you@example.com" required></label><button ${data.emailRelayConfigured && data.selectedGame.is_active ? "" : "disabled"}>Send test email</button></form></div>
+          <div class="action-card"><p class="step-label">Step 4</p><h3>Send the next five</h3><p>Sends only unsent real players, in order. Repeat after each successful batch.</p><form method="post" action="/admin/invitations/send-batch" onsubmit="return confirm('Send up to 5 real player invitations now? This will email actual players.')"><button class="send-real" ${data.emailRelayConfigured && data.selectedGame.is_active && data.invitationStats.ready ? "" : "disabled"}>Send next 5 real invitations</button></form></div>
         </div>
         <p class="muted">Safety behavior: the batch stops at the first failure or quota pause. That recipient remains unsent for retry, and there is no unreliable fallback mailer.</p>
       </section>
 
+      <section class="panel" id="reminder-template" ${section === "players" ? "" : "hidden"}>
+        <h2>Reminder email</h2>
+        <p>Edit the subject and message used for incomplete-player reminders. Use <code>{{name}}</code> for the player’s name and <code>{{link}}</code> for their personalized link.</p>
+        <form method="post" action="/admin/reminder-template">
+          <label>Subject<input name="subject" value="${esc(data.reminderTemplate.subject)}" maxlength="200" required></label>
+          <label>Message body<textarea name="body" rows="10" maxlength="10000" required>${esc(data.reminderTemplate.body)}</textarea></label>
+          <button>Save reminder email</button>
+        </form>
+        <p class="muted"><code>{{link}}</code> is required. Saving this template does not send email.</p>
+      </section>
+
       <section class="panel" id="reminders" ${section === "players" ? "" : "hidden"}>
         <h2>Send quiz reminders</h2>
-        <p>Send one reminder to each invited real player who has not completed the quiz. Every email includes that player’s personalized link and states that the deadline is midnight (Central time) Thursday.</p>
+        <p>Send one reminder to each invited real player who has not completed the quiz. Each recipient receives the saved reminder template above with their own personalized link.</p>
         <div class="invite-summary" aria-label="Reminder status">
           <div><strong>${data.reminderStats.eligible}</strong><span>eligible now</span></div>
           <div><strong>${data.reminderStats.sent}</strong><span>already reminded</span></div>
           <div><strong>${data.reminderStats.needsAttention}</strong><span>need attention</span></div>
         </div>
-        <form method="post" action="/admin/reminders/send" onsubmit="return confirm('Send reminder email to ${data.reminderStats.eligible} incomplete real player${data.reminderStats.eligible === 1 ? "" : "s"} now?')"><button class="send-real" ${data.emailRelayConfigured && data.reminderStats.eligible ? "" : "disabled"}>Send ${data.reminderStats.eligible} reminder${data.reminderStats.eligible === 1 ? "" : "s"}</button></form>
+        <form method="post" action="/admin/reminders/send" onsubmit="return confirm('Send reminder email to ${data.reminderStats.eligible} incomplete real player${data.reminderStats.eligible === 1 ? "" : "s"} now?')"><button class="send-real" ${data.emailRelayConfigured && data.selectedGame.is_active && data.reminderStats.eligible ? "" : "disabled"}>Send ${data.reminderStats.eligible} reminder${data.reminderStats.eligible === 1 ? "" : "s"}</button></form>
         <p class="muted">Test players, completed players, players who were never invited, and players already sent this reminder are skipped. The send starts only if relay capacity covers the entire group and stops at the first failure.</p>
       </section>
 

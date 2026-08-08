@@ -16,9 +16,21 @@ db.exec("PRAGMA foreign_keys = ON;");
 db.exec("PRAGMA busy_timeout = 5000;");
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS games (
+  id INTEGER PRIMARY KEY,
+  game_number INTEGER NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
+  closes_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_game ON games (is_active) WHERE is_active = 1;
+
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  game_id INTEGER NOT NULL REFERENCES games(id),
+  email TEXT NOT NULL COLLATE NOCASE,
   display_name TEXT NOT NULL DEFAULT '',
   token_hash TEXT NOT NULL UNIQUE,
   token_ciphertext TEXT,
@@ -29,12 +41,14 @@ CREATE TABLE IF NOT EXISTS players (
   reminder_last_error TEXT,
   reminder_send_attempts INTEGER NOT NULL DEFAULT 0,
   is_test INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  UNIQUE (game_id, email)
 );
 
 CREATE TABLE IF NOT EXISTS questions (
   id INTEGER PRIMARY KEY,
-  position INTEGER NOT NULL UNIQUE CHECK (position BETWEEN 1 AND 50),
+  game_id INTEGER NOT NULL REFERENCES games(id),
+  position INTEGER NOT NULL CHECK (position BETWEEN 1 AND 50),
   category TEXT NOT NULL DEFAULT 'Pop Culture',
   prompt TEXT NOT NULL,
   highlighted_text TEXT NOT NULL DEFAULT '',
@@ -43,7 +57,8 @@ CREATE TABLE IF NOT EXISTS questions (
   -- Marks the answer as a person's name, which accepts the bare surname and
   -- refuses that surname behind a different first name. See grading.ts.
   answer_is_person INTEGER NOT NULL DEFAULT 0,
-  included_in_score INTEGER NOT NULL DEFAULT 1
+  included_in_score INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (game_id, position)
 );
 
 -- One row per playthrough. A restart supersedes the old row rather than
@@ -123,6 +138,61 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TEXT NOT NULL
 );
 `);
+
+if (!(db.prepare("SELECT id FROM games LIMIT 1").get())) {
+  db.prepare("INSERT INTO games (game_number, name, is_active, closes_at, created_at) VALUES (1, ?, 1, ?, ?)").run(
+    "Pop Culture Bee Preliminary 2026",
+    config.closesAt ? new Date(config.closesAt).toISOString() : null,
+    new Date().toISOString(),
+  );
+}
+
+const initialGameId = Number((db.prepare("SELECT id FROM games ORDER BY game_number LIMIT 1").get() as { id: number }).id);
+
+// rc33 and earlier had one global player/question set. Rebuild only those two
+// parent tables, preserving every primary key so attempts, exposures, grading
+// rules, and audit history continue to reference the same historical records.
+const legacyPlayerColumns = db.prepare("PRAGMA table_info(players)").all() as unknown as Array<{ name: string }>;
+const legacyQuestionColumns = db.prepare("PRAGMA table_info(questions)").all() as unknown as Array<{ name: string }>;
+if (!legacyPlayerColumns.some((column) => column.name === "game_id") || !legacyQuestionColumns.some((column) => column.name === "game_id")) {
+  db.exec("PRAGMA foreign_keys = OFF");
+  db.exec("BEGIN");
+  try {
+    if (!legacyPlayerColumns.some((column) => column.name === "game_id")) {
+      db.exec(`CREATE TABLE players_new (
+        id INTEGER PRIMARY KEY, game_id INTEGER NOT NULL REFERENCES games(id),
+        email TEXT NOT NULL COLLATE NOCASE, display_name TEXT NOT NULL DEFAULT '',
+        token_hash TEXT NOT NULL UNIQUE, token_ciphertext TEXT, invite_sent_at TEXT,
+        invite_last_error TEXT, invite_send_attempts INTEGER NOT NULL DEFAULT 0,
+        reminder_sent_at TEXT, reminder_last_error TEXT,
+        reminder_send_attempts INTEGER NOT NULL DEFAULT 0, is_test INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL, UNIQUE (game_id, email));`);
+      db.prepare(`INSERT INTO players_new SELECT id, ?, email, display_name, token_hash, token_ciphertext,
+        invite_sent_at, invite_last_error, invite_send_attempts, reminder_sent_at,
+        reminder_last_error, reminder_send_attempts, is_test, created_at FROM players`).run(initialGameId);
+      db.exec("DROP TABLE players; ALTER TABLE players_new RENAME TO players;");
+    }
+    if (!legacyQuestionColumns.some((column) => column.name === "game_id")) {
+      db.exec(`CREATE TABLE questions_new (
+        id INTEGER PRIMARY KEY, game_id INTEGER NOT NULL REFERENCES games(id),
+        position INTEGER NOT NULL CHECK (position BETWEEN 1 AND 50), category TEXT NOT NULL DEFAULT 'Pop Culture',
+        prompt TEXT NOT NULL, highlighted_text TEXT NOT NULL DEFAULT '', canonical_answer TEXT NOT NULL,
+        aliases_json TEXT NOT NULL DEFAULT '[]', answer_is_person INTEGER NOT NULL DEFAULT 0,
+        included_in_score INTEGER NOT NULL DEFAULT 1, UNIQUE (game_id, position));`);
+      db.prepare(`INSERT INTO questions_new SELECT id, ?, position, category, prompt, highlighted_text,
+        canonical_answer, aliases_json, answer_is_person, included_in_score FROM questions`).run(initialGameId);
+      db.exec("DROP TABLE questions; ALTER TABLE questions_new RENAME TO questions;");
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON");
+  }
+  const integrity = db.prepare("PRAGMA foreign_key_check").all();
+  if (integrity.length) throw new Error("Game migration failed foreign-key validation.");
+}
 
 const questionColumns = db.prepare("PRAGMA table_info(questions)").all() as unknown as Array<{ name: string }>;
 if (!questionColumns.some((column) => column.name === "category")) {

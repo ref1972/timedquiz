@@ -4,12 +4,14 @@ import { autoVerdict, type QuestionRow } from "./grading.ts";
 import { randomToken } from "./crypto.ts";
 import { sendCompletionNotification } from "./completion-notification.ts";
 import { getIntroCopy, type IntroCopy } from "./intro-copy.ts";
+import { gameById } from "./games.ts";
 
 export interface Player {
   id: number;
   email: string;
   display_name: string;
   is_test: number;
+  game_id: number;
 }
 
 export interface Attempt {
@@ -47,8 +49,8 @@ export type QuizState =
   | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; serverNow: string; draft: string; durationSeconds: number }
   | { state: "complete" };
 
-export function questionCount(): number {
-  return Number((db.prepare("SELECT COUNT(*) AS n FROM questions").get() as { n: number }).n);
+export function questionCount(gameId: number): number {
+  return Number((db.prepare("SELECT COUNT(*) AS n FROM questions WHERE game_id = ?").get(gameId) as { n: number }).n);
 }
 
 function durationSeconds(): number {
@@ -56,12 +58,14 @@ function durationSeconds(): number {
 }
 
 export function findPlayerById(id: number): Player | null {
-  return (db.prepare("SELECT id, email, display_name, is_test FROM players WHERE id = ?").get(id) as unknown as Player | undefined) ?? null;
+  return (db.prepare(`SELECT p.id, p.game_id, p.email, p.display_name, p.is_test FROM players p
+    JOIN games g ON g.id = p.game_id WHERE p.id = ? AND g.is_active = 1`).get(id) as unknown as Player | undefined) ?? null;
 }
 
 export function findPlayerByTokenHash(tokenHash: string): Player | null {
   return (
-    (db.prepare("SELECT id, email, display_name, is_test FROM players WHERE token_hash = ?").get(tokenHash) as
+    (db.prepare(`SELECT p.id, p.game_id, p.email, p.display_name, p.is_test FROM players p
+      JOIN games g ON g.id = p.game_id WHERE p.token_hash = ? AND g.is_active = 1`).get(tokenHash) as
       | Player
       | undefined) ?? null
   );
@@ -85,8 +89,8 @@ export function activeExposure(attemptId: number): Exposure | null {
   );
 }
 
-function questionByPosition(position: number): QuestionRow {
-  return db.prepare("SELECT * FROM questions WHERE position = ?").get(position) as unknown as QuestionRow;
+function questionByPosition(gameId: number, position: number): QuestionRow {
+  return db.prepare("SELECT * FROM questions WHERE game_id = ? AND position = ?").get(gameId, position) as unknown as QuestionRow;
 }
 
 function questionById(id: number): QuestionRow {
@@ -131,7 +135,8 @@ function finalize(exposure: Exposure, reason: "manual" | "timeout", text: string
     logEvent(exposure.attempt_id, "answer_finalized", { questionId: exposure.question_id, reason, verdict });
   }
 
-  if (finalizedCount(exposure.attempt_id) >= questionCount()) {
+  const gameId = Number((db.prepare("SELECT p.game_id FROM attempts a JOIN players p ON p.id = a.player_id WHERE a.id = ?").get(exposure.attempt_id) as { game_id: number }).game_id);
+  if (finalizedCount(exposure.attempt_id) >= questionCount(gameId)) {
     const completed = db.prepare("UPDATE attempts SET status = 'completed', completed_at = ? WHERE id = ? AND status = 'in_progress'").run(
       nowIso(),
       exposure.attempt_id,
@@ -191,10 +196,12 @@ export function submitAnswer(attemptId: number, nonce: string, text: string): { 
 
 /** Read-only status check. Never creates an attempt or an exposure. */
 export function getStatus(player: Player): QuizState {
+  const game = gameById(player.game_id)!;
+  const closesAt = game.closes_at ? Date.parse(game.closes_at) : null;
   const attempt = currentAttempt(player.id);
   if (!attempt) {
-    if (config.closesAt !== null && Date.now() > config.closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
-    return { state: "prestart", questionCount: questionCount(), closesAt: config.closesAt ? new Date(config.closesAt).toISOString() : null, intro: getIntroCopy(), durationSeconds: durationSeconds() };
+    if (closesAt !== null && Date.now() > closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
+    return { state: "prestart", questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
   }
   expireIfNeeded(attempt.id);
   const refreshed = currentAttempt(player.id);
@@ -216,7 +223,7 @@ export function getStatus(player: Player): QuizState {
     };
   }
   const nextPosition = finalizedCount(refreshed.id) + 1;
-  return { state: "ready", nextPosition, category: questionByPosition(nextPosition).category, durationSeconds: durationSeconds() };
+  return { state: "ready", nextPosition, category: questionByPosition(player.game_id, nextPosition).category, durationSeconds: durationSeconds() };
 }
 
 /**
@@ -231,11 +238,13 @@ export function getStatus(player: Player): QuizState {
  * one request's latency, not two chained ones.
  */
 export function serveNext(player: Player): QuizState {
-  if (questionCount() !== 50) return { state: "prestart", questionCount: questionCount(), closesAt: null, intro: getIntroCopy(), durationSeconds: durationSeconds() };
+  const game = gameById(player.game_id)!;
+  const closesAt = game.closes_at ? Date.parse(game.closes_at) : null;
+  if (questionCount(player.game_id) !== 50) return { state: "prestart", questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
 
   let attempt = currentAttempt(player.id);
   if (!attempt) {
-    if (config.closesAt !== null && Date.now() > config.closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
+    if (closesAt !== null && Date.now() > closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
     const generation = Number(
       (db.prepare("SELECT COALESCE(MAX(generation), 0) + 1 AS n FROM attempts WHERE player_id = ?").get(player.id) as {
         n: number;
@@ -278,7 +287,7 @@ export function serveNext(player: Player): QuizState {
   const position = finalizedCount(refreshed.id) + 1;
   if (position > 50) return { state: "complete" };
 
-  const question = questionByPosition(position);
+  const question = questionByPosition(player.game_id, position);
   const served = Date.now();
   const servedAt = new Date(served).toISOString();
   const deadlineAt = new Date(served + config.questionDurationMs).toISOString();

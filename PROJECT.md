@@ -4,6 +4,12 @@ Timed Quiz is a standalone Node/Express/SQLite platform for personalized,
 server-timed online quizzes. Its first production use is the Trivia Workshop
 Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
 
+The application supports multiple numbered games. Players, questions, attempts,
+results, grading, and invitation links stay attached to their game. Exactly one
+game is active; only that game's personalized links can open the player quiz.
+Inactive games retain their complete history and can also be prepared before
+being activated.
+
 ## Current release
 
 - 50 sequential questions with a server-authoritative 25-second window.
@@ -18,8 +24,8 @@ Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
 - Google Workspace relay delivery with quota checks and resumable batches;
   there is deliberately no unreliable mail fallback.
 - One-time reminder batches for invited real players who have not completed,
-  with each player’s personalized link and an explicit midnight Central time
-  Thursday deadline.
+  with an admin-editable subject/body, personalized link placeholder, and a
+  default midnight Central time Thursday deadline.
 - Configurable one-per-attempt admin email when any real or test player
   completes, with score, answer time, and an admin answer-sheet link.
 

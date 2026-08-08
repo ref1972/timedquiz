@@ -9,22 +9,24 @@ for (const name of requiredSecrets) {
 }
 if (!process.env.EMAIL_RELAY_URL?.startsWith("https://")) failures.push("EMAIL_RELAY_URL must be an HTTPS URL.");
 if (!process.env.APP_ORIGIN?.startsWith("https://")) failures.push("APP_ORIGIN must be the public HTTPS origin.");
-const closesAt = Date.parse(process.env.CLOSES_AT ?? "");
-if (!Number.isFinite(closesAt)) failures.push("CLOSES_AT must be a valid ISO-8601 timestamp.");
 
 const databasePath = path.resolve(process.env.DB_PATH ?? "data/quiz.db");
 if (!fs.existsSync(databasePath)) {
   failures.push(`Database does not exist: ${databasePath}`);
 } else {
   const database = new DatabaseSync(databasePath, { readOnly: true });
-  const questions = database.prepare("SELECT COUNT(*) AS count, COUNT(DISTINCT position) AS positions FROM questions").get();
-  const players = database.prepare("SELECT COUNT(*) AS count, SUM(CASE WHEN token_ciphertext IS NOT NULL THEN 1 ELSE 0 END) AS recoverable FROM players").get();
-  const attempts = database.prepare("SELECT COUNT(*) AS count FROM attempts").get();
+  const activeGame = database.prepare("SELECT id, game_number, name, closes_at FROM games WHERE is_active = 1").get();
+  if (!activeGame) failures.push("Exactly one active game is required.");
+  if (activeGame && !Number.isFinite(Date.parse(activeGame.closes_at ?? ""))) failures.push("The active game must have a valid cutoff.");
+  const questions = activeGame ? database.prepare("SELECT COUNT(*) AS count, COUNT(DISTINCT position) AS positions FROM questions WHERE game_id = ?").get(activeGame.id) : { count: 0, positions: 0 };
+  const players = activeGame ? database.prepare("SELECT COUNT(*) AS count, SUM(CASE WHEN token_ciphertext IS NOT NULL THEN 1 ELSE 0 END) AS recoverable FROM players WHERE game_id = ?").get(activeGame.id) : { count: 0, recoverable: 0 };
+  const attempts = activeGame ? database.prepare("SELECT COUNT(*) AS count FROM attempts a JOIN players p ON p.id = a.player_id WHERE p.game_id = ?").get(activeGame.id) : { count: 0 };
   if (questions.count !== 50 || questions.positions !== 50) failures.push(`Question bank must contain positions 1-50 exactly; found ${questions.count} rows and ${questions.positions} positions.`);
   if (players.count < 1) failures.push("No invited players are loaded.");
   if (players.recoverable !== players.count) failures.push(`${players.count - players.recoverable} player invitation(s) cannot be emailed until their links are rotated.`);
   if (attempts.count > 0 && process.env.ALLOW_EXISTING_ATTEMPTS !== "1") failures.push(`Database already contains ${attempts.count} attempt(s); set ALLOW_EXISTING_ATTEMPTS=1 only when intentionally checking an active event.`);
   console.log(`Database: ${databasePath}`);
+  if (activeGame) console.log(`Active game: ${activeGame.game_number} — ${activeGame.name}; cutoff: ${activeGame.closes_at ?? "not set"}`);
   console.log(`Questions: ${questions.count}; players: ${players.count}; recoverable invitations: ${players.recoverable}; attempts: ${attempts.count}`);
 }
 

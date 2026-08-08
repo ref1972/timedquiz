@@ -3,6 +3,7 @@ import path from "node:path";
 import { config } from "./config.ts";
 import { db, nowIso } from "./db.ts";
 import { encryptInvitationToken, sha256, randomToken } from "./crypto.ts";
+import { activeGame } from "./games.ts";
 
 interface SeedQuestion {
   position: number;
@@ -20,12 +21,13 @@ if (questions.length !== 50) {
   throw new Error(`Expected exactly 50 questions in questions.json, found ${questions.length}.`);
 }
 
+const gameId = activeGame().id;
 db.exec("BEGIN");
 try {
-  db.exec("DELETE FROM questions");
-  const insert = db.prepare("INSERT INTO questions (position, category, prompt, highlighted_text, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?, ?)");
+  db.prepare("DELETE FROM questions WHERE game_id = ?").run(gameId);
+  const insert = db.prepare("INSERT INTO questions (game_id, position, category, prompt, highlighted_text, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
   for (const q of questions) {
-    insert.run(q.position, q.category?.trim() || "Pop Culture", q.prompt, q.highlightedText?.trim() || "", q.answer, JSON.stringify(q.aliases ?? []));
+    insert.run(gameId, q.position, q.category?.trim() || "Pop Culture", q.prompt, q.highlightedText?.trim() || "", q.answer, JSON.stringify(q.aliases ?? []));
   }
   db.exec("COMMIT");
 } catch (error) {
@@ -38,10 +40,11 @@ console.log(
 );
 
 const testEmail = "test-player@example.com";
-const existing = db.prepare("SELECT id FROM players WHERE email = ?").get(testEmail) as { id: number } | undefined;
+const existing = db.prepare("SELECT id FROM players WHERE game_id = ? AND email = ?").get(gameId, testEmail) as { id: number } | undefined;
 if (!existing) {
   const token = randomToken();
-  db.prepare("INSERT INTO players (email, display_name, token_hash, token_ciphertext, is_test, created_at) VALUES (?, ?, ?, ?, 1, ?)").run(
+  db.prepare("INSERT INTO players (game_id, email, display_name, token_hash, token_ciphertext, is_test, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)").run(
+    gameId,
     testEmail,
     "Test Player",
     sha256(token),

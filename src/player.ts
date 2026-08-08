@@ -3,7 +3,7 @@ import { Router } from "express";
 import { db } from "./db.ts";
 import { sha256 } from "./crypto.ts";
 import { currentPlayer, requirePlayer, setPlayerSession } from "./auth.ts";
-import { currentAttempt, getStatus, recordDisplayed, saveDraft, serveNext, submitAnswer, type Player } from "./quiz.ts";
+import { currentAttempt, findPlayerByTokenHash, getStatus, recordDisplayed, saveDraft, serveNext, submitAnswer, type Player } from "./quiz.ts";
 import { page, playerPage } from "./views.ts";
 
 export const playerRouter: RouterType = Router();
@@ -24,7 +24,7 @@ playerRouter.get("/", (_req: Request, res: Response) => {
 
 playerRouter.get("/invite/:token", (req: Request, res: Response) => {
   const tokenHash = sha256(String(req.params.token ?? ""));
-  const player = db.prepare("SELECT id FROM players WHERE token_hash = ?").get(tokenHash) as { id: number } | undefined;
+  const player = findPlayerByTokenHash(tokenHash);
   if (!player) {
     res
       .status(404)

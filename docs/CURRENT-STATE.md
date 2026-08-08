@@ -1,15 +1,24 @@
 # Current state
 
-Last updated: 2026-08-05.
+Last updated: 2026-08-08.
 
 ## Source and verification
+
+- Multi-game support is implemented locally. The additive migration creates
+  Game 1 and attaches every existing player and question to it without changing
+  their primary keys, so attempts, exposures, grading rules, and audit history
+  remain connected. Admin can create, select, and activate numbered games;
+  every question/player/progress/grading query and export is scoped to the
+  selected game. Only the active game's invitation links can open a quiz, and
+  invitation/reminder sends are refused for inactive games.
+- Automated verification passes 45 tests and TypeScript typechecking. This
+  multi-game source is not committed, pushed, deployed, or production-verified.
 
 - Extracted with path-specific Git history from the TriviaNationals repository
   into the standalone `ref1972/timedquiz` project.
 - Launch hardening includes encrypted/rotatable invitations, quota-safe email
   batches, server-measured timing tiebreaks, post-cutoff authorized restarts,
   admin login throttling, preflight, backups, and deployment packaging.
-- Automated verification passes 39 tests and TypeScript typechecking.
 - Admin sign-in accepts only validated internal admin return destinations and
   preserves the current section hash. If the 12-hour session expires while an
   admin follows Players → Invitations, signing in returns to that exact panel
@@ -81,6 +90,10 @@ Last updated: 2026-08-05.
   enough relay capacity for the whole eligible group; includes each recipient’s
   encrypted-at-rest personalized link; records success/failure for safe retry;
   and states that the deadline is midnight Central time Thursday.
+- Reminder email subject/body are editable on the Players screen and stored in
+  SQLite. The current deployed wording remains the default; `{{name}}` and the
+  required `{{link}}` placeholder are safely substituted in plain-text and HTML
+  mail. Saving the template does not send anything.
 - The admin Player intro panel controls all opening-card wording. Values are
   stored in SQLite and returned dynamically before an attempt starts; quiz
   mechanics remain code-enforced.
