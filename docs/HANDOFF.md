@@ -1,5 +1,15 @@
 # Current handoff
 
+## 2026-08-09 — Game 2 question 1 canonical answer spelling corrected
+
+- At the owner's direction, Game 2 question 1's canonical/count-correct answer
+  was corrected from `Stanley Tuchi` to `Stanley Tucci`.
+- The existing `tucci` grading rule was already correct, and all 16 Tucci
+  submissions remain counted correct; no player submission or verdict changed.
+- Audit event `11573` records the old/new canonical values. Backup
+  `quiz-20260809T220050Z.sqlite.gz` passed gzip and SQLite integrity checks
+  immediately before the guarded one-row update.
+
 ## 2026-08-09 — Dan Burgess question 15 answer corrected
 
 - At the owner's direction, exposure `4752` on Dan Burgess's completed Game 2
