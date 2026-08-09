@@ -1,5 +1,17 @@
 # Current handoff
 
+## 2026-08-09 — Active Game 2 cutoff extended
+
+- At the owner's direction, active Game 2 (`2026 Pop Culture Bee Finals`) now
+  closes Sunday, August 9, 2026 at 2:00 PM Pacific / 4:00 PM Central
+  (`2026-08-09T21:00:00.000Z`), extended from 10:00 AM Pacific.
+- No question was in flight when checked. Backup
+  `quiz-20260809T190014Z.sqlite.gz` passed gzip and SQLite integrity checks
+  before the guarded one-row update.
+- Production preflight passes with 50 questions, 17 players, 17 recoverable
+  invitations, and 12 attempts. Timed Quiz is active and public health remains
+  healthy on rc34. No email was sent and no service restart was required.
+
 ## 2026-08-08 — Multi-game architecture deployed as rc34
 
 - Added numbered games with a single active-game constraint and a per-game

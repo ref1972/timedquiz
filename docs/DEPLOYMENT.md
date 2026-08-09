@@ -18,11 +18,11 @@ Current deployed release: `timed-quiz-v0.1.0-rc34`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
-The live cutoff is `2026-08-07T06:00:00Z`, which is 1:00 AM Central Daylight
-Time on Friday, August 7. The one-hour operational grace is deliberate; public
-reminder copy continues to state that the deadline is midnight Thursday.
+The active Game 2 cutoff is `2026-08-09T21:00:00.000Z`, which is 2:00 PM
+Pacific / 4:00 PM Central Daylight Time on Sunday, August 9, 2026. Cutoffs are
+stored per game in SQLite; Game 1 retains its historical cutoff.
 
-One real player has completed an attempt, so the question bank is frozen:
+Real players have completed attempts, so the active question bank is frozen:
 individual question edits and full-bank import both return 409. The
 `answer_is_person` grading flag is deliberately exempt and stays editable at
 `POST /admin/question/:id/grading` — see `docs/DECISIONS.md`.
