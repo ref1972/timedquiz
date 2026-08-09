@@ -1,5 +1,20 @@
 # Current handoff
 
+## 2026-08-09 — Game 2 reopened for Kelsey through 4 PM Pacific
+
+- At 2:55 PM Pacific, the owner requested another hour for Kelsey Barcomb.
+  Active Game 2 was therefore reopened through 4:00 PM Pacific / 6:00 PM
+  Central (`2026-08-09T23:00:00.000Z`), rather than only through 3:00 PM.
+- Kelsey was verified as an unfinished, not-started real Game 2 player with a
+  recoverable link. One updated reminder was sent only to her, stating the
+  4:00 PM cutoff and including her personalized link. Relay capacity was 974
+  before the send; the send succeeded with one matching audit event and no
+  reminder error.
+- Her exact invitation URL was tested without displaying the token and returned
+  the expected HTTP 302 quiz redirect. Backup
+  `quiz-20260809T215515Z.sqlite.gz` passed gzip and SQLite integrity checks
+  before the cutoff update. Timed Quiz remained active.
+
 ## 2026-08-09 — Five incomplete-player reminders resent
 
 - At the owner's direction, reminders were resent to all five unfinished real

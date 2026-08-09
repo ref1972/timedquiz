@@ -148,9 +148,10 @@ Last updated: 2026-08-09.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
-- Active Game 2, `2026 Pop Culture Bee Finals`, closes at 2:00 PM Pacific /
-  4:00 PM Central on Sunday, August 9, 2026
-  (`2026-08-09T21:00:00.000Z`). The owner extended it from 10:00 AM Pacific.
+- Active Game 2, `2026 Pop Culture Bee Finals`, closes at 4:00 PM Pacific /
+  6:00 PM Central on Sunday, August 9, 2026
+  (`2026-08-09T23:00:00.000Z`). The owner first extended it from 10:00 AM to
+  2:00 PM, then reopened it at 2:55 PM to give one player roughly another hour.
   Backup `quiz-20260809T190014Z.sqlite.gz` passed gzip and SQLite integrity
   checks before the one-row update. Production preflight passes with 50
   questions, 17 players, and 12 attempts; no email was sent.
@@ -159,6 +160,11 @@ Last updated: 2026-08-09.
   Sunday deadline. All five relay sends succeeded with five matching audit
   events and no reminder errors; backup `quiz-20260809T190506Z.sqlite.gz` passed
   gzip and SQLite integrity checks immediately beforehand.
+- Kelsey Barcomb received a subsequent individual reminder with the 4:00 PM
+  cutoff and her personalized link. The relay accepted the message, its audit
+  record has no error, and the exact link returned the expected quiz redirect.
+  Backup `quiz-20260809T215515Z.sqlite.gz` passed gzip and SQLite integrity
+  checks before the extension.
 - Release `timed-quiz-v0.1.0-rc34` is deployed and verified after backup
   `quiz-20260808T181151Z.sqlite.gz`, which passed gzip and SQLite integrity
   checks. The migration retained 85 players, 50 questions, 87 attempts, and

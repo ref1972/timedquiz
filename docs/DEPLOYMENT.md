@@ -18,8 +18,9 @@ Current deployed release: `timed-quiz-v0.1.0-rc34`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
-The active Game 2 cutoff is `2026-08-09T21:00:00.000Z`, which is 2:00 PM
-Pacific / 4:00 PM Central Daylight Time on Sunday, August 9, 2026. Cutoffs are
+The active Game 2 cutoff is `2026-08-09T23:00:00.000Z`, which is 4:00 PM
+Pacific / 6:00 PM Central Daylight Time on Sunday, August 9, 2026. It was
+reopened at 2:55 PM to provide roughly another hour for one player. Cutoffs are
 stored per game in SQLite; Game 1 retains its historical cutoff.
 
 Real players have completed attempts, so the active question bank is frozen:
