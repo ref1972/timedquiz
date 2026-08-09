@@ -154,6 +154,11 @@ Last updated: 2026-08-09.
   Backup `quiz-20260809T190014Z.sqlite.gz` passed gzip and SQLite integrity
   checks before the one-row update. Production preflight passes with 50
   questions, 17 players, and 12 attempts; no email was sent.
+- Five reminders were intentionally resent to every unfinished real Game 2
+  player after the extension. The saved template now states the 2:00 PM Pacific
+  Sunday deadline. All five relay sends succeeded with five matching audit
+  events and no reminder errors; backup `quiz-20260809T190506Z.sqlite.gz` passed
+  gzip and SQLite integrity checks immediately beforehand.
 - Release `timed-quiz-v0.1.0-rc34` is deployed and verified after backup
   `quiz-20260808T181151Z.sqlite.gz`, which passed gzip and SQLite integrity
   checks. The migration retained 85 players, 50 questions, 87 attempts, and

@@ -1,5 +1,19 @@
 # Current handoff
 
+## 2026-08-09 — Five incomplete-player reminders resent
+
+- At the owner's direction, reminders were resent to all five unfinished real
+  players in active Game 2. Every player had received the earlier reminder, so
+  this was an intentional resend rather than the normal one-time batch.
+- Before sending, the saved subject/body were corrected from noon to the
+  extended 2:00 PM Pacific Sunday deadline. Each message included its player's
+  encrypted-at-rest personalized link.
+- Relay capacity was 965 before the batch. All five messages succeeded, five
+  resend audit events are present, and the unfinished group has zero reminder
+  errors. No fallback mailer was used.
+- Backup `quiz-20260809T190506Z.sqlite.gz` passed gzip and SQLite integrity
+  checks immediately before the send. Timed Quiz remained active.
+
 ## 2026-08-09 — Active Game 2 cutoff extended
 
 - At the owner's direction, active Game 2 (`2026 Pop Culture Bee Finals`) now
