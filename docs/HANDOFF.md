@@ -1,5 +1,17 @@
 # Current handoff
 
+## 2026-08-09 — Dan Burgess question 15 answer corrected
+
+- At the owner's direction, exposure `4752` on Dan Burgess's completed Game 2
+  attempt was changed from `my weird addiction` to `my strange addiction` for
+  question 15. The normalized answer was updated with it and the verdict was
+  changed from incorrect to correct, matching canonical answer
+  `My Strange Addiction`.
+- Dan's completed-attempt score now calculates to 43. Audit event `11562`
+  records the exact old/new values and question position.
+- Backup `quiz-20260809T215909Z.sqlite.gz` passed gzip and SQLite integrity
+  checks immediately before the guarded one-row update.
+
 ## 2026-08-09 — Game 2 reopened for Kelsey through 4 PM Pacific
 
 - At 2:55 PM Pacific, the owner requested another hour for Kelsey Barcomb.

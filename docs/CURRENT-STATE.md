@@ -148,6 +148,11 @@ Last updated: 2026-08-09.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
+- Dan Burgess's Game 2 question 15 answer was owner-corrected from
+  `my weird addiction` to `my strange addiction`, with normalized answer and
+  verdict updated to correct. His resulting score is 43. Audit event `11562`
+  records the change; backup `quiz-20260809T215909Z.sqlite.gz` passed gzip and
+  SQLite integrity checks beforehand.
 - Active Game 2, `2026 Pop Culture Bee Finals`, closes at 4:00 PM Pacific /
   6:00 PM Central on Sunday, August 9, 2026
   (`2026-08-09T23:00:00.000Z`). The owner first extended it from 10:00 AM to
