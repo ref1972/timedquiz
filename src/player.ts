@@ -4,22 +4,50 @@ import { db } from "./db.ts";
 import { sha256 } from "./crypto.ts";
 import { currentPlayer, requirePlayer, setPlayerSession } from "./auth.ts";
 import { currentAttempt, findPlayerByTokenHash, getStatus, recordDisplayed, saveDraft, serveNext, submitAnswer, type Player } from "./quiz.ts";
-import { page, playerPage } from "./views.ts";
+import { playableGames } from "./games.ts";
+import { playerForGame, playerGameOptions, registerPublicPlayer } from "./public-access.ts";
+import { page, playerPage, publicAccessPage } from "./views.ts";
 
 export const playerRouter: RouterType = Router();
+const publicRegistrations = new Map<string, { count: number; resetsAt: number }>();
+
+function registrationRateLimited(ip: string): boolean {
+  const now = Date.now();
+  for (const [key, value] of publicRegistrations) if (value.resetsAt <= now) publicRegistrations.delete(key);
+  const existing = publicRegistrations.get(ip);
+  if (!existing) {
+    publicRegistrations.set(ip, { count: 1, resetsAt: now + 60 * 60_000 });
+    return false;
+  }
+  existing.count++;
+  return existing.count > 10;
+}
 
 playerRouter.get("/health", (_req: Request, res: Response) => {
   const dbOk = db.prepare("SELECT 1 AS ok").get();
   res.json({ ok: true, database: dbOk, release: process.env.RELEASE_ID ?? "local" });
 });
 
-playerRouter.get("/", (_req: Request, res: Response) => {
-  res.send(
-    page(
-      "Pop Culture Bee",
-      `<main class="card"><p class="eyebrow">Trivia Nationals</p><h1>Pop Culture Bee Preliminary Quiz</h1><p>This quiz is available only through a personalized invitation link.</p></main>`,
-    ),
-  );
+playerRouter.get("/", (req: Request, res: Response) => {
+  const player = currentPlayer(req);
+  res.send(publicAccessPage(playableGames(), player, player ? playerGameOptions(player) : []));
+});
+
+playerRouter.post("/play/register", (req: Request, res: Response) => {
+  if (registrationRateLimited(req.ip ?? "unknown")) return void res.status(429).send(page("Try again later", '<main class="card"><h1>Too many registrations</h1><p>Please try again later.</p></main>'));
+  const player = registerPublicPlayer(Number(req.body.gameId), String(req.body.name ?? ""));
+  if (!player) return void res.status(400).send(page("Could not register", '<main class="card"><h1>Choose an open game and enter your name.</h1><a class="button" href="/">Return</a></main>'));
+  setPlayerSession(res, player.id);
+  res.redirect("/quiz");
+});
+
+playerRouter.post("/play/game", (req: Request, res: Response) => {
+  const current = currentPlayer(req);
+  if (!current) return void res.redirect("/");
+  const player = playerForGame(current, Number(req.body.gameId));
+  if (!player) return void res.status(400).send(page("Game unavailable", '<main class="card"><h1>That game is not open.</h1><a class="button" href="/">Choose another game</a></main>'));
+  setPlayerSession(res, player.id);
+  res.redirect("/quiz");
 });
 
 playerRouter.get("/invite/:token", (req: Request, res: Response) => {
@@ -32,7 +60,7 @@ playerRouter.get("/invite/:token", (req: Request, res: Response) => {
     return;
   }
   setPlayerSession(res, player.id);
-  res.redirect("/quiz");
+  res.redirect("/");
 });
 
 playerRouter.get("/quiz", (req: Request, res: Response) => {

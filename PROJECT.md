@@ -5,10 +5,10 @@ server-timed online quizzes. Its first production use is the Trivia Workshop
 Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
 
 The application supports multiple numbered games. Players, questions, attempts,
-results, grading, and invitation links stay attached to their game. Exactly one
-game is active; only that game's personalized links can open the player quiz.
-Inactive games retain their complete history and can also be prepared before
-being activated.
+results, and grading stay attached to their game. Complete games with no cutoff
+or a future cutoff are available through a public game chooser; a player may
+play each available game independently. The single active-game flag now scopes
+admin invitation and reminder email operations rather than player access.
 
 ## Current release
 

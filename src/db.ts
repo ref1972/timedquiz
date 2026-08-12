@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS players (
   reminder_last_error TEXT,
   reminder_send_attempts INTEGER NOT NULL DEFAULT 0,
   is_test INTEGER NOT NULL DEFAULT 0,
+  is_public INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   UNIQUE (game_id, email)
 );
@@ -166,10 +167,11 @@ if (!legacyPlayerColumns.some((column) => column.name === "game_id") || !legacyQ
         invite_last_error TEXT, invite_send_attempts INTEGER NOT NULL DEFAULT 0,
         reminder_sent_at TEXT, reminder_last_error TEXT,
         reminder_send_attempts INTEGER NOT NULL DEFAULT 0, is_test INTEGER NOT NULL DEFAULT 0,
+        is_public INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL, UNIQUE (game_id, email));`);
       db.prepare(`INSERT INTO players_new SELECT id, ?, email, display_name, token_hash, token_ciphertext,
         invite_sent_at, invite_last_error, invite_send_attempts, reminder_sent_at,
-        reminder_last_error, reminder_send_attempts, is_test, created_at FROM players`).run(initialGameId);
+        reminder_last_error, reminder_send_attempts, is_test, 0, created_at FROM players`).run(initialGameId);
       db.exec("DROP TABLE players; ALTER TABLE players_new RENAME TO players;");
     }
     if (!legacyQuestionColumns.some((column) => column.name === "game_id")) {
@@ -226,6 +228,9 @@ if (!playerColumns.some((column) => column.name === "reminder_last_error")) {
 }
 if (!playerColumns.some((column) => column.name === "reminder_send_attempts")) {
   db.exec("ALTER TABLE players ADD COLUMN reminder_send_attempts INTEGER NOT NULL DEFAULT 0");
+}
+if (!playerColumns.some((column) => column.name === "is_public")) {
+  db.exec("ALTER TABLE players ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0");
 }
 
 const exposureColumns = db.prepare("PRAGMA table_info(exposures)").all() as unknown as Array<{ name: string }>;

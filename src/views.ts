@@ -4,6 +4,8 @@ import type { InvitationTemplate } from "./invitation-template.ts";
 import type { CompletionNotificationSettings } from "./completion-notification.ts";
 import type { ReminderTemplate } from "./reminder-template.ts";
 import type { Game } from "./games.ts";
+import type { PlayerGameOption } from "./public-access.ts";
+import type { Player } from "./quiz.ts";
 import { visiblePromptText } from "./question-import.ts";
 
 function esc(value: unknown): string {
@@ -58,6 +60,24 @@ export function playerPage(): string {
 <script src="/quiz.js"></script>
 </body>
 </html>`;
+}
+
+export function publicAccessPage(games: Game[], player: Player | null, options: PlayerGameOption[] = []): string {
+  const gameForms = player
+    ? options.map((option) => `<article class="game-card">
+        <p class="eyebrow">Game ${option.game.game_number}</p><h2>${esc(option.game.name)}</h2>
+        <p>Status: <strong>${esc(option.status)}</strong></p>
+        <form method="post" action="/play/game"><input type="hidden" name="gameId" value="${option.game.id}"><button>${option.status === "completed" ? "View completed game" : option.status === "in progress" ? "Continue game" : "Play this game"}</button></form>
+      </article>`).join("")
+    : games.map((game) => `<article class="game-card">
+        <p class="eyebrow">Game ${game.game_number}</p><h2>${esc(game.name)}</h2>
+        <form method="post" action="/play/register"><input type="hidden" name="gameId" value="${game.id}"><label>Your display name<input name="name" maxlength="100" required autocomplete="name"></label><button>Play this game</button></form>
+      </article>`).join("");
+  return page("Play the Pop Culture Bee", `<main class="card wide public-home">
+    <p class="eyebrow">Trivia Nationals</p><h1>Play the Pop Culture Bee</h1>
+    <p>${player ? `Welcome, <strong>${esc(player.display_name || "player")}</strong>. Choose a game below; each game keeps its own progress and score.` : "Choose a game and enter the name you want shown with your score. No email address is required."}</p>
+    <div class="game-grid">${gameForms || '<p class="notice">No games are open right now.</p>'}</div>
+  </main>`);
 }
 
 export interface AdminPageData {
@@ -251,7 +271,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <h2>Games</h2>
         <p>Viewing <strong>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</strong>${data.selectedGame.is_active ? ' <span class="status-pill">active</span>' : ' <span class="status-pill">inactive</span>'}. Questions, players, progress, grading, and exports below belong only to this game.</p>
         <div class="game-actions">${data.games.map((game) => `<form method="post" action="/admin/game/select"><input type="hidden" name="gameId" value="${game.id}"><button class="small ${game.id === data.selectedGame.id ? "" : "secondary"}">Game ${game.game_number}: ${esc(game.name)}${game.is_active ? " · active" : ""}</button></form>`).join("")}</div>
-        ${data.selectedGame.is_active ? "" : `<form method="post" action="/admin/game/activate" onsubmit="return confirm('Make Game ${data.selectedGame.game_number} active? Existing invitation links for the current active game will stop opening the quiz.')"><input type="hidden" name="gameId" value="${data.selectedGame.id}"><button>Make this the active game</button></form>`}
+        ${data.selectedGame.is_active ? "" : `<form method="post" action="/admin/game/activate" onsubmit="return confirm('Make Game ${data.selectedGame.game_number} the active admin game for invitation and reminder email operations?')"><input type="hidden" name="gameId" value="${data.selectedGame.id}"><button>Make this the active admin game</button></form>`}
         <details><summary>Create a new game</summary><form method="post" action="/admin/game/create"><label>Game name<input name="name" maxlength="160" required></label><label>Cutoff (Central time)<input type="datetime-local" name="closesAt" required></label><button>Create inactive game</button></form></details>
       </section>
 

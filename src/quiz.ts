@@ -38,7 +38,7 @@ export interface Exposure {
 }
 
 export type QuizState =
-  | { state: "prestart"; questionCount: number; closesAt: string | null; intro: IntroCopy; durationSeconds: number }
+  | { state: "prestart"; gameName: string; questionCount: number; closesAt: string | null; intro: IntroCopy; durationSeconds: number }
   | { state: "closed" }
   | { state: "ready"; nextPosition: number; category: string; durationSeconds: number }
   // serverNow is the server's own clock at the instant this state was built.
@@ -58,14 +58,12 @@ function durationSeconds(): number {
 }
 
 export function findPlayerById(id: number): Player | null {
-  return (db.prepare(`SELECT p.id, p.game_id, p.email, p.display_name, p.is_test FROM players p
-    JOIN games g ON g.id = p.game_id WHERE p.id = ? AND g.is_active = 1`).get(id) as unknown as Player | undefined) ?? null;
+  return (db.prepare("SELECT id, game_id, email, display_name, is_test FROM players WHERE id = ?").get(id) as unknown as Player | undefined) ?? null;
 }
 
 export function findPlayerByTokenHash(tokenHash: string): Player | null {
   return (
-    (db.prepare(`SELECT p.id, p.game_id, p.email, p.display_name, p.is_test FROM players p
-      JOIN games g ON g.id = p.game_id WHERE p.token_hash = ? AND g.is_active = 1`).get(tokenHash) as
+    (db.prepare(`SELECT id, game_id, email, display_name, is_test FROM players WHERE token_hash = ?`).get(tokenHash) as
       | Player
       | undefined) ?? null
   );
@@ -201,7 +199,7 @@ export function getStatus(player: Player): QuizState {
   const attempt = currentAttempt(player.id);
   if (!attempt) {
     if (closesAt !== null && Date.now() > closesAt && !hasAuthorizedRestart(player.id)) return { state: "closed" };
-    return { state: "prestart", questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
+    return { state: "prestart", gameName: game.name, questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
   }
   expireIfNeeded(attempt.id);
   const refreshed = currentAttempt(player.id);
@@ -240,7 +238,7 @@ export function getStatus(player: Player): QuizState {
 export function serveNext(player: Player): QuizState {
   const game = gameById(player.game_id)!;
   const closesAt = game.closes_at ? Date.parse(game.closes_at) : null;
-  if (questionCount(player.game_id) !== 50) return { state: "prestart", questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
+  if (questionCount(player.game_id) !== 50) return { state: "prestart", gameName: game.name, questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
 
   let attempt = currentAttempt(player.id);
   if (!attempt) {

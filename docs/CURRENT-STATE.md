@@ -1,8 +1,23 @@
 # Current state
 
-Last updated: 2026-08-09.
+Last updated: 2026-08-11.
 
 ## Source and verification
+
+- Public-access and multi-game chooser support is implemented locally for the
+  next release. Any complete game with no cutoff or a future cutoff appears on
+  the home page. New players register with a display name only; invited players
+  retain their personalized identity and can play either available game, with
+  separate player/attempt history per game. Public and chooser-created records
+  are excluded from invitation, reminder, player-list export, and completion
+  email pipelines, while remaining visible in results and grading.
+- The existing active-game flag remains the safety boundary for admin email
+  operations, but no longer invalidates an otherwise playable game's existing
+  invitation links.
+- Verification passes 47 tests and TypeScript typechecking. A scratch two-game
+  browser flow rendered both game cards, registered a public player into Game
+  1, returned to the chooser, switched to Game 2, and reported no console
+  errors.
 
 - Multi-game support is deployed as rc34. The additive migration creates
   Game 1 and attaches every existing player and question to it without changing

@@ -26,6 +26,8 @@ function esc(value: unknown): string {
 export async function sendCompletionNotification(attemptId: number): Promise<boolean> {
   const settings = getCompletionNotificationSettings();
   if (!settings.enabled || !settings.recipient || !relayConfigured()) return false;
+  const player = db.prepare("SELECT p.is_public FROM attempts a JOIN players p ON p.id = a.player_id WHERE a.id = ?").get(attemptId) as { is_public: number } | undefined;
+  if (!player || player.is_public) return false;
 
   const claimed = db.prepare(`UPDATE attempts SET completion_notification_started_at = ?, completion_notification_error = NULL
     WHERE id = ? AND status = 'completed' AND completion_notification_started_at IS NULL`).run(nowIso(), attemptId).changes;

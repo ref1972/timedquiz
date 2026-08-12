@@ -13,6 +13,18 @@ export function games(): Game[] {
   return db.prepare("SELECT * FROM games ORDER BY game_number DESC").all() as unknown as Game[];
 }
 
+export function playableGames(): Game[] {
+  const now = new Date().toISOString();
+  return db.prepare(`SELECT g.* FROM games g
+    WHERE (g.closes_at IS NULL OR g.closes_at > ?)
+      AND (SELECT COUNT(*) FROM questions q WHERE q.game_id = g.id) = 50
+    ORDER BY g.game_number`).all(now) as unknown as Game[];
+}
+
+export function gameIsPlayable(id: number): boolean {
+  return playableGames().some((game) => game.id === id);
+}
+
 export function activeGame(): Game {
   const game = db.prepare("SELECT * FROM games WHERE is_active = 1").get() as unknown as Game | undefined;
   if (!game) throw new Error("No active game is configured.");

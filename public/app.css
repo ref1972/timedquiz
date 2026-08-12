@@ -68,6 +68,11 @@ body {
 [hidden] { display: none !important; }
 .narrow { max-width: 480px; }
 .wide { max-width: 900px; }
+.game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
+.game-card { padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-soft); }
+.game-card h2 { margin: 8px 0; }
+.game-card form { margin-top: 18px; }
+.game-card label { margin-top: 0; }
 .theme-toggle {
   position: fixed;
   z-index: 5;

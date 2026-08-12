@@ -65,9 +65,9 @@
     } else if (state.state === "prestart") {
       var intro = state.intro || {};
       root.innerHTML =
-        '<p class="eyebrow">' + escapeHtml(intro.eyebrow || "Trivia Nationals") + '</p><h1>' + escapeHtml(intro.title || "Pop Culture Bee Preliminary") + '</h1>' +
+        '<p class="eyebrow">' + escapeHtml(intro.eyebrow || "Trivia Nationals") + '</p><h1>' + escapeHtml(state.gameName || intro.title || "Pop Culture Bee") + '</h1>' +
         '<p>' + escapeHtml(intro.instructions || ("You will answer " + state.questionCount + " text questions, one at a time. Each question has " + state.durationSeconds + " seconds.")) + '</p>' +
-        '<p>' + escapeHtml(intro.advancement || "You will not see correctness or a score. Your result determines whether you advance to the LIVE game Saturday.") + '</p>' +
+        '<p>Your result will be saved separately for this game.</p>' +
         '<button id="start">' + escapeHtml(intro.buttonLabel || "I’m ready to begin") + '</button>';
       document.querySelector("#start").onclick = ready;
     } else if (state.state === "ready") {
@@ -80,7 +80,7 @@
       document.querySelector("#readyBtn").onclick = ready;
     } else if (state.state === "complete") {
       root.innerHTML =
-        '<p class="eyebrow">Finished</p><h1>Thank you!</h1><p>Your score determines whether you advance to the LIVE Pop Culture Bee game on Saturday. Trivia Nationals will announce results separately.</p>';
+        '<p class="eyebrow">Finished</p><h1>Thank you!</h1><p>Your score has been saved.</p><a class="button" href="/">Choose another game</a>';
     } else {
       showQuestion();
     }

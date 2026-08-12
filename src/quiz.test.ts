@@ -35,6 +35,7 @@ const invitationTemplate = await import("./invitation-template.ts");
 const reminderTemplate = await import("./reminder-template.ts");
 const completionNotification = await import("./completion-notification.ts");
 const gameStore = await import("./games.ts");
+const publicAccess = await import("./public-access.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -773,6 +774,35 @@ test("completion notifications include testers and claim each attempt before one
   }
 });
 
+test("public completions never call the configured mail relay", async () => {
+  const player = publicAccess.registerPublicPlayer(gameStore.activeGame().id, "No Mail Player");
+  assert.ok(player);
+  const started = new Date().toISOString();
+  const attemptId = Number(db.prepare("INSERT INTO attempts (player_id, generation, status, started_at, completed_at) VALUES (?, 1, 'completed', ?, ?)").run(player.id, started, started).lastInsertRowid);
+  const originalUrl = config.emailRelayUrl;
+  const originalSecret = config.emailRelaySecret;
+  const originalClientId = config.emailRelayClientId;
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  try {
+    config.emailRelayUrl = "https://relay.test/v1/mail";
+    config.emailRelaySecret = "test-secret";
+    config.emailRelayClientId = "timed_quiz";
+    completionNotification.setCompletionNotificationSettings({ enabled: true, recipient: "owner@example.com" });
+    globalThis.fetch = (async () => { calls++; return new Response(JSON.stringify({ ok: true }), { status: 200 }); }) as typeof fetch;
+    assert.equal(await completionNotification.sendCompletionNotification(attemptId), false);
+    assert.equal(calls, 0);
+    const stored = db.prepare("SELECT completion_notification_started_at FROM attempts WHERE id = ?").get(attemptId) as { completion_notification_started_at: string | null };
+    assert.equal(stored.completion_notification_started_at, null);
+  } finally {
+    completionNotification.setCompletionNotificationSettings({ enabled: false, recipient: "" });
+    config.emailRelayUrl = originalUrl;
+    config.emailRelaySecret = originalSecret;
+    config.emailRelayClientId = originalClientId;
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("administrator password changes are salted, hashed, and immediately replace the bootstrap password", () => {
   assert.equal(auth.checkAdminPassword(config.adminPassword), true);
   const replacement = "short";
@@ -904,7 +934,7 @@ test("reminders select only invited, incomplete, unreminded real players", () =>
   for (const id of [eligible, completed, testPlayer, reminded, notInvited]) db.prepare("DELETE FROM players WHERE id = ?").run(id);
 });
 
-test("games isolate players and questions while only the active game's links open", () => {
+test("games isolate players and questions while playable inactive-game links still open", () => {
   const firstGame = gameStore.activeGame();
   const secondGame = gameStore.createGame("Second Bee", "2026-12-01T06:00:00.000Z");
   const createdAt = new Date().toISOString();
@@ -914,7 +944,7 @@ test("games isolate players and questions while only the active game's links ope
     VALUES (?, ?, ?, ?, ?, 0, ?)`).run(secondGame.id, "player1@test.invalid", "Second Game Player", cryptoHelpers.sha256(token), cryptoHelpers.encryptInvitationToken(token), createdAt).lastInsertRowid);
   db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, 1, ?, ?, '[]')").run(secondGame.id, "Second game question?", "second");
 
-  assert.equal(quiz.findPlayerByTokenHash(cryptoHelpers.sha256(token)), null, "inactive-game links stay closed");
+  assert.equal(quiz.findPlayerByTokenHash(cryptoHelpers.sha256(token))?.id, secondPlayerId, "a valid link is independent of the admin email-selection flag");
   gameStore.selectGame(secondGame.id);
   assert.equal(admin.adminQuestions().length, 1);
   assert.equal(admin.results().some((row) => row.id === secondPlayerId), true);
@@ -928,5 +958,28 @@ test("games isolate players and questions while only the active game's links ope
   gameStore.selectGame(firstGame.id);
   db.prepare("DELETE FROM questions WHERE game_id = ?").run(secondGame.id);
   db.prepare("DELETE FROM players WHERE id = ?").run(secondPlayerId);
+  db.prepare("DELETE FROM games WHERE id = ?").run(secondGame.id);
+});
+
+test("public players can choose and play each open game without entering invitation batches", () => {
+  const firstGame = gameStore.activeGame();
+  const secondGame = gameStore.createGame("Public Second Bee", null);
+  const insertQuestion = db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, '[]')");
+  for (let i = 1; i <= 50; i++) insertQuestion.run(secondGame.id, i, `Second question ${i}?`, `second${i}`);
+
+  const invitationCountBefore = admin.invitationStats().realPlayers;
+  const player = publicAccess.registerPublicPlayer(firstGame.id, "  Public   Player  ");
+  assert.ok(player);
+  assert.equal(player.display_name, "Public Player");
+  assert.equal(publicAccess.playerGameOptions(player).length, 2);
+
+  const secondPlayer = publicAccess.playerForGame(player, secondGame.id);
+  assert.ok(secondPlayer);
+  assert.equal(secondPlayer.email, player.email, "the chooser keeps one private public identity across games");
+  assert.notEqual(secondPlayer.id, player.id, "each game retains its own player and attempt history");
+  assert.equal(admin.invitationStats().realPlayers, invitationCountBefore, "public registrations do not enter email batches");
+
+  db.prepare("DELETE FROM players WHERE email = ?").run(player.email);
+  db.prepare("DELETE FROM questions WHERE game_id = ?").run(secondGame.id);
   db.prepare("DELETE FROM games WHERE id = ?").run(secondGame.id);
 });

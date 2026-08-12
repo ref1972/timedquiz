@@ -211,7 +211,7 @@ export interface ReminderCandidate {
 
 export function reminderCandidates(): ReminderCandidate[] {
   return db.prepare(`SELECT p.id, p.email, p.display_name, p.token_ciphertext FROM players p
-    WHERE p.is_test = 0 AND p.game_id = ?
+    WHERE p.is_test = 0 AND p.is_public = 0 AND p.game_id = ?
       AND p.invite_sent_at IS NOT NULL
       AND p.token_ciphertext IS NOT NULL
       AND p.reminder_sent_at IS NULL
@@ -224,7 +224,7 @@ export function reminderStats(): ReminderStats {
   const row = db.prepare(`SELECT
     SUM(CASE WHEN reminder_sent_at IS NOT NULL THEN 1 ELSE 0 END) AS sent,
     SUM(CASE WHEN reminder_last_error IS NOT NULL THEN 1 ELSE 0 END) AS needs_attention
-    FROM players WHERE is_test = 0 AND game_id = ?`).get(selectedGame().id) as { sent: number | null; needs_attention: number | null };
+    FROM players WHERE is_test = 0 AND is_public = 0 AND game_id = ?`).get(selectedGame().id) as { sent: number | null; needs_attention: number | null };
   return { eligible, sent: row.sent ?? 0, needsAttention: row.needs_attention ?? 0 };
 }
 
@@ -234,7 +234,7 @@ export function invitationStats(): InvitationStats {
     SUM(CASE WHEN invite_sent_at IS NOT NULL THEN 1 ELSE 0 END) AS sent,
     SUM(CASE WHEN invite_sent_at IS NULL AND token_ciphertext IS NOT NULL THEN 1 ELSE 0 END) AS ready,
     SUM(CASE WHEN invite_last_error IS NOT NULL OR token_ciphertext IS NULL THEN 1 ELSE 0 END) AS needs_attention
-    FROM players WHERE is_test = 0 AND game_id = ?`).get(selectedGame().id) as { real_players: number; sent: number | null; ready: number | null; needs_attention: number | null };
+    FROM players WHERE is_test = 0 AND is_public = 0 AND game_id = ?`).get(selectedGame().id) as { real_players: number; sent: number | null; ready: number | null; needs_attention: number | null };
   return { realPlayers: row.real_players, sent: row.sent ?? 0, ready: row.ready ?? 0, needsAttention: row.needs_attention ?? 0 };
 }
 
@@ -523,7 +523,7 @@ adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) =
 });
 
 adminRouter.get("/admin/players.csv", requireAdmin, (_req: Request, res: Response) => {
-  const players = db.prepare("SELECT email, display_name, is_test FROM players WHERE game_id = ? ORDER BY email").all(selectedGame().id) as unknown as Array<{ email: string; display_name: string; is_test: number }>;
+  const players = db.prepare("SELECT email, display_name, is_test FROM players WHERE game_id = ? AND is_public = 0 ORDER BY email").all(selectedGame().id) as unknown as Array<{ email: string; display_name: string; is_test: number }>;
   res.type("text/csv");
   res.setHeader("Content-Disposition", 'attachment; filename="timed-quiz-players.csv"');
   res.send(playersToCsv(players.map((player) => ({ email: player.email, name: player.display_name, isTest: Boolean(player.is_test) }))));
@@ -555,7 +555,7 @@ adminRouter.post("/admin/invitations/quota", requireAdmin, async (_req: Request,
 });
 
 adminRouter.post("/admin/invitations/test", requireAdmin, async (req: Request, res: Response) => {
-  if (!selectedGame().is_active) return void res.status(409).send(page("Game inactive", `<main class="card"><h1>Activate this game before sending invitations</h1><p>Invitation links open only for the active game.</p><a href="/admin/players#invitations">Return</a></main>`));
+  if (!selectedGame().is_active) return void res.status(409).send(page("Game inactive", `<main class="card"><h1>Activate this game before sending invitations</h1><p>Email batches remain restricted to the active admin game.</p><a href="/admin/players#invitations">Return</a></main>`));
   const to = String(req.body.email ?? "").trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(to)) {
     res.status(400).send(page("Invalid email", `<main class="card"><h1>Enter a valid test address</h1><a href="/admin/players#invitations">Return to invitations</a></main>`));
@@ -581,10 +581,10 @@ adminRouter.post("/admin/invitations/test", requireAdmin, async (req: Request, r
 });
 
 adminRouter.post("/admin/invitations/send-batch", requireAdmin, async (_req: Request, res: Response) => {
-  if (!selectedGame().is_active) return void res.status(409).send(page("Game inactive", `<main class="card"><h1>Activate this game before sending invitations</h1><p>Invitation links open only for the active game.</p><a href="/admin/players#invitations">Return</a></main>`));
+  if (!selectedGame().is_active) return void res.status(409).send(page("Game inactive", `<main class="card"><h1>Activate this game before sending invitations</h1><p>Email batches remain restricted to the active admin game.</p><a href="/admin/players#invitations">Return</a></main>`));
   const gameId = selectedGame().id;
   const candidates = db.prepare(`SELECT id, email, display_name, token_ciphertext FROM players
-    WHERE game_id = ? AND is_test = 0 AND invite_sent_at IS NULL AND token_ciphertext IS NOT NULL ORDER BY id LIMIT 5`).all(gameId) as unknown as Array<{ id: number; email: string; display_name: string; token_ciphertext: string }>;
+    WHERE game_id = ? AND is_test = 0 AND is_public = 0 AND invite_sent_at IS NULL AND token_ciphertext IS NOT NULL ORDER BY id LIMIT 5`).all(gameId) as unknown as Array<{ id: number; email: string; display_name: string; token_ciphertext: string }>;
   if (!candidates.length) {
     res.send(page("Invitations complete", `<main class="card"><h1>No unsent recoverable invitations</h1><p>Everyone eligible is sent, or their link must first be rotated.</p><a href="/admin#invitations">Return to invitations</a></main>`));
     return;
@@ -623,7 +623,7 @@ adminRouter.post("/admin/invitations/send-batch", requireAdmin, async (_req: Req
     logEvent(null, "invitation_email_sent", { playerId: player.id });
     sent++;
   }
-  const remaining = Number((db.prepare("SELECT COUNT(*) AS n FROM players WHERE game_id = ? AND is_test = 0 AND invite_sent_at IS NULL AND token_ciphertext IS NOT NULL").get(gameId) as { n: number }).n);
+  const remaining = Number((db.prepare("SELECT COUNT(*) AS n FROM players WHERE game_id = ? AND is_test = 0 AND is_public = 0 AND invite_sent_at IS NULL AND token_ciphertext IS NOT NULL").get(gameId) as { n: number }).n);
   res.status(failure ? 502 : 200).send(page("Invitation batch", `<main class="card"><h1>${failure ? "Send paused" : `Sent ${sent} invitation${sent === 1 ? "" : "s"}`}</h1><p>${failure ? `Stopped safely after ${sent} successful message${sent === 1 ? "" : "s"}: ${escapeHtml(failure)}` : `${remaining} recoverable invitation${remaining === 1 ? " remains" : "s remain"}.`}</p><p>No failed message was marked sent and no fallback mailer was used.</p><a href="/admin#invitations">Return to invitations</a></main>`));
 });
 
