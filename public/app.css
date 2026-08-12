@@ -289,6 +289,9 @@ code { color: var(--cass-purple); }
 .preview-badge { display: inline-block; margin: 0 0 16px; padding: 7px 10px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .answer-sheet { max-width: 1500px; }
 .answer-sheet table { min-width: 1150px; }
+.player-results table { min-width: 1050px; }
+.player-results th:last-child,
+.player-results td:last-child { min-width: 90px; white-space: nowrap; }
 .answer-sheet td:nth-child(3) { min-width: 280px; }
 .status-pill { display: inline-block; margin-left: 8px; padding: 5px 8px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); font-size: .72rem; text-transform: uppercase; vertical-align: middle; }
 .edit-unlock { display: flex; justify-content: space-between; align-items: center; gap: 20px; }

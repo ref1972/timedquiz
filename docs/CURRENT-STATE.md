@@ -4,8 +4,16 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
-- Public-access and multi-game chooser support is implemented locally for the
-  next release. Any complete game with no cutoff or a future cutoff appears on
+- Player completion copy and button labels are admin-editable in source for the
+  next release. The completion screen always links back to the public game
+  chooser and offers a player-only score/answer sheet only after every submitted
+  answer has a final verdict. While any verdict is unresolved, the score and
+  answers remain hidden and the results page shows an editable pending message.
+  Local verification passes 49 tests, TypeScript, and `git diff --check`;
+  browser checks covered both pending and fully graded attempts with no console
+  errors.
+- Public-access and multi-game chooser support is deployed as rc36. Any
+  complete game with no cutoff or a future cutoff appears on
   the home page. New players register with a display name only; invited players
   retain their personalized identity and can play either available game, with
   separate player/attempt history per game. Public and chooser-created records
@@ -18,6 +26,19 @@ Last updated: 2026-08-11.
   browser flow rendered both game cards, registered a public player into Game
   1, returned to the chooser, switched to Game 2, and reported no console
   errors.
+- Before reopening, the previous rankings were exported into four local,
+  untracked CSV archives: real and test standings for each game. Backup
+  `quiz-20260812T000626Z.sqlite.gz` passed gzip and SQLite integrity checks
+  before the archive/reset transaction. The transaction preserved all 104
+  attempt generations and their answers as `superseded`, cleared both game
+  cutoffs, and recorded one `scores_archived_for_public_reopening` audit event
+  covering the 102 attempts that had been current.
+- Release `timed-quiz-v0.1.0-rc36` is deployed after post-archive backup
+  `quiz-20260812T001036Z.sqlite.gz`, which passed gzip and SQLite integrity
+  checks. Production preflight passes with no cutoff; both games have 50
+  questions and appear on the public chooser; health reports rc36; the service
+  is active; the live database has zero public players immediately after
+  verification; the mail-event count is unchanged; and CASS is HTTP 200.
 
 - Multi-game support is deployed as rc34. The additive migration creates
   Game 1 and attaches every existing player and question to it without changing
@@ -163,6 +184,9 @@ Last updated: 2026-08-11.
 - Selected URL: `https://bee.triviaworkshop.com`.
 - Selected host: the existing CASS DigitalOcean droplet, isolated behind its
   own service, localhost port, nginx virtual host, data, and backups.
+- Both Game 1 and Game 2 are always open with `closes_at = NULL`. The public
+  chooser allows a display-name-only registration into either game, and an
+  invited player can use the same identity to play both independently.
 - Game 2 question 1's canonical answer is corrected from `Stanley Tuchi` to
   `Stanley Tucci`. Existing Tucci grading and all 16 correct Tucci submissions
   were unchanged. Audit event `11573` records the edit; backup

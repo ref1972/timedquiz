@@ -13,6 +13,7 @@ import { parsePlayerImport, playersToCsv } from "./player-import.ts";
 import { getIntroCopy, setIntroCopy, type IntroCopy } from "./intro-copy.ts";
 import { getInvitationTemplate, setInvitationTemplate } from "./invitation-template.ts";
 import { getCompletionNotificationSettings, setCompletionNotificationSettings } from "./completion-notification.ts";
+import { getCompletionCopy, setCompletionCopy, type CompletionCopy } from "./completion-copy.ts";
 import { getReminderTemplate, setReminderTemplate } from "./reminder-template.ts";
 import { activateGame, centralLocalToIso, createGame, games, selectGame, selectedGame } from "./games.ts";
 
@@ -340,7 +341,7 @@ function renderAdmin(req: Request, res: Response, section: AdminSection): void {
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
   const game = selectedGame();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: game.closes_at ? Date.parse(game.closes_at) : null, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), questionTextEditingEnabled: questionTextEditingEnabled(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), reminderStats: reminderStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), reminderTemplate: getReminderTemplate(), completionNotifications: getCompletionNotificationSettings(), games: games(), selectedGame: game }, section));
+  res.send(adminPage({ questionCount: questionCountRow(), closesAt: game.closes_at ? Date.parse(game.closes_at) : null, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), questionTextEditingEnabled: questionTextEditingEnabled(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), reminderStats: reminderStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), reminderTemplate: getReminderTemplate(), completionNotifications: getCompletionNotificationSettings(), completionCopy: getCompletionCopy(), games: games(), selectedGame: game }, section));
 }
 
 adminRouter.get("/admin", (req: Request, res: Response) => {
@@ -386,6 +387,22 @@ adminRouter.post("/admin/completion-notifications", requireAdmin, (req: Request,
   setCompletionNotificationSettings({ enabled, recipient });
   logEvent(null, "completion_notification_settings_updated", { enabled });
   res.redirect("/admin/progress#completion-notifications");
+});
+
+adminRouter.post("/admin/completion-copy", requireAdmin, (req: Request, res: Response) => {
+  const copy: CompletionCopy = {
+    title: String(req.body.title ?? "").trim(),
+    message: String(req.body.message ?? "").trim(),
+    pendingMessage: String(req.body.pendingMessage ?? "").trim(),
+    resultsButtonLabel: String(req.body.resultsButtonLabel ?? "").trim(),
+    chooserButtonLabel: String(req.body.chooserButtonLabel ?? "").trim(),
+  };
+  if (Object.values(copy).some((value) => !value) || copy.title.length > 160 || copy.message.length > 1500 || copy.pendingMessage.length > 1500 || copy.resultsButtonLabel.length > 100 || copy.chooserButtonLabel.length > 100) {
+    return void res.status(400).send(page("Completion message not saved", '<main class="card"><h1>Completion message not saved</h1><p>Every field is required and must remain within its displayed character limit.</p><a href="/admin/progress#completion-copy">Return</a></main>'));
+  }
+  setCompletionCopy(copy);
+  logEvent(null, "completion_copy_updated");
+  res.redirect("/admin/progress#completion-copy");
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {

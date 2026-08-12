@@ -5,7 +5,9 @@ import type { CompletionNotificationSettings } from "./completion-notification.t
 import type { ReminderTemplate } from "./reminder-template.ts";
 import type { Game } from "./games.ts";
 import type { PlayerGameOption } from "./public-access.ts";
+import type { PlayerResults } from "./public-access.ts";
 import type { Player } from "./quiz.ts";
+import type { CompletionCopy } from "./completion-copy.ts";
 import { visiblePromptText } from "./question-import.ts";
 
 function esc(value: unknown): string {
@@ -80,6 +82,12 @@ export function publicAccessPage(games: Game[], player: Player | null, options: 
   </main>`);
 }
 
+export function playerResultsPage(player: Player, results: PlayerResults | null, copy: CompletionCopy): string {
+  if (!results?.ready) return page("Results pending", `<main class="card wide"><p class="eyebrow">Grading in progress</p><h1>${esc(copy.title)}</h1><p class="notice">${esc(copy.pendingMessage)}</p><p><a class="button" href="/results">Check again</a> <a class="button secondary" href="/">${esc(copy.chooserButtonLabel)}</a></p></main>`);
+  const rows = results.answers.map((answer) => `<tr><td>${answer.position}</td><td>${esc(answer.category)}</td><td>${esc(visiblePromptText(answer.prompt))}</td><td>${answer.submitted_text ? esc(answer.submitted_text) : '<span class="muted">blank</span>'}</td><td>${answer.included_in_score ? esc(answer.verdict) : "not scored"}</td></tr>`).join("");
+  return page("My quiz results", `<main class="admin answer-sheet player-results"><header><p class="eyebrow">${esc(results.gameName)}</p><h1>${esc(player.display_name || "Your results")}</h1><p class="result-score"><strong>${results.score}</strong> correct</p><a class="button secondary" href="/">${esc(copy.chooserButtonLabel)}</a></header><section class="panel"><h2>Your answers</h2><div class="table"><table><thead><tr><th>Q</th><th>Category</th><th>Question</th><th>Your answer</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table></div></section></main>`);
+}
+
 export interface AdminPageData {
   questionCount: number;
   closesAt: number | null;
@@ -96,6 +104,7 @@ export interface AdminPageData {
   introCopy: IntroCopy;
   invitationTemplate: InvitationTemplate;
   completionNotifications: CompletionNotificationSettings;
+  completionCopy: CompletionCopy;
   games: Game[];
   selectedGame: Game;
 }
@@ -388,6 +397,19 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
           <button>Save completion notifications</button>
         </form>
         <p class="muted">The message includes test/real status, score, answer time, completion time, and a link to the player’s admin answer sheet.</p>
+      </section>
+
+      <section class="panel" id="completion-copy" ${section === "progress" ? "" : "hidden"}>
+        <h2>Player completion screen</h2>
+        <p>Edit the text players see after finishing. Scores and submitted answers remain unavailable until every answer in that attempt has a final correct or incorrect verdict.</p>
+        <form method="post" action="/admin/completion-copy">
+          <label>Heading<input name="title" value="${esc(data.completionCopy.title)}" maxlength="160" required></label>
+          <label>Completion message<textarea name="message" rows="4" maxlength="1500" required>${esc(data.completionCopy.message)}</textarea></label>
+          <label>Grading-pending message<textarea name="pendingMessage" rows="4" maxlength="1500" required>${esc(data.completionCopy.pendingMessage)}</textarea></label>
+          <label>Results button<input name="resultsButtonLabel" value="${esc(data.completionCopy.resultsButtonLabel)}" maxlength="100" required></label>
+          <label>Game chooser button<input name="chooserButtonLabel" value="${esc(data.completionCopy.chooserButtonLabel)}" maxlength="100" required></label>
+          <button>Save completion screen</button>
+        </form>
       </section>
 
       <section class="panel" id="review" ${section === "review" ? "" : "hidden"}>

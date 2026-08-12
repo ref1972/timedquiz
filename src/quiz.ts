@@ -5,6 +5,7 @@ import { randomToken } from "./crypto.ts";
 import { sendCompletionNotification } from "./completion-notification.ts";
 import { getIntroCopy, type IntroCopy } from "./intro-copy.ts";
 import { gameById } from "./games.ts";
+import { getCompletionCopy, type CompletionCopy } from "./completion-copy.ts";
 
 export interface Player {
   id: number;
@@ -47,7 +48,12 @@ export type QuizState =
   // time is it". A device whose clock is minutes off would otherwise show 0.0
   // the moment a question appears and auto-submit every answer blank.
   | { state: "question"; position: number; category: string; prompt: string; highlightedText: string; nonce: string; deadlineAt: string; serverNow: string; draft: string; durationSeconds: number }
-  | { state: "complete" };
+  | { state: "complete"; completion: CompletionCopy; resultsAvailable: boolean };
+
+function completionState(attemptId: number): QuizState {
+  const unresolved = Number((db.prepare("SELECT COUNT(*) AS n FROM exposures WHERE attempt_id = ? AND verdict = 'unresolved'").get(attemptId) as { n: number }).n);
+  return { state: "complete", completion: getCompletionCopy(), resultsAvailable: unresolved === 0 };
+}
 
 export function questionCount(gameId: number): number {
   return Number((db.prepare("SELECT COUNT(*) AS n FROM questions WHERE game_id = ?").get(gameId) as { n: number }).n);
@@ -203,7 +209,7 @@ export function getStatus(player: Player): QuizState {
   }
   expireIfNeeded(attempt.id);
   const refreshed = currentAttempt(player.id);
-  if (!refreshed || refreshed.status === "completed") return { state: "complete" };
+  if (!refreshed || refreshed.status === "completed") return completionState(attempt.id);
   const exposure = activeExposure(refreshed.id);
   if (exposure) {
     const question = questionById(exposure.question_id);
@@ -257,11 +263,11 @@ export function serveNext(player: Player): QuizState {
     logEvent(attempt.id, "attempt_started", { generation });
   }
 
-  if (attempt.status === "completed") return { state: "complete" };
+  if (attempt.status === "completed") return completionState(attempt.id);
 
   expireIfNeeded(attempt.id);
   const refreshed = currentAttempt(player.id)!;
-  if (refreshed.status === "completed") return { state: "complete" };
+  if (refreshed.status === "completed") return completionState(refreshed.id);
 
   const existing = activeExposure(refreshed.id);
   if (existing) {
@@ -283,7 +289,7 @@ export function serveNext(player: Player): QuizState {
   }
 
   const position = finalizedCount(refreshed.id) + 1;
-  if (position > 50) return { state: "complete" };
+  if (position > 50) return completionState(refreshed.id);
 
   const question = questionByPosition(player.game_id, position);
   const served = Date.now();

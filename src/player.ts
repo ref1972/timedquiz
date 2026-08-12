@@ -5,8 +5,9 @@ import { sha256 } from "./crypto.ts";
 import { currentPlayer, requirePlayer, setPlayerSession } from "./auth.ts";
 import { currentAttempt, findPlayerByTokenHash, getStatus, recordDisplayed, saveDraft, serveNext, submitAnswer, type Player } from "./quiz.ts";
 import { playableGames } from "./games.ts";
-import { playerForGame, playerGameOptions, registerPublicPlayer } from "./public-access.ts";
-import { page, playerPage, publicAccessPage } from "./views.ts";
+import { playerForGame, playerGameOptions, playerResults, registerPublicPlayer } from "./public-access.ts";
+import { getCompletionCopy } from "./completion-copy.ts";
+import { page, playerPage, playerResultsPage, publicAccessPage } from "./views.ts";
 
 export const playerRouter: RouterType = Router();
 const publicRegistrations = new Map<string, { count: number; resetsAt: number }>();
@@ -69,6 +70,12 @@ playerRouter.get("/quiz", (req: Request, res: Response) => {
     return;
   }
   res.send(playerPage());
+});
+
+playerRouter.get("/results", (req: Request, res: Response) => {
+  const player = currentPlayer(req);
+  if (!player) return void res.redirect("/");
+  res.send(playerResultsPage(player, playerResults(player), getCompletionCopy()));
 });
 
 playerRouter.get("/api/state", requirePlayer, (req: Request, res: Response) => {

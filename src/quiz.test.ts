@@ -34,6 +34,7 @@ const views = await import("./views.ts");
 const invitationTemplate = await import("./invitation-template.ts");
 const reminderTemplate = await import("./reminder-template.ts");
 const completionNotification = await import("./completion-notification.ts");
+const completionCopy = await import("./completion-copy.ts");
 const gameStore = await import("./games.ts");
 const publicAccess = await import("./public-access.ts");
 
@@ -390,7 +391,7 @@ test("grading review shows every answer, including the ones graded automatically
   // The panel renders it, in the collapsed "counted incorrect" tier, with the
   // opposite action available.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "review",
   );
   assert.match(html, /counted incorrect/);
@@ -637,7 +638,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   // The control must still be rendered and enabled on a frozen bank, and it
   // must post to its own route rather than the locked content editor.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "questions",
   );
   assert.match(html, new RegExp(`action="/admin/question/${question.id}/grading"`));
@@ -649,7 +650,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   admin.setQuestionTextEditingEnabled(true);
   assert.equal(admin.questionTextEditingEnabled(), true);
   const unlockedHtml = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "questions",
   );
   assert.match(unlockedHtml, /Turn editing off/);
@@ -803,6 +804,51 @@ test("public completions never call the configured mail relay", async () => {
   }
 });
 
+test("player score and answers stay hidden until every submitted answer is graded", () => {
+  const player = freshPlayer();
+  const now = new Date().toISOString();
+  const attemptId = Number(db.prepare("INSERT INTO attempts (player_id, generation, status, started_at, completed_at) VALUES (?, 1, 'completed', ?, ?)").run(player.id, now, now).lastInsertRowid);
+  const questionId = Number((db.prepare("SELECT id FROM questions WHERE game_id = ? AND position = 1").get(player.game_id) as { id: number }).id);
+  db.prepare(`INSERT INTO exposures
+    (attempt_id,question_id,nonce,served_at,deadline_at,submitted_text,submitted_at,finalized_reason,normalized_answer,verdict,elapsed_ms)
+    VALUES (?,?,?,?,?,?,?,?,?,'unresolved',?)`).run(attemptId, questionId, `results-${attemptId}`, now, now, "maybe", now, "manual", "maybe", 100);
+
+  assert.deepEqual(publicAccess.playerResults(player), { ready: false });
+  const pending = quiz.getStatus(player);
+  assert.equal(pending.state, "complete");
+  if (pending.state === "complete") assert.equal(pending.resultsAvailable, false);
+  assert.equal(views.playerResultsPage(player, publicAccess.playerResults(player), completionCopy.defaultCompletionCopy).includes("100 correct"), false);
+
+  db.prepare("UPDATE exposures SET verdict = 'incorrect' WHERE attempt_id = ?").run(attemptId);
+  const graded = publicAccess.playerResults(player);
+  assert.equal(graded?.ready, true);
+  if (graded?.ready) {
+    assert.equal(graded.score, 0);
+    assert.equal(graded.answers[0]?.submitted_text, "maybe");
+    assert.equal(graded.answers[0]?.verdict, "incorrect");
+  }
+  const available = quiz.getStatus(player);
+  assert.equal(available.state, "complete");
+  if (available.state === "complete") assert.equal(available.resultsAvailable, true);
+});
+
+test("completion screen copy is editable and safely rendered", () => {
+  const custom = {
+    title: "All done <great>",
+    message: "Your entry is saved.",
+    pendingMessage: "Check back after grading.",
+    resultsButtonLabel: "See results",
+    chooserButtonLabel: "Pick another quiz",
+  };
+  completionCopy.setCompletionCopy(custom);
+  assert.deepEqual(completionCopy.getCompletionCopy(), custom);
+  const player = freshPlayer();
+  const html = views.playerResultsPage(player, { ready: false }, custom);
+  assert.equal(html.includes("<great>"), false);
+  assert.match(html, /Pick another quiz/);
+  completionCopy.setCompletionCopy(completionCopy.defaultCompletionCopy);
+});
+
 test("administrator password changes are salted, hashed, and immediately replace the bootstrap password", () => {
   assert.equal(auth.checkAdminPassword(config.adminPassword), true);
   const replacement = "short";
@@ -831,7 +877,7 @@ test("player import continuation forces a GET instead of a same-document hash ch
 test("Progress renders a persistent test-player visibility control", () => {
   const testPlayer = freshPlayer();
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
     "progress",
   );
   assert.match(html, /id="showTestPlayers"/);

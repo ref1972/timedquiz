@@ -28,6 +28,9 @@ admin invitation and reminder email operations rather than player access.
   default midnight Central time Thursday deadline.
 - Configurable one-per-attempt admin email when any real or test player
   completes, with score, answer time, and an admin answer-sheet link.
+- Admin-editable player completion copy, with a return-to-game-chooser action
+  and an optional player answer sheet. A player's score and submitted answers
+  remain hidden until every answer in that attempt has a final grading verdict.
 
 ## Production target
 

@@ -79,8 +79,11 @@
         '<div class="answer-zone ready-action"><button id="readyBtn" class="submit-answer">Show question</button></div><p class="muted save-status" aria-hidden="true">&nbsp;</p></div>';
       document.querySelector("#readyBtn").onclick = ready;
     } else if (state.state === "complete") {
+      var completion = state.completion || {};
       root.innerHTML =
-        '<p class="eyebrow">Finished</p><h1>Thank you!</h1><p>Your score has been saved.</p><a class="button" href="/">Choose another game</a>';
+        '<p class="eyebrow">Finished</p><h1>' + escapeHtml(completion.title || "Thank you!") + '</h1><p>' + escapeHtml(completion.message || "Your responses have been saved.") + '</p>' +
+        (state.resultsAvailable ? '<a class="button" href="/results">' + escapeHtml(completion.resultsButtonLabel || "View my score and answers") + '</a>' : '<p class="notice">' + escapeHtml(completion.pendingMessage || "Your score and answers will be available after grading.") + '</p>') +
+        ' <a class="button secondary" href="/">' + escapeHtml(completion.chooserButtonLabel || "Choose another game") + '</a>';
     } else {
       showQuestion();
     }
