@@ -60,7 +60,7 @@ export interface PlayerAnswerRow {
 }
 
 export function playerAnswerHistory(playerId: number): { player: { id: number; email: string; display_name: string; is_test: number }; attempts: PlayerAnswerAttempt[]; answers: PlayerAnswerRow[] } | null {
-  const player = db.prepare(`SELECT p.id,COALESCE(a.email,CASE WHEN p.is_public=1 THEN 'Guest — no email' ELSE p.email END) email,p.display_name,p.is_test
+  const player = db.prepare(`SELECT p.id,CASE WHEN p.is_public=1 THEN COALESCE(a.email,'Guest — no email') ELSE p.email END email,p.display_name,p.is_test
     FROM players p LEFT JOIN account_player_links l ON l.player_id=p.id LEFT JOIN accounts a ON a.id=l.account_id
     WHERE p.id=? AND p.game_id=?`).get(playerId, selectedGame().id) as { id: number; email: string; display_name: string; is_test: number } | undefined;
   if (!player) return null;
@@ -75,7 +75,7 @@ export function playerAnswerHistory(playerId: number): { player: { id: number; e
 export function results(): ResultRow[] {
   return db
     .prepare(
-      `SELECT p.id, p.game_id, COALESCE(ac.email,CASE WHEN p.is_public=1 THEN 'Guest — no email' ELSE p.email END) email, p.display_name, p.is_test, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
+      `SELECT p.id, p.game_id, CASE WHEN p.is_public=1 THEN COALESCE(ac.email,'Guest — no email') ELSE p.email END email, p.display_name, p.is_test, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
         a.completion_notification_started_at, a.completion_notified_at, a.completion_notification_error,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.verdict = 'correct' THEN 1 ELSE 0 END), 0) AS score,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.submitted_at IS NOT NULL THEN e.elapsed_ms ELSE 0 END), 0) AS answer_time_ms

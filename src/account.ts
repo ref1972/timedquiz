@@ -32,11 +32,10 @@ export function consumeAccountLogin(token: string): Account | null {
   try {
     const changed = db.prepare("UPDATE account_login_tokens SET used_at=? WHERE id=? AND used_at IS NULL").run(nowIso(), row.id).changes;
     if (!changed) { db.exec("ROLLBACK"); return null; }
-    const link = db.prepare("INSERT OR IGNORE INTO account_player_links (account_id,player_id,linked_at) VALUES (?,?,?)");
-    for (const player of db.prepare("SELECT id FROM players WHERE lower(email)=?").all(row.email) as Array<{ id: number }>) link.run(row.account_id, player.id, nowIso());
+    for (const player of db.prepare("SELECT id FROM players WHERE lower(email)=?").all(row.email) as Array<{ id: number }>) linkPlayer(row.account_id, player.id);
     if (row.requested_player_id) {
-      const requested = db.prepare("SELECT email FROM players WHERE id=?").get(row.requested_player_id) as { email: string } | undefined;
-      if (requested) for (const player of db.prepare("SELECT id FROM players WHERE email=?").all(requested.email) as Array<{ id: number }>) link.run(row.account_id, player.id, nowIso());
+      const requested = db.prepare("SELECT id,is_public FROM players WHERE id=?").get(row.requested_player_id) as { id: number; is_public: number } | undefined;
+      if (requested?.is_public) linkPlayer(row.account_id, requested.id);
     }
     db.prepare("UPDATE accounts SET last_login_at=? WHERE id=?").run(nowIso(), row.account_id);
     db.exec("COMMIT");
@@ -49,6 +48,8 @@ export function accountById(id: number): Account | null {
 }
 
 export function linkPlayer(accountId: number, playerId: number): void {
+  const owner = db.prepare("SELECT account_id FROM account_player_links WHERE player_id=?").get(playerId) as { account_id: number } | undefined;
+  if (owner && owner.account_id !== accountId) throw new Error("This player history is already linked to another account.");
   db.prepare("INSERT OR IGNORE INTO account_player_links (account_id,player_id,linked_at) VALUES (?,?,?)").run(accountId, playerId, nowIso());
 }
 

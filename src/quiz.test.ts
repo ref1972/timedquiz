@@ -603,6 +603,31 @@ test("a tampered signed cookie is rejected, never raised as an error", () => {
   assert.equal(cryptoHelpers.unsign(multibyte), null);
 });
 
+test("signed session cookies are bound to their purpose", () => {
+  const player = freshPlayer();
+  const accountId = Number(db.prepare("INSERT INTO accounts(email,display_name,created_at) VALUES (?,?,?)").run("typed-cookie@example.com", "Typed Cookie", new Date().toISOString()).lastInsertRowid);
+  const playerCookie = cryptoHelpers.sign(`pcb_player:${player.id}`);
+  const accountCookie = cryptoHelpers.sign(`pcb_account:${accountId}`);
+  assert.equal(auth.currentPlayer({ headers: { cookie: `pcb_player=${playerCookie}` } } as any)?.id, player.id);
+  assert.equal(auth.currentAccount({ headers: { cookie: `pcb_account=${accountCookie}` } } as any)?.id, accountId);
+  assert.equal(auth.currentPlayer({ headers: { cookie: `pcb_player=${accountCookie}` } } as any), null, "an account cookie cannot impersonate a player");
+  assert.equal(auth.currentAccount({ headers: { cookie: `pcb_account=${playerCookie}` } } as any), null, "a player cookie cannot impersonate an account");
+  db.prepare("DELETE FROM accounts WHERE id=?").run(accountId);
+});
+
+test("a magic link cannot capture an invited player whose email was not verified", () => {
+  const invited = freshPlayer();
+  const createdAt = new Date().toISOString();
+  const accountId = Number(db.prepare("INSERT INTO accounts(email,display_name,created_at) VALUES (?,?,?)").run("attacker-controlled@example.com", "Account", createdAt).lastInsertRowid);
+  const token = "unverified-invited-player-token";
+  db.prepare("INSERT INTO account_login_tokens(account_id,token_hash,requested_player_id,expires_at,created_at) VALUES (?,?,?,?,?)").run(accountId, cryptoHelpers.sha256(token), invited.id, new Date(Date.now() + 60_000).toISOString(), createdAt);
+  assert.equal(accounts.consumeAccountLogin(token)?.id, accountId);
+  assert.equal(db.prepare("SELECT account_id FROM account_player_links WHERE player_id=?").get(invited.id), undefined);
+  db.prepare("DELETE FROM account_login_tokens WHERE account_id=?").run(accountId);
+  db.prepare("DELETE FROM accounts WHERE id=?").run(accountId);
+  db.prepare("DELETE FROM players WHERE id=?").run(invited.id);
+});
+
 test("test invitation lookup never substitutes a different test player's link", () => {
   const first = freshPlayer();
   const second = freshPlayer();
@@ -1018,6 +1043,7 @@ test("public players can choose and play each open game without entering invitat
   const invitationCountBefore = admin.invitationStats().realPlayers;
   const player = publicAccess.registerPublicPlayer(firstGame.id, "  Public   Player  ");
   assert.ok(player);
+  assert.equal(publicAccess.registerPublicPlayer(firstGame.id, "person@example.com"), null, "an email address cannot become a public scoreboard display name");
   assert.equal(player.display_name, "Public Player");
   assert.equal(admin.results().find((row) => row.id === player.id)?.email, "Guest — no email", "admin never exposes the internal guest identity as an email address");
   assert.equal(publicAccess.playerGameOptions(player).length, 2);
@@ -1054,7 +1080,12 @@ test("public players can choose and play each open game without entering invitat
   assert.equal(accounts.accountHistory(accountId).find((row) => row.playerId === secondPlayer.id)?.score, 2);
   gameStore.selectGame(secondGame.id);
   assert.equal(admin.results().find((row) => row.id === secondPlayer.id)?.email, "public@example.com", "a linked guest displays the verified account email");
+  const invited = freshPlayer();
+  db.prepare("INSERT INTO account_player_links(account_id,player_id,linked_at) VALUES (?,?,?)").run(accountId, invited.id, createdAt);
   gameStore.selectGame(firstGame.id);
+  assert.equal(admin.results().find((row) => row.id === invited.id)?.email, invited.email, "a linked invited player retains the invitation email in admin and exports");
+  db.prepare("DELETE FROM account_player_links WHERE player_id=?").run(invited.id);
+  db.prepare("DELETE FROM players WHERE id=?").run(invited.id);
 
   db.prepare("DELETE FROM account_player_links WHERE account_id=?").run(accountId);
   db.prepare("DELETE FROM account_login_tokens WHERE account_id=?").run(accountId);

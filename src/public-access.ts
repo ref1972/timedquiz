@@ -51,7 +51,7 @@ export function playerGameOptions(player: Player): PlayerGameOption[] {
 
 export function registerPublicPlayer(gameId: number, displayName: string): Player | null {
   const name = displayName.trim().replace(/\s+/g, " ").slice(0, 100);
-  if (!name || !gameIsPlayable(gameId)) return null;
+  if (!name || /^\S+@\S+\.\S+$/.test(name) || !gameIsPlayable(gameId)) return null;
   const identity = randomToken(18);
   const token = randomToken();
   const result = db.prepare(`INSERT INTO players

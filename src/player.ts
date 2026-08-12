@@ -52,9 +52,14 @@ playerRouter.get("/scoreboard/:gameId", (req: Request, res: Response) => {
   res.send(scoreboardPage(board.game, board.rows));
 });
 
-playerRouter.get("/account/login", (req: Request, res: Response) => res.send(currentAccount(req) ? accountPage(currentAccount(req)!, accountHistory(currentAccount(req)!.id)) : accountLoginPage()));
+playerRouter.get("/account/login", (req: Request, res: Response) => {
+  const account = currentAccount(req);
+  res.send(account ? accountPage(account, accountHistory(account.id)) : accountLoginPage());
+});
 playerRouter.post("/account/login", async (req: Request, res: Response) => {
-  const key = req.ip ?? "unknown"; const now = Date.now(); const prior = accountRequests.get(key);
+  const key = req.ip ?? "unknown"; const now = Date.now();
+  for (const [ip, value] of accountRequests) if (value.resetsAt <= now) accountRequests.delete(ip);
+  const prior = accountRequests.get(key);
   if (prior && prior.resetsAt > now && ++prior.count > 5) return void res.status(429).send(accountLoginPage(false, "Too many sign-in requests. Try again in an hour."));
   if (!prior || prior.resetsAt <= now) accountRequests.set(key, { count: 1, resetsAt: now + 60 * 60_000 });
   const result = await requestAccountLogin(String(req.body.email ?? ""), currentPlayer(req));
@@ -62,7 +67,11 @@ playerRouter.post("/account/login", async (req: Request, res: Response) => {
   res.send(accountLoginPage(true));
 });
 playerRouter.get("/account/verify/:token", (req: Request, res: Response) => {
-  const account = consumeAccountLogin(String(req.params.token ?? ""));
+  const token = String(req.params.token ?? "").replace(/[^A-Za-z0-9_-]/g, "");
+  res.send(page("Confirm sign in", `<main class="card narrow"><p class="eyebrow">Player account</p><h1>Confirm sign in</h1><p>Continue to use this one-time link and open your account.</p><form method="post" action="/account/verify"><input type="hidden" name="token" value="${token}"><button>Continue to my account</button></form></main>`));
+});
+playerRouter.post("/account/verify", (req: Request, res: Response) => {
+  const account = consumeAccountLogin(String(req.body.token ?? ""));
   if (!account) return void res.status(400).send(page("Link expired", '<main class="card"><h1>That sign-in link is invalid or expired.</h1><a class="button" href="/account/login">Request another link</a></main>'));
   setAccountSession(res, account.id); res.redirect("/account");
 });
@@ -81,6 +90,8 @@ playerRouter.post("/play/game", (req: Request, res: Response) => {
   const player = playerForGame(current, Number(req.body.gameId));
   if (!player) return void res.status(400).send(page("Game unavailable", '<main class="card"><h1>That game is not open.</h1><a class="button" href="/">Choose another game</a></main>'));
   setPlayerSession(res, player.id);
+  const account = currentAccount(req);
+  if (account) linkPlayer(account.id, player.id);
   res.redirect("/quiz");
 });
 

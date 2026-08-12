@@ -4,6 +4,14 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
+- Account security fixes are implemented locally for the next release: signed
+  cookies are bound to their player/account/admin purpose; magic links cannot
+  attach an invited identity whose email was not verified; verification GETs
+  show a confirmation form and only its POST consumes the token; signed-in game
+  switches link the new game history; invited admin/export emails remain the
+  original invitation address; expired login-rate entries are swept; and
+  email-shaped public display names are rejected. Verification passes 51 tests,
+  TypeScript, and `git diff --check`.
 - Admin player lists, answer sheets, and score CSVs in rc40 treat internal
   `@players.invalid` identifiers as implementation details. Unlinked public
   players display as `Guest — no email`; once linked through a verified magic

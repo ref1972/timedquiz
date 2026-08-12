@@ -34,7 +34,8 @@ admin invitation and reminder email operations rather than player access.
   remain hidden until every answer in that attempt has a final grading verdict.
 - Optional passwordless player accounts use single-use, 15-minute email links
   and can link verified invitation or guest histories across games. Public
-  scoreboards include only completed, fully graded, non-test attempts.
+  scoreboards include only completed, fully graded, non-test attempts, and
+  public registration rejects email-shaped display names.
 
 ## Production target
 

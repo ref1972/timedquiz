@@ -24,7 +24,7 @@ function parseCookies(req: Request): Record<string, string> {
 }
 
 function setSignedCookie(res: Response, name: string, value: string, maxAgeSeconds: number): void {
-  res.cookie(name, sign(value), {
+  res.cookie(name, sign(`${name}:${value}`), {
     httpOnly: true,
     secure: config.appOrigin.startsWith("https:"),
     sameSite: "lax",
@@ -51,19 +51,21 @@ export function clearAccountSession(res: Response): void {
 
 export function currentAccount(req: Request): Account | null {
   const raw = unsign(parseCookies(req)[ACCOUNT_COOKIE]);
-  const id = Number(raw);
-  return raw && Number.isSafeInteger(id) ? accountById(id) : null;
+  const prefix = `${ACCOUNT_COOKIE}:`;
+  const id = Number(raw?.startsWith(prefix) ? raw.slice(prefix.length) : NaN);
+  return Number.isSafeInteger(id) ? accountById(id) : null;
 }
 
 export function currentPlayer(req: Request): Player | null {
   const raw = unsign(parseCookies(req)[PLAYER_COOKIE]);
-  const id = Number(raw);
-  if (!raw || !Number.isSafeInteger(id)) return null;
+  const prefix = `${PLAYER_COOKIE}:`;
+  const id = Number(raw?.startsWith(prefix) ? raw.slice(prefix.length) : NaN);
+  if (!Number.isSafeInteger(id)) return null;
   return findPlayerById(id);
 }
 
 export function isAdmin(req: Request): boolean {
-  return unsign(parseCookies(req)[ADMIN_COOKIE]) === `admin:${adminSessionVersion()}`;
+  return unsign(parseCookies(req)[ADMIN_COOKIE]) === `${ADMIN_COOKIE}:admin:${adminSessionVersion()}`;
 }
 
 export function checkAdminPassword(supplied: string): boolean {
