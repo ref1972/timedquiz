@@ -4,10 +4,13 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
-- Admin player lists, answer sheets, and score CSVs now treat internal
+- Admin player lists, answer sheets, and score CSVs in rc40 treat internal
   `@players.invalid` identifiers as implementation details. Unlinked public
   players display as `Guest — no email`; once linked through a verified magic
-  link, the verified account email is displayed instead.
+  link, the verified account email is displayed instead. Backup
+  `quiz-20260812T004410Z.sqlite.gz` passed integrity checks; deployment began
+  only after the active-window count was zero. Production data verifies both
+  guest and verified-account labels, and health reports rc40.
 - Optional passwordless email accounts and per-game public scoreboards are
   deployed as rc39. Magic links are stored only as hashes,
   expire after 15 minutes, work once, and require verified email ownership

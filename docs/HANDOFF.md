@@ -1,5 +1,16 @@
 # Current handoff
 
+## 2026-08-11 — Internal guest email display fixed in rc40
+
+- Admin progress, answer sheets, and score CSVs now show `Guest — no email`
+  for an unlinked public player instead of exposing the internal
+  `@players.invalid` identity. A linked player shows the verified account email.
+- Commit `54614c2` and tag `timed-quiz-v0.1.0-rc40` are pushed and deployed.
+  Tests, TypeScript, diff checks, production label queries, and health pass.
+- Backup `quiz-20260812T004410Z.sqlite.gz` passed integrity checks. The active
+  timed-question count was zero immediately before deployment, so no live
+  question window was interrupted.
+
 ## 2026-08-11 — Passwordless accounts and scoreboards deployed as rc39
 
 - Players may still play as guests or request a 15-minute, single-use email

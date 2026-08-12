@@ -14,7 +14,7 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed release: `timed-quiz-v0.1.0-rc39`. Certbot manages
+Current deployed release: `timed-quiz-v0.1.0-rc40`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
@@ -47,6 +47,12 @@ response to a player's request. Tokens are hashed, single-use, and expire in
 15 minutes. Public scoreboards disclose display name, fully graded score, and
 answer time for completed non-test attempts only. Backup
 `quiz-20260812T003747Z.sqlite.gz` passed integrity checks before rc39.
+
+Admin UI and score exports never display internal `@players.invalid` guest
+identifiers: unlinked guests read `Guest — no email`, and linked guests use the
+verified account email. Backup `quiz-20260812T004410Z.sqlite.gz` passed
+integrity checks before rc40; the active timed-question count was zero before
+the service restart.
 
 Real players have completed attempts, so the active question bank is frozen:
 individual question edits and full-bank import both return 409. The
