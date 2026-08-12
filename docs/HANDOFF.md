@@ -1,5 +1,26 @@
 # Current handoff
 
+## 2026-08-11 — Claude account-review findings fixed in rc41
+
+- Cookie signatures are now purpose-bound, closing account-cookie to
+  player-cookie confusion. Magic links link an invited identity only through
+  its verified email; the requesting session may additionally link only its
+  own public guest row. Conflicting ownership is surfaced rather than silently
+  ignored.
+- GET magic-link visits now render a confirmation page; only POST consumes the
+  one-time token, protecting links from mail scanners. Signed-in game switches
+  attach the new player row to account history, expired login-limit entries are
+  swept, invited admin/export emails remain unchanged, and email-shaped public
+  display names are rejected from public scoreboards.
+- Commit `2aad8bc` and tag `timed-quiz-v0.1.0-rc41` are pushed and deployed.
+  Verification passes 51 tests, TypeScript, diff checks, production preflight,
+  health, route/source markers, chooser, admin gate, and CASS checks.
+- Deployment was held while two consecutive live players completed all 50
+  questions. Their attempts are completed and preserved; the final active
+  window count was zero. Backup `quiz-20260812T015350Z.sqlite.gz` passed gzip
+  and SQLite integrity checks. Existing browser sessions were invalidated as
+  expected. No email was sent.
+
 ## 2026-08-11 — Internal guest email display fixed in rc40
 
 - Admin progress, answer sheets, and score CSVs now show `Guest — no email`

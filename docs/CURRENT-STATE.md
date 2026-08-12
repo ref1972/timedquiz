@@ -4,14 +4,19 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
-- Account security fixes are implemented locally for the next release: signed
+- Account security fixes are deployed as rc41: signed
   cookies are bound to their player/account/admin purpose; magic links cannot
   attach an invited identity whose email was not verified; verification GETs
   show a confirmation form and only its POST consumes the token; signed-in game
   switches link the new game history; invited admin/export emails remain the
   original invitation address; expired login-rate entries are swept; and
   email-shaped public display names are rejected. Verification passes 51 tests,
-  TypeScript, and `git diff --check`.
+  TypeScript, and `git diff --check`. Deployment waited for two live players to
+  finish all 50 questions; the final active-window count was zero. Backup
+  `quiz-20260812T015350Z.sqlite.gz` passed integrity checks. Production
+  preflight, health, route/source markers, chooser, admin gate, and CASS checks
+  pass; both recent attempts remain completed and account/link counts are
+  unchanged. Existing browser sessions were intentionally invalidated once.
 - Admin player lists, answer sheets, and score CSVs in rc40 treat internal
   `@players.invalid` identifiers as implementation details. Unlinked public
   players display as `Guest — no email`; once linked through a verified magic
