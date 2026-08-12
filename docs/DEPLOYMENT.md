@@ -14,14 +14,27 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed release: `timed-quiz-v0.1.0-rc34`. Certbot manages
+Current deployed release: `timed-quiz-v0.1.0-rc37`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
-The active Game 2 cutoff is `2026-08-09T23:00:00.000Z`, which is 4:00 PM
-Pacific / 6:00 PM Central Daylight Time on Sunday, August 9, 2026. It was
-reopened at 2:55 PM to provide roughly another hour for one player. Cutoffs are
-stored per game in SQLite; Game 1 retains its historical cutoff.
+Both game cutoffs are intentionally unset for always-open public play. Complete
+games with no cutoff appear in the player chooser whether or not they carry the
+single active-game flag. That flag now scopes admin invitation and reminder
+email operations only. Public and chooser-created players do not enter email
+batches or generate completion notification email.
+
+The pre-public standings are retained in four local, untracked CSV exports and
+all 104 attempt generations remain in the production database as historical
+`superseded` attempts. Never commit the standings archives or a database
+backup. Pre-archive backup `quiz-20260812T000626Z.sqlite.gz` and post-archive
+backup `quiz-20260812T001036Z.sqlite.gz` both passed integrity checks.
+
+Player completion copy is editable on the admin Progress screen. A player can
+return to the game chooser from completion and can open their private score and
+submitted-answer sheet only after every submitted answer has a final grading
+verdict. Backup `quiz-20260812T001916Z.sqlite.gz` passed integrity checks before
+rc37 was deployed.
 
 Real players have completed attempts, so the active question bank is frozen:
 individual question edits and full-bank import both return 409. The

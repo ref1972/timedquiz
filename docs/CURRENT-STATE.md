@@ -4,14 +4,18 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
-- Player completion copy and button labels are admin-editable in source for the
-  next release. The completion screen always links back to the public game
+- Player completion copy and button labels are admin-editable in deployed
+  release rc37. The completion screen always links back to the public game
   chooser and offers a player-only score/answer sheet only after every submitted
   answer has a final verdict. While any verdict is unresolved, the score and
   answers remain hidden and the results page shows an editable pending message.
-  Local verification passes 49 tests, TypeScript, and `git diff --check`;
+  Verification passes 49 tests, TypeScript, and `git diff --check`; scratch
   browser checks covered both pending and fully graded attempts with no console
-  errors.
+  errors. Pre-deploy backup `quiz-20260812T001916Z.sqlite.gz` passed gzip and
+  SQLite integrity checks. Production health reports rc37, active-event
+  preflight passes, both games remain public, all 104 archived attempts remain
+  preserved, no public player or unresolved answer was introduced, and the
+  239 historical email audit events are unchanged.
 - Public-access and multi-game chooser support is deployed as rc36. Any
   complete game with no cutoff or a future cutoff appears on
   the home page. New players register with a display name only; invited players

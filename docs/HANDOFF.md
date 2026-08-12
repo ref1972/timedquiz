@@ -1,5 +1,50 @@
 # Current handoff
 
+## 2026-08-11 — Grading-gated player results deployed as rc37
+
+- Admin can edit the completion title, saved-response text, grading-pending
+  text, results button label, and game-chooser button label on Progress.
+- Completion always offers a route back to the public game chooser. A completed
+  player can choose to view their score and submitted answers only after every
+  answer has a final verdict; unresolved attempts expose neither score nor
+  answers and provide a check-again action.
+- Commit `495c857` and tag `timed-quiz-v0.1.0-rc37` are pushed and deployed.
+  Verification passes 49 tests, TypeScript, `git diff --check`, pending and
+  fully graded scratch-browser flows, production active-event preflight, health,
+  data-count, protected-route, public-chooser, and CASS checks.
+- Backup `quiz-20260812T001916Z.sqlite.gz` passed gzip and SQLite integrity
+  checks before deployment. The 104 archived attempts remain preserved, no
+  public player or unresolved answer was introduced, the 239 historical email
+  audit events are unchanged, and no email was sent.
+
+## 2026-08-11 — Public two-game access deployed as rc36
+
+- The home page now offers both complete/open games. New players register with
+  a display name only, while existing personalized invitation links establish
+  the invited identity and lead to the same chooser. Each person can play both
+  games with independent player and attempt history.
+- Public and chooser-created records are excluded from invitation, reminder,
+  player-list export, and completion-notification email pipelines. A one-hour,
+  ten-registration-per-IP throttle limits automated registration abuse.
+- The previous standings were preserved in four local, untracked CSVs (real
+  and test for each game). The database archive/reset deleted nothing: 102
+  current attempts were marked `superseded` with an archive reason, joining two
+  previously superseded generations, and all answers, verdicts, timings, and
+  audit history remain available. Both game cutoffs are now unset.
+- Commit `3457fb1` and tag rc35 delivered the player flow. Production preflight
+  then exposed its old mandatory-cutoff assumption; commit `e0c0848` and tag
+  `timed-quiz-v0.1.0-rc36` corrected preflight for intentionally open games and
+  excluded public players from recoverable-invitation checks.
+- Verification: 47 tests, TypeScript, and `git diff --check` pass. The scratch
+  browser flow registered into Game 1 and switched to Game 2 with no console
+  errors. Live health reports rc36; production preflight passes; both games
+  have 50 questions and appear on the chooser; all 104 attempts are historical;
+  no public verification player was left behind; the mail-event count did not
+  change; Timed Quiz is active; and CASS is HTTP 200.
+- Backup `quiz-20260812T000626Z.sqlite.gz` passed integrity checks before the
+  archive/reset transaction. Post-archive backup
+  `quiz-20260812T001036Z.sqlite.gz` passed before rc36. No email was sent.
+
 ## 2026-08-09 — Game 2 question 1 canonical answer spelling corrected
 
 - At the owner's direction, Game 2 question 1's canonical/count-correct answer
