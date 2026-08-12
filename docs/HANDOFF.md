@@ -1,5 +1,24 @@
 # Current handoff
 
+## 2026-08-11 — Passwordless accounts and scoreboards deployed as rc39
+
+- Players may still play as guests or request a 15-minute, single-use email
+  magic link. Verified accounts link matching invitation history and the guest
+  identity present when the link was requested; histories are never merged by
+  display name. The dashboard spans linked games and keeps unresolved scores
+  hidden.
+- Each public game card links to a running scoreboard ordered by score and then
+  server-measured answer time. Only fully graded completed, non-test attempts
+  appear; archived, in-progress, and unresolved attempts are excluded.
+- Game 3 was removed from the chooser by closing and renaming it, not deleting
+  its one completed attempt and two answers. Audit event `test_game_archived`
+  records the owner's request.
+- Commit `b4ae3d6` and tag `timed-quiz-v0.1.0-rc39` are pushed and deployed.
+  All 49 tests, TypeScript, diff checks, local browser flows, production
+  preflight, health, login, both scoreboards, chooser, and CASS checks pass.
+- Backup `quiz-20260812T003747Z.sqlite.gz` passed gzip and SQLite integrity
+  checks before deployment. No verification email was sent.
+
 ## 2026-08-11 — Two-question workflow test game deployed as rc38
 
 - Games now store an explicit required question count, defaulting existing and

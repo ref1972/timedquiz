@@ -14,7 +14,7 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed release: `timed-quiz-v0.1.0-rc38`. Certbot manages
+Current deployed release: `timed-quiz-v0.1.0-rc39`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
@@ -41,6 +41,12 @@ questions and is public with no cutoff. It remains inactive, so Game 1 retains
 the admin invitation/reminder email boundary. Existing games defaulted to and
 remain at 50 required questions. Backup `quiz-20260812T002640Z.sqlite.gz`
 passed integrity checks before rc38.
+
+Passwordless account sign-in uses the existing Workspace relay only in direct
+response to a player's request. Tokens are hashed, single-use, and expire in
+15 minutes. Public scoreboards disclose display name, fully graded score, and
+answer time for completed non-test attempts only. Backup
+`quiz-20260812T003747Z.sqlite.gz` passed integrity checks before rc39.
 
 Real players have completed attempts, so the active question bank is frozen:
 individual question edits and full-bank import both return 409. The

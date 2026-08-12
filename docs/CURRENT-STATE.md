@@ -5,7 +5,7 @@ Last updated: 2026-08-11.
 ## Source and verification
 
 - Optional passwordless email accounts and per-game public scoreboards are
-  implemented for the next release. Magic links are stored only as hashes,
+  deployed as rc39. Magic links are stored only as hashes,
   expire after 15 minutes, work once, and require verified email ownership
   before invitation histories are linked. Guest play remains available.
   Account dashboards show linked game status and expose scores only after all
@@ -13,6 +13,10 @@ Last updated: 2026-08-11.
   attempts, in-progress attempts, and any completed attempt with an unresolved
   answer. Local verification passes 49 tests, TypeScript, `git diff --check`,
   and browser checks of login, scoreboard, token consumption, and dashboard.
+  Backup `quiz-20260812T003747Z.sqlite.gz` passed integrity checks before the
+  additive migration. Production preflight and health pass; the new tables
+  start empty; both scoreboards and the login page render; no verification
+  email was sent; and CASS remains HTTP 200.
 - At the owner's request, production Game 3 was renamed
   `ARCHIVED — Quick Workflow Test` and closed, removing it from the chooser.
   Its one completed attempt and two answers were retained rather than deleted,
