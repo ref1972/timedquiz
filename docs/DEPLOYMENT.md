@@ -14,7 +14,7 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed release: `timed-quiz-v0.1.0-rc37`. Certbot manages
+Current deployed release: `timed-quiz-v0.1.0-rc38`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
@@ -35,6 +35,12 @@ return to the game chooser from completion and can open their private score and
 submitted-answer sheet only after every submitted answer has a final grading
 verdict. Backup `quiz-20260812T001916Z.sqlite.gz` passed integrity checks before
 rc37 was deployed.
+
+Game 3, `TEST — Quick Workflow (2 Questions)`, intentionally requires two
+questions and is public with no cutoff. It remains inactive, so Game 1 retains
+the admin invitation/reminder email boundary. Existing games defaulted to and
+remain at 50 required questions. Backup `quiz-20260812T002640Z.sqlite.gz`
+passed integrity checks before rc38.
 
 Real players have completed attempts, so the active question bank is frozen:
 individual question edits and full-bank import both return 409. The

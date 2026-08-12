@@ -4,12 +4,17 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
-- Configurable per-game question counts are implemented for the next release,
+- Configurable per-game question counts are deployed as rc38,
   while existing games retain the 50-question default. A game becomes playable
   only when its actual question count matches its configured requirement; this
   permits a deliberately short workflow-test game without allowing partially
   imported live games onto the chooser. Automated coverage completes and
-  reveals results for a two-question public game.
+  reveals results for a two-question public game. Production Game 3 is
+  `TEST — Quick Workflow (2 Questions)`, is not the active email/admin game,
+  has no cutoff, and appears on the public chooser. Its two deterministic
+  answers are `4` (alias `four`) and `blue`. Pre-deploy backup
+  `quiz-20260812T002640Z.sqlite.gz` passed integrity checks; production
+  preflight, health, chooser, and CASS checks pass.
 - Player completion copy and button labels are admin-editable in deployed
   release rc37. The completion screen always links back to the public game
   chooser and offers a player-only score/answer sheet only after every submitted

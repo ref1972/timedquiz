@@ -1,5 +1,20 @@
 # Current handoff
 
+## 2026-08-11 — Two-question workflow test game deployed as rc38
+
+- Games now store an explicit required question count, defaulting existing and
+  future normal games to 50. Playability and quiz start require the actual bank
+  to match that configured count, preserving the incomplete-import safeguard.
+- Production Game 3, `TEST — Quick Workflow (2 Questions)`, has no cutoff and
+  is visible on the public chooser. It is inactive, so Game 1 remains the sole
+  admin invitation/reminder email game. Its answers are `4` (also `four`) and
+  `blue`, allowing the completion/results workflow to be exercised quickly.
+- Commit `087d3ae` and tag `timed-quiz-v0.1.0-rc38` are pushed and deployed.
+  All 49 tests, TypeScript, `git diff --check`, production preflight, health,
+  chooser, data-count, and CASS checks pass.
+- Backup `quiz-20260812T002640Z.sqlite.gz` passed gzip and SQLite integrity
+  checks before deployment. No email was sent.
+
 ## 2026-08-11 — Grading-gated player results deployed as rc37
 
 - Admin can edit the completion title, saved-response text, grading-pending
