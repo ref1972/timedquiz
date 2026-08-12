@@ -1019,6 +1019,7 @@ test("public players can choose and play each open game without entering invitat
   const player = publicAccess.registerPublicPlayer(firstGame.id, "  Public   Player  ");
   assert.ok(player);
   assert.equal(player.display_name, "Public Player");
+  assert.equal(admin.results().find((row) => row.id === player.id)?.email, "Guest — no email", "admin never exposes the internal guest identity as an email address");
   assert.equal(publicAccess.playerGameOptions(player).length, 2);
 
   const secondPlayer = publicAccess.playerForGame(player, secondGame.id);
@@ -1051,6 +1052,9 @@ test("public players can choose and play each open game without entering invitat
   assert.equal(accounts.consumeAccountLogin(loginToken)?.id, accountId);
   assert.equal(accounts.consumeAccountLogin(loginToken), null, "a magic link is single use");
   assert.equal(accounts.accountHistory(accountId).find((row) => row.playerId === secondPlayer.id)?.score, 2);
+  gameStore.selectGame(secondGame.id);
+  assert.equal(admin.results().find((row) => row.id === secondPlayer.id)?.email, "public@example.com", "a linked guest displays the verified account email");
+  gameStore.selectGame(firstGame.id);
 
   db.prepare("DELETE FROM account_player_links WHERE account_id=?").run(accountId);
   db.prepare("DELETE FROM account_login_tokens WHERE account_id=?").run(accountId);

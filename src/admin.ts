@@ -60,7 +60,9 @@ export interface PlayerAnswerRow {
 }
 
 export function playerAnswerHistory(playerId: number): { player: { id: number; email: string; display_name: string; is_test: number }; attempts: PlayerAnswerAttempt[]; answers: PlayerAnswerRow[] } | null {
-  const player = db.prepare("SELECT id, email, display_name, is_test FROM players WHERE id = ? AND game_id = ?").get(playerId, selectedGame().id) as { id: number; email: string; display_name: string; is_test: number } | undefined;
+  const player = db.prepare(`SELECT p.id,COALESCE(a.email,CASE WHEN p.is_public=1 THEN 'Guest — no email' ELSE p.email END) email,p.display_name,p.is_test
+    FROM players p LEFT JOIN account_player_links l ON l.player_id=p.id LEFT JOIN accounts a ON a.id=l.account_id
+    WHERE p.id=? AND p.game_id=?`).get(playerId, selectedGame().id) as { id: number; email: string; display_name: string; is_test: number } | undefined;
   if (!player) return null;
   const attempts = db.prepare("SELECT id, generation, status, started_at, completed_at, restart_reason FROM attempts WHERE player_id = ? ORDER BY generation DESC").all(playerId) as unknown as PlayerAnswerAttempt[];
   const answers = db.prepare(`SELECT e.attempt_id, q.position, q.category, q.prompt, q.canonical_answer, q.aliases_json, q.included_in_score,
@@ -73,16 +75,18 @@ export function playerAnswerHistory(playerId: number): { player: { id: number; e
 export function results(): ResultRow[] {
   return db
     .prepare(
-      `SELECT p.id, p.game_id, p.email, p.display_name, p.is_test, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
+      `SELECT p.id, p.game_id, COALESCE(ac.email,CASE WHEN p.is_public=1 THEN 'Guest — no email' ELSE p.email END) email, p.display_name, p.is_test, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
         a.completion_notification_started_at, a.completion_notified_at, a.completion_notification_error,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.verdict = 'correct' THEN 1 ELSE 0 END), 0) AS score,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.submitted_at IS NOT NULL THEN e.elapsed_ms ELSE 0 END), 0) AS answer_time_ms
        FROM players p
+       LEFT JOIN account_player_links apl ON apl.player_id=p.id
+       LEFT JOIN accounts ac ON ac.id=apl.account_id
        LEFT JOIN attempts a ON a.player_id = p.id AND a.status IN ('in_progress', 'completed')
        LEFT JOIN exposures e ON e.attempt_id = a.id
        LEFT JOIN questions q ON q.id = e.question_id
        WHERE p.game_id = ?
-       GROUP BY p.id, a.id
+       GROUP BY p.id, a.id, ac.id
        ORDER BY score DESC, answer_time_ms ASC, p.email ASC`,
     )
     .all(selectedGame().id) as unknown as ResultRow[];

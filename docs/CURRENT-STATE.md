@@ -4,6 +4,10 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
+- Admin player lists, answer sheets, and score CSVs now treat internal
+  `@players.invalid` identifiers as implementation details. Unlinked public
+  players display as `Guest — no email`; once linked through a verified magic
+  link, the verified account email is displayed instead.
 - Optional passwordless email accounts and per-game public scoreboards are
   deployed as rc39. Magic links are stored only as hashes,
   expire after 15 minutes, work once, and require verified email ownership
