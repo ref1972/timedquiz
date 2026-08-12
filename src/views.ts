@@ -8,6 +8,8 @@ import type { PlayerGameOption } from "./public-access.ts";
 import type { PlayerResults } from "./public-access.ts";
 import type { Player } from "./quiz.ts";
 import type { CompletionCopy } from "./completion-copy.ts";
+import type { Account, AccountHistoryRow } from "./account.ts";
+import type { ScoreboardRow } from "./public-access.ts";
 import { visiblePromptText } from "./question-import.ts";
 
 function esc(value: unknown): string {
@@ -64,22 +66,37 @@ export function playerPage(): string {
 </html>`;
 }
 
-export function publicAccessPage(games: Game[], player: Player | null, options: PlayerGameOption[] = []): string {
+export function publicAccessPage(games: Game[], player: Player | null, options: PlayerGameOption[] = [], account: Account | null = null): string {
   const gameForms = player
     ? options.map((option) => `<article class="game-card">
         <p class="eyebrow">Game ${option.game.game_number}</p><h2>${esc(option.game.name)}</h2>
         <p>Status: <strong>${esc(option.status)}</strong></p>
-        <form method="post" action="/play/game"><input type="hidden" name="gameId" value="${option.game.id}"><button>${option.status === "completed" ? "View completed game" : option.status === "in progress" ? "Continue game" : "Play this game"}</button></form>
+        <form method="post" action="/play/game"><input type="hidden" name="gameId" value="${option.game.id}"><button>${option.status === "completed" ? "View completed game" : option.status === "in progress" ? "Continue game" : "Play this game"}</button></form><p><a href="/scoreboard/${option.game.id}">Scoreboard</a></p>
       </article>`).join("")
     : games.map((game) => `<article class="game-card">
         <p class="eyebrow">Game ${game.game_number}</p><h2>${esc(game.name)}</h2>
-        <form method="post" action="/play/register"><input type="hidden" name="gameId" value="${game.id}"><label>Your display name<input name="name" maxlength="100" required autocomplete="name"></label><button>Play this game</button></form>
+        <form method="post" action="/play/register"><input type="hidden" name="gameId" value="${game.id}"><label>Your display name<input name="name" maxlength="100" required autocomplete="name"></label><button>Play this game</button></form><p><a href="/scoreboard/${game.id}">Scoreboard</a></p>
       </article>`).join("");
   return page("Play the Pop Culture Bee", `<main class="card wide public-home">
     <p class="eyebrow">Trivia Nationals</p><h1>Play the Pop Culture Bee</h1>
     <p>${player ? `Welcome, <strong>${esc(player.display_name || "player")}</strong>. Choose a game below; each game keeps its own progress and score.` : "Choose a game and enter the name you want shown with your score. No email address is required."}</p>
+    <p>${account ? `<a class="button secondary" href="/account">My account</a>` : `<a class="button secondary" href="/account/login">Email sign in</a>`}</p>
     <div class="game-grid">${gameForms || '<p class="notice">No games are open right now.</p>'}</div>
   </main>`);
+}
+
+export function accountLoginPage(sent = false, error = ""): string {
+  return page("Email sign in", `<main class="card narrow"><p class="eyebrow">Player account</p><h1>${sent ? "Check your email" : "Sign in without a password"}</h1>${sent ? '<p>If that address can receive mail, a one-time sign-in link is on its way. It expires in 15 minutes.</p>' : `<p>We will email you a secure, one-time sign-in link.</p>${error ? `<p class="notice">${esc(error)}</p>` : ""}<form method="post" action="/account/login"><label>Email<input type="email" name="email" maxlength="254" autocomplete="email" required autofocus></label><button>Email me a sign-in link</button></form>`}<p><a href="/">Back to games</a></p></main>`);
+}
+
+export function accountPage(account: Account, history: AccountHistoryRow[]): string {
+  const rows = history.map((row) => `<tr><td>${row.gameNumber}</td><td>${esc(row.gameName)}</td><td>${esc(row.status)}</td><td>${row.score === null ? (row.unresolved ? "grading" : "—") : row.score}</td><td>${row.status === "completed" ? `<a href="/account/results/${row.playerId}">Answers</a>` : "—"}</td></tr>`).join("");
+  return page("My account", `<main class="card wide"><p class="eyebrow">Player account</p><h1>${esc(account.display_name || account.email)}</h1><p>${esc(account.email)}</p><p><a class="button" href="/">Choose a game</a></p><section class="panel"><h2>Game history</h2><div class="table"><table><thead><tr><th>Game</th><th>Name</th><th>Status</th><th>Score</th><th>Details</th></tr></thead><tbody>${rows || '<tr><td colspan="5">No linked games yet.</td></tr>'}</tbody></table></div></section><form method="post" action="/account/logout"><button class="secondary">Sign out</button></form></main>`);
+}
+
+export function scoreboardPage(game: Game, rows: ScoreboardRow[]): string {
+  const body = rows.map((row) => `<tr><td>${row.rank}</td><td>${esc(row.displayName)}</td><td>${row.score}</td><td>${(row.answerTimeMs / 1000).toFixed(1)}s</td></tr>`).join("");
+  return page(`${game.name} scoreboard`, `<main class="card wide"><p class="eyebrow">Game ${game.game_number}</p><h1>${esc(game.name)} scoreboard</h1><p>Only completed, fully graded entries appear.</p><div class="table"><table><thead><tr><th>Rank</th><th>Player</th><th>Score</th><th>Time</th></tr></thead><tbody>${body || '<tr><td colspan="4">No fully graded scores yet.</td></tr>'}</tbody></table></div><p><a class="button secondary" href="/">Back to games</a></p></main>`);
 }
 
 export function playerResultsPage(player: Player, results: PlayerResults | null, copy: CompletionCopy): string {

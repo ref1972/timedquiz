@@ -32,6 +32,9 @@ admin invitation and reminder email operations rather than player access.
 - Admin-editable player completion copy, with a return-to-game-chooser action
   and an optional player answer sheet. A player's score and submitted answers
   remain hidden until every answer in that attempt has a final grading verdict.
+- Optional passwordless player accounts use single-use, 15-minute email links
+  and can link verified invitation or guest histories across games. Public
+  scoreboards include only completed, fully graded, non-test attempts.
 
 ## Production target
 

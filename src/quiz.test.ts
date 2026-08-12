@@ -37,6 +37,7 @@ const completionNotification = await import("./completion-notification.ts");
 const completionCopy = await import("./completion-copy.ts");
 const gameStore = await import("./games.ts");
 const publicAccess = await import("./public-access.ts");
+const accounts = await import("./account.ts");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1009,6 +1010,7 @@ test("games isolate players and questions while playable inactive-game links sti
 
 test("public players can choose and play each open game without entering invitation batches", () => {
   const firstGame = gameStore.activeGame();
+  const createdAt = new Date().toISOString();
   const secondGame = gameStore.createGame("Public Two-question Test", null, 2);
   const insertQuestion = db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, '[]')");
   for (let i = 1; i <= 2; i++) insertQuestion.run(secondGame.id, i, `Second question ${i}?`, `second${i}`);
@@ -1039,7 +1041,20 @@ test("public players can choose and play each open game without entering invitat
     assert.equal(testResults.score, 2);
     assert.deepEqual(testResults.answers.map((answer) => [answer.position, answer.submitted_text, answer.verdict]), [[1, "second1", "correct"], [2, "second2", "correct"]]);
   }
+  const board = publicAccess.gameScoreboard(secondGame.id);
+  assert.equal(board?.rows.length, 1);
+  assert.deepEqual(board?.rows.map((row) => [row.rank, row.displayName, row.score]), [[1, "Public Player", 2]]);
 
+  const accountId = Number(db.prepare("INSERT INTO accounts (email,display_name,created_at) VALUES ('public@example.com','Public Player',?)").run(createdAt).lastInsertRowid);
+  const loginToken = "one-time-account-token";
+  db.prepare("INSERT INTO account_login_tokens (account_id,token_hash,requested_player_id,expires_at,created_at) VALUES (?,?,?,?,?)").run(accountId, cryptoHelpers.sha256(loginToken), secondPlayer.id, new Date(Date.now() + 60_000).toISOString(), createdAt);
+  assert.equal(accounts.consumeAccountLogin(loginToken)?.id, accountId);
+  assert.equal(accounts.consumeAccountLogin(loginToken), null, "a magic link is single use");
+  assert.equal(accounts.accountHistory(accountId).find((row) => row.playerId === secondPlayer.id)?.score, 2);
+
+  db.prepare("DELETE FROM account_player_links WHERE account_id=?").run(accountId);
+  db.prepare("DELETE FROM account_login_tokens WHERE account_id=?").run(accountId);
+  db.prepare("DELETE FROM accounts WHERE id=?").run(accountId);
   db.prepare("DELETE FROM exposures WHERE attempt_id IN (SELECT id FROM attempts WHERE player_id = ?)").run(secondPlayer.id);
   db.prepare("DELETE FROM audit_events WHERE attempt_id IN (SELECT id FROM attempts WHERE player_id = ?)").run(secondPlayer.id);
   db.prepare("DELETE FROM attempts WHERE player_id = ?").run(secondPlayer.id);

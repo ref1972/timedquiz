@@ -4,9 +4,11 @@ import { config } from "./config.ts";
 import { sign, unsign, timingSafeStringEqual } from "./crypto.ts";
 import { getAppSetting, setAppSetting } from "./db.ts";
 import { findPlayerById, type Player } from "./quiz.ts";
+import { accountById, type Account } from "./account.ts";
 
 const PLAYER_COOKIE = "pcb_player";
 const ADMIN_COOKIE = "pcb_admin";
+const ACCOUNT_COOKIE = "pcb_account";
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
 const TWELVE_HOURS_SECONDS = 12 * 60 * 60;
 
@@ -37,6 +39,20 @@ export function setPlayerSession(res: Response, playerId: number): void {
 
 export function setAdminSession(res: Response): void {
   setSignedCookie(res, ADMIN_COOKIE, `admin:${adminSessionVersion()}`, TWELVE_HOURS_SECONDS);
+}
+
+export function setAccountSession(res: Response, accountId: number): void {
+  setSignedCookie(res, ACCOUNT_COOKIE, String(accountId), 30 * 24 * 60 * 60);
+}
+
+export function clearAccountSession(res: Response): void {
+  res.clearCookie(ACCOUNT_COOKIE, { path: "/" });
+}
+
+export function currentAccount(req: Request): Account | null {
+  const raw = unsign(parseCookies(req)[ACCOUNT_COOKIE]);
+  const id = Number(raw);
+  return raw && Number.isSafeInteger(id) ? accountById(id) : null;
 }
 
 export function currentPlayer(req: Request): Player | null {

@@ -2,15 +2,17 @@ import type { Request, Response, Router as RouterType } from "express";
 import { Router } from "express";
 import { db } from "./db.ts";
 import { sha256 } from "./crypto.ts";
-import { currentPlayer, requirePlayer, setPlayerSession } from "./auth.ts";
+import { clearAccountSession, currentAccount, currentPlayer, requirePlayer, setAccountSession, setPlayerSession } from "./auth.ts";
 import { currentAttempt, findPlayerByTokenHash, getStatus, recordDisplayed, saveDraft, serveNext, submitAnswer, type Player } from "./quiz.ts";
 import { playableGames } from "./games.ts";
-import { playerForGame, playerGameOptions, playerResults, registerPublicPlayer } from "./public-access.ts";
+import { gameScoreboard, playerForGame, playerGameOptions, playerResults, registerPublicPlayer } from "./public-access.ts";
+import { accountHistory, consumeAccountLogin, linkPlayer, requestAccountLogin } from "./account.ts";
 import { getCompletionCopy } from "./completion-copy.ts";
-import { page, playerPage, playerResultsPage, publicAccessPage } from "./views.ts";
+import { accountLoginPage, accountPage, page, playerPage, playerResultsPage, publicAccessPage, scoreboardPage } from "./views.ts";
 
 export const playerRouter: RouterType = Router();
 const publicRegistrations = new Map<string, { count: number; resetsAt: number }>();
+const accountRequests = new Map<string, { count: number; resetsAt: number }>();
 
 function registrationRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -31,7 +33,7 @@ playerRouter.get("/health", (_req: Request, res: Response) => {
 
 playerRouter.get("/", (req: Request, res: Response) => {
   const player = currentPlayer(req);
-  res.send(publicAccessPage(playableGames(), player, player ? playerGameOptions(player) : []));
+  res.send(publicAccessPage(playableGames(), player, player ? playerGameOptions(player) : [], currentAccount(req)));
 });
 
 playerRouter.post("/play/register", (req: Request, res: Response) => {
@@ -39,8 +41,39 @@ playerRouter.post("/play/register", (req: Request, res: Response) => {
   const player = registerPublicPlayer(Number(req.body.gameId), String(req.body.name ?? ""));
   if (!player) return void res.status(400).send(page("Could not register", '<main class="card"><h1>Choose an open game and enter your name.</h1><a class="button" href="/">Return</a></main>'));
   setPlayerSession(res, player.id);
+  const account = currentAccount(req);
+  if (account) linkPlayer(account.id, player.id);
   res.redirect("/quiz");
 });
+
+playerRouter.get("/scoreboard/:gameId", (req: Request, res: Response) => {
+  const board = gameScoreboard(Number(req.params.gameId));
+  if (!board) return void res.status(404).send(page("Scoreboard unavailable", '<main class="card"><h1>Scoreboard unavailable</h1><a href="/">Back to games</a></main>'));
+  res.send(scoreboardPage(board.game, board.rows));
+});
+
+playerRouter.get("/account/login", (req: Request, res: Response) => res.send(currentAccount(req) ? accountPage(currentAccount(req)!, accountHistory(currentAccount(req)!.id)) : accountLoginPage()));
+playerRouter.post("/account/login", async (req: Request, res: Response) => {
+  const key = req.ip ?? "unknown"; const now = Date.now(); const prior = accountRequests.get(key);
+  if (prior && prior.resetsAt > now && ++prior.count > 5) return void res.status(429).send(accountLoginPage(false, "Too many sign-in requests. Try again in an hour."));
+  if (!prior || prior.resetsAt <= now) accountRequests.set(key, { count: 1, resetsAt: now + 60 * 60_000 });
+  const result = await requestAccountLogin(String(req.body.email ?? ""), currentPlayer(req));
+  if (result && !result.ok) return void res.status(502).send(accountLoginPage(false, "Email delivery is temporarily unavailable. Please try again later."));
+  res.send(accountLoginPage(true));
+});
+playerRouter.get("/account/verify/:token", (req: Request, res: Response) => {
+  const account = consumeAccountLogin(String(req.params.token ?? ""));
+  if (!account) return void res.status(400).send(page("Link expired", '<main class="card"><h1>That sign-in link is invalid or expired.</h1><a class="button" href="/account/login">Request another link</a></main>'));
+  setAccountSession(res, account.id); res.redirect("/account");
+});
+playerRouter.get("/account", (req: Request, res: Response) => { const account = currentAccount(req); if (!account) return void res.redirect("/account/login"); res.send(accountPage(account, accountHistory(account.id))); });
+playerRouter.get("/account/results/:playerId", (req: Request, res: Response) => {
+  const account = currentAccount(req); if (!account) return void res.redirect("/account/login");
+  const player = db.prepare("SELECT p.id,p.game_id,p.email,p.display_name,p.is_test FROM account_player_links l JOIN players p ON p.id=l.player_id WHERE l.account_id=? AND p.id=?").get(account.id, Number(req.params.playerId)) as unknown as Player | undefined;
+  if (!player) return void res.status(404).send(page("Not found", '<main class="card"><h1>Result not found</h1></main>'));
+  res.send(playerResultsPage(player, playerResults(player), getCompletionCopy()));
+});
+playerRouter.post("/account/logout", (_req: Request, res: Response) => { clearAccountSession(res); res.redirect("/"); });
 
 playerRouter.post("/play/game", (req: Request, res: Response) => {
   const current = currentPlayer(req);

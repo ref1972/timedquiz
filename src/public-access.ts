@@ -22,6 +22,20 @@ export type PlayerResults =
   | { ready: false }
   | { ready: true; gameName: string; score: number; answers: PlayerResultAnswer[] };
 
+export interface ScoreboardRow { rank: number; displayName: string; score: number; answerTimeMs: number }
+export function gameScoreboard(gameId: number): { game: Game; rows: ScoreboardRow[] } | null {
+  const game = playableGames().find((candidate) => candidate.id === gameId);
+  if (!game) return null;
+  const raw = db.prepare(`SELECT p.display_name displayName,
+    SUM(CASE WHEN q.included_in_score=1 AND e.verdict='correct' THEN 1 ELSE 0 END) score,
+    SUM(CASE WHEN q.included_in_score=1 THEN COALESCE(e.elapsed_ms,0) ELSE 0 END) answerTimeMs
+    FROM players p JOIN attempts a ON a.player_id=p.id AND a.status='completed'
+    JOIN exposures e ON e.attempt_id=a.id JOIN questions q ON q.id=e.question_id
+    WHERE p.game_id=? AND p.is_test=0 AND NOT EXISTS (SELECT 1 FROM exposures u WHERE u.attempt_id=a.id AND u.verdict='unresolved')
+    GROUP BY p.id,a.id ORDER BY score DESC,answerTimeMs ASC,p.display_name COLLATE NOCASE`).all(gameId) as Array<Omit<ScoreboardRow,"rank">>;
+  return { game, rows: raw.map((row, index) => ({ ...row, rank: index + 1 })) };
+}
+
 export function playerGameOptions(player: Player): PlayerGameOption[] {
   return playableGames().map((game) => {
     const row = db.prepare(`SELECT p.id,

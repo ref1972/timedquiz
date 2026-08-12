@@ -4,6 +4,19 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
+- Optional passwordless email accounts and per-game public scoreboards are
+  implemented for the next release. Magic links are stored only as hashes,
+  expire after 15 minutes, work once, and require verified email ownership
+  before invitation histories are linked. Guest play remains available.
+  Account dashboards show linked game status and expose scores only after all
+  answers are graded. Scoreboards similarly exclude test players, superseded
+  attempts, in-progress attempts, and any completed attempt with an unresolved
+  answer. Local verification passes 49 tests, TypeScript, `git diff --check`,
+  and browser checks of login, scoreboard, token consumption, and dashboard.
+- At the owner's request, production Game 3 was renamed
+  `ARCHIVED — Quick Workflow Test` and closed, removing it from the chooser.
+  Its one completed attempt and two answers were retained rather than deleted,
+  and audit event `test_game_archived` records the change.
 - Configurable per-game question counts are deployed as rc38,
   while existing games retain the 50-question default. A game becomes playable
   only when its actual question count matches its configured requirement; this

@@ -28,6 +28,32 @@ CREATE TABLE IF NOT EXISTS games (
 
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_game ON games (is_active) WHERE is_active = 1;
 
+CREATE TABLE IF NOT EXISTS accounts (
+  id INTEGER PRIMARY KEY,
+  email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+  display_name TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  last_login_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS account_login_tokens (
+  id INTEGER PRIMARY KEY,
+  account_id INTEGER NOT NULL REFERENCES accounts(id),
+  token_hash TEXT NOT NULL UNIQUE,
+  requested_player_id INTEGER REFERENCES players(id),
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS account_player_links (
+  account_id INTEGER NOT NULL REFERENCES accounts(id),
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  linked_at TEXT NOT NULL,
+  PRIMARY KEY (account_id, player_id),
+  UNIQUE (player_id)
+);
+
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY,
   game_id INTEGER NOT NULL REFERENCES games(id),
