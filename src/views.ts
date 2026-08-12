@@ -267,7 +267,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
       <header>
         <p class="eyebrow">Trivia Nationals</p>
         <h1>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</h1>
-        <p>${data.questionCount}/50 questions &middot; ${data.selectedGame.is_active ? "active game" : "inactive game"} &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
+        <p>${data.questionCount}/${data.selectedGame.expected_question_count} questions &middot; ${data.selectedGame.is_active ? "active game" : "inactive game"} &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
       </header>
       <nav class="admin-nav" aria-label="Quiz administration">
         <a href="/admin/questions" ${section === "questions" ? 'aria-current="page"' : ""}>Questions &amp; Answers</a>
@@ -281,7 +281,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <p>Viewing <strong>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</strong>${data.selectedGame.is_active ? ' <span class="status-pill">active</span>' : ' <span class="status-pill">inactive</span>'}. Questions, players, progress, grading, and exports below belong only to this game.</p>
         <div class="game-actions">${data.games.map((game) => `<form method="post" action="/admin/game/select"><input type="hidden" name="gameId" value="${game.id}"><button class="small ${game.id === data.selectedGame.id ? "" : "secondary"}">Game ${game.game_number}: ${esc(game.name)}${game.is_active ? " · active" : ""}</button></form>`).join("")}</div>
         ${data.selectedGame.is_active ? "" : `<form method="post" action="/admin/game/activate" onsubmit="return confirm('Make Game ${data.selectedGame.game_number} the active admin game for invitation and reminder email operations?')"><input type="hidden" name="gameId" value="${data.selectedGame.id}"><button>Make this the active admin game</button></form>`}
-        <details><summary>Create a new game</summary><form method="post" action="/admin/game/create"><label>Game name<input name="name" maxlength="160" required></label><label>Cutoff (Central time)<input type="datetime-local" name="closesAt" required></label><button>Create inactive game</button></form></details>
+        <details><summary>Create a new game</summary><form method="post" action="/admin/game/create"><label>Game name<input name="name" maxlength="160" required></label><label>Questions required<input type="number" name="expectedQuestionCount" min="1" max="50" value="50" required></label><label>Cutoff (Central time)<input type="datetime-local" name="closesAt" required></label><button>Create inactive game</button></form></details>
       </section>
 
       <section class="panel" id="player-intro" ${section === "players" ? "" : "hidden"}>
@@ -305,7 +305,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <form method="post" action="/admin/questions">
           <label>Question CSV<input id="questionCsvFile" type="file" accept=".csv,text/csv"></label>
           <label>CSV preview or pasted CSV<textarea id="questionImportData" name="questions" rows="7" required placeholder="position,category,question,highlighted_text,answer,aliases,person"></textarea></label>
-          <button>Validate and import 50 questions</button>
+          <button>Validate and import ${data.selectedGame.expected_question_count} questions</button>
         </form>
         <p class="muted">JSON imports are still accepted for compatibility.</p>
       </section>

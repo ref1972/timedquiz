@@ -4,7 +4,8 @@ Timed Quiz is a standalone Node/Express/SQLite platform for personalized,
 server-timed online quizzes. Its first production use is the Trivia Workshop
 Pop Culture Bee preliminary quiz at `https://bee.triviaworkshop.com`.
 
-The application supports multiple numbered games. Players, questions, attempts,
+The application supports multiple numbered games with an explicit required
+question count (50 by default). Players, questions, attempts,
 results, and grading stay attached to their game. Complete games with no cutoff
 or a future cutoff are available through a public game chooser; a player may
 play each available game independently. The single active-game flag now scopes

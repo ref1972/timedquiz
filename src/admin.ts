@@ -362,9 +362,10 @@ adminRouter.post("/admin/game/select", requireAdmin, (req: Request, res: Respons
 adminRouter.post("/admin/game/create", requireAdmin, (req: Request, res: Response) => {
   const name = String(req.body.name ?? "").trim();
   const local = String(req.body.closesAt ?? "").trim();
+  const expectedQuestionCount = Number(req.body.expectedQuestionCount ?? 50);
   const closesAt = centralLocalToIso(local);
-  if (!name || name.length > 160 || !closesAt) return void res.status(400).send(page("Game not created", `<main class="card"><h1>Enter a valid game name and Central cutoff</h1><a href="/admin/players">Return</a></main>`));
-  const game = createGame(name, closesAt);
+  if (!name || name.length > 160 || !closesAt || !Number.isInteger(expectedQuestionCount) || expectedQuestionCount < 1 || expectedQuestionCount > 50) return void res.status(400).send(page("Game not created", `<main class="card"><h1>Enter a valid game name, Central cutoff, and question count from 1 to 50</h1><a href="/admin/players">Return</a></main>`));
+  const game = createGame(name, closesAt, expectedQuestionCount);
   selectGame(game.id);
   logEvent(null, "game_created", { gameId: game.id, gameNumber: game.game_number });
   res.redirect("/admin/players");
@@ -708,13 +709,13 @@ adminRouter.post("/admin/questions", requireAdmin, (req: Request, res: Response)
 
   const positions = new Set(parsed.map((q) => q.position));
   const valid =
-    parsed.length === 50 &&
-    positions.size === 50 &&
-    parsed.every((q) => q.position >= 1 && q.position <= 50 && q.prompt?.trim() && q.answer?.trim() && (!q.highlightedText?.trim() || visiblePromptText(q.prompt).toLocaleLowerCase("en-US").includes(q.highlightedText.trim().toLocaleLowerCase("en-US"))));
+    parsed.length === selectedGame().expected_question_count &&
+    positions.size === selectedGame().expected_question_count &&
+    parsed.every((q) => q.position >= 1 && q.position <= selectedGame().expected_question_count && q.prompt?.trim() && q.answer?.trim() && (!q.highlightedText?.trim() || visiblePromptText(q.prompt).toLocaleLowerCase("en-US").includes(q.highlightedText.trim().toLocaleLowerCase("en-US"))));
   if (!valid) {
     res
       .status(400)
-      .send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>Provide exactly 50 unique positions from 1 through 50, each with a non-blank question and answer. Any highlighted text must occur in that question.</p><a href="/admin">Return</a></main>`));
+      .send(page("Invalid questions", `<main class="card"><h1>Import rejected</h1><p>Provide exactly ${selectedGame().expected_question_count} unique positions from 1 through ${selectedGame().expected_question_count}, each with a non-blank question and answer. Any highlighted text must occur in that question.</p><a href="/admin">Return</a></main>`));
     return;
   }
 

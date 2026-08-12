@@ -1009,9 +1009,9 @@ test("games isolate players and questions while playable inactive-game links sti
 
 test("public players can choose and play each open game without entering invitation batches", () => {
   const firstGame = gameStore.activeGame();
-  const secondGame = gameStore.createGame("Public Second Bee", null);
+  const secondGame = gameStore.createGame("Public Two-question Test", null, 2);
   const insertQuestion = db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, ?, ?, ?, '[]')");
-  for (let i = 1; i <= 50; i++) insertQuestion.run(secondGame.id, i, `Second question ${i}?`, `second${i}`);
+  for (let i = 1; i <= 2; i++) insertQuestion.run(secondGame.id, i, `Second question ${i}?`, `second${i}`);
 
   const invitationCountBefore = admin.invitationStats().realPlayers;
   const player = publicAccess.registerPublicPlayer(firstGame.id, "  Public   Player  ");
@@ -1025,6 +1025,24 @@ test("public players can choose and play each open game without entering invitat
   assert.notEqual(secondPlayer.id, player.id, "each game retains its own player and attempt history");
   assert.equal(admin.invitationStats().realPlayers, invitationCountBefore, "public registrations do not enter email batches");
 
+  let state = quiz.serveNext(secondPlayer);
+  assert.equal(state.state, "question");
+  if (state.state === "question") quiz.submitAnswer(quiz.currentAttempt(secondPlayer.id)!.id, state.nonce, "second1");
+  state = quiz.serveNext(secondPlayer);
+  assert.equal(state.state, "question");
+  if (state.state === "question") quiz.submitAnswer(quiz.currentAttempt(secondPlayer.id)!.id, state.nonce, "second2");
+  assert.equal(quiz.getStatus(secondPlayer).state, "complete", "a game completes at its configured two-question length");
+  const testResults = publicAccess.playerResults(secondPlayer);
+  assert.equal(testResults?.ready, true);
+  if (testResults?.ready) {
+    assert.equal(testResults.gameName, "Public Two-question Test");
+    assert.equal(testResults.score, 2);
+    assert.deepEqual(testResults.answers.map((answer) => [answer.position, answer.submitted_text, answer.verdict]), [[1, "second1", "correct"], [2, "second2", "correct"]]);
+  }
+
+  db.prepare("DELETE FROM exposures WHERE attempt_id IN (SELECT id FROM attempts WHERE player_id = ?)").run(secondPlayer.id);
+  db.prepare("DELETE FROM audit_events WHERE attempt_id IN (SELECT id FROM attempts WHERE player_id = ?)").run(secondPlayer.id);
+  db.prepare("DELETE FROM attempts WHERE player_id = ?").run(secondPlayer.id);
   db.prepare("DELETE FROM players WHERE email = ?").run(player.email);
   db.prepare("DELETE FROM questions WHERE game_id = ?").run(secondGame.id);
   db.prepare("DELETE FROM games WHERE id = ?").run(secondGame.id);

@@ -5,6 +5,7 @@ export interface Game {
   game_number: number;
   name: string;
   is_active: number;
+  expected_question_count: number;
   closes_at: string | null;
   created_at: string;
 }
@@ -17,7 +18,7 @@ export function playableGames(): Game[] {
   const now = new Date().toISOString();
   return db.prepare(`SELECT g.* FROM games g
     WHERE (g.closes_at IS NULL OR g.closes_at > ?)
-      AND (SELECT COUNT(*) FROM questions q WHERE q.game_id = g.id) = 50
+      AND (SELECT COUNT(*) FROM questions q WHERE q.game_id = g.id) = g.expected_question_count
     ORDER BY g.game_number`).all(now) as unknown as Game[];
 }
 
@@ -46,9 +47,10 @@ export function selectGame(id: number): boolean {
   return true;
 }
 
-export function createGame(name: string, closesAt: string | null): Game {
+export function createGame(name: string, closesAt: string | null, expectedQuestionCount = 50): Game {
+  if (!Number.isInteger(expectedQuestionCount) || expectedQuestionCount < 1 || expectedQuestionCount > 50) throw new Error("Question count must be between 1 and 50.");
   const number = Number((db.prepare("SELECT COALESCE(MAX(game_number), 0) + 1 AS n FROM games").get() as { n: number }).n);
-  const result = db.prepare("INSERT INTO games (game_number, name, is_active, closes_at, created_at) VALUES (?, ?, 0, ?, ?)").run(number, name, closesAt, nowIso());
+  const result = db.prepare("INSERT INTO games (game_number, name, is_active, expected_question_count, closes_at, created_at) VALUES (?, ?, 0, ?, ?, ?)").run(number, name, expectedQuestionCount, closesAt, nowIso());
   return gameById(Number(result.lastInsertRowid))!;
 }
 

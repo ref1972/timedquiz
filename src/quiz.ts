@@ -244,7 +244,7 @@ export function getStatus(player: Player): QuizState {
 export function serveNext(player: Player): QuizState {
   const game = gameById(player.game_id)!;
   const closesAt = game.closes_at ? Date.parse(game.closes_at) : null;
-  if (questionCount(player.game_id) !== 50) return { state: "prestart", gameName: game.name, questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
+  if (questionCount(player.game_id) !== game.expected_question_count) return { state: "prestart", gameName: game.name, questionCount: questionCount(player.game_id), closesAt: game.closes_at, intro: getIntroCopy(), durationSeconds: durationSeconds() };
 
   let attempt = currentAttempt(player.id);
   if (!attempt) {

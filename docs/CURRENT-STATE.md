@@ -4,6 +4,12 @@ Last updated: 2026-08-11.
 
 ## Source and verification
 
+- Configurable per-game question counts are implemented for the next release,
+  while existing games retain the 50-question default. A game becomes playable
+  only when its actual question count matches its configured requirement; this
+  permits a deliberately short workflow-test game without allowing partially
+  imported live games onto the chooser. Automated coverage completes and
+  reveals results for a two-question public game.
 - Player completion copy and button labels are admin-editable in deployed
   release rc37. The completion screen always links back to the public game
   chooser and offers a player-only score/answer sheet only after every submitted

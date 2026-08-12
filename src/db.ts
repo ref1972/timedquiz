@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS games (
   game_number INTEGER NOT NULL UNIQUE,
   name TEXT NOT NULL,
   is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
+  expected_question_count INTEGER NOT NULL DEFAULT 50 CHECK (expected_question_count BETWEEN 1 AND 50),
   closes_at TEXT,
   created_at TEXT NOT NULL
 );
@@ -139,6 +140,11 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TEXT NOT NULL
 );
 `);
+
+const gameColumns = db.prepare("PRAGMA table_info(games)").all() as unknown as Array<{ name: string }>;
+if (!gameColumns.some((column) => column.name === "expected_question_count")) {
+  db.exec("ALTER TABLE games ADD COLUMN expected_question_count INTEGER NOT NULL DEFAULT 50 CHECK (expected_question_count BETWEEN 1 AND 50)");
+}
 
 if (!(db.prepare("SELECT id FROM games LIMIT 1").get())) {
   db.prepare("INSERT INTO games (game_number, name, is_active, closes_at, created_at) VALUES (1, ?, 1, ?, ?)").run(
