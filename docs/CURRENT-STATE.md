@@ -4,9 +4,9 @@ Last updated: 2026-08-13.
 
 ## Source and verification
 
-- The admin interface now matches the public model. It is **present locally and
-  not yet committed, deployed, or verified in production.** Five screens:
-  **Games**, Questions & Answers, Players, Progress, and Grading.
+- The admin interface now matches the public model, deployed and verified as
+  rc42. Five screens: **Games**, Questions & Answers, Players, Progress, and
+  Grading.
   - Games is the new landing screen and the public-availability control. It
     lists every game with the counts, the cutoff, and whether the public
     chooser is offering it — taken from `playableGames()` itself, so the admin
@@ -42,11 +42,35 @@ Last updated: 2026-08-13.
   - No schema migration: the work is UI, routes, existing columns, and three
     new `app_settings` keys (`signin_email_subject`, `signin_email_body`,
     `completion_notification_scope`).
-- Local verification passes 55 tests, TypeScript, and `git diff --check`. A
-  local HTTP walkthrough created an always-open two-question game, watched it
-  reach the chooser only after its second question was imported, closed it (off
-  the chooser, scoreboard 404), reopened, renamed, and archived it, confirming
-  the questions survived and every step produced its audit event.
+- Verification passes 55 tests, TypeScript, and `git diff --check`. A local
+  HTTP walkthrough created an always-open two-question game, watched it reach
+  the chooser only after its second question was imported, closed it (off the
+  chooser, scoreboard 404), reopened, renamed, and archived it, confirming the
+  questions survived and every step produced its audit event.
+- Production verification of rc42 after backup `quiz-20260813T150847Z.sqlite.gz`,
+  which passed gzip and SQLite integrity checks and whose row counts matched
+  the live database. The active timed-question count was zero immediately
+  before the restart, so no live question window was interrupted. Health
+  reports rc42; both games remain on the public chooser; all five admin routes
+  including the new `/admin/games` gate to sign-in; and CASS
+  (`cass.triviaworkshop.com`, both PM2 services) remains HTTP 200. Counts are
+  unchanged at 3 games, 153 players, 151 attempts, 102 questions, and 4
+  accounts, and the 243 historical email/notification audit events did not
+  move — deployment sent nothing.
+- Rendering every admin screen against a consistent copy of the production
+  database confirms the live data reads correctly: Games 1 and 2 report
+  `PUBLIC` and Game 3 reports `off (closed 8/11/2026)`, matching the public
+  chooser exactly; the roster is 31 guests, 76 invited, 9 test, 4 linked
+  accounts; the legacy invitation disclosure appears (Game 1 has an invited
+  roster) with its `#invitations` and `#reminders` anchors intact; the 31
+  public players show a guest/signed-in line while all 85 non-public players
+  keep their Rotate link; completion scope reads `invited` and stays enabled,
+  so notification behavior is byte-for-byte what rc41 did; and no screen leaks
+  an internal `@players.invalid` identifier.
+- The live admin password is the salted scrypt hash stored in SQLite, not
+  `ADMIN_PASSWORD` from `/etc/timed-quiz.env`; that env value no longer
+  authenticates. Admin screens were therefore verified by rendering the
+  deployed view code against production data rather than by signing in.
 - Account security fixes are deployed as rc41: signed
   cookies are bound to their player/account/admin purpose; magic links cannot
   attach an invited identity whose email was not verified; verification GETs

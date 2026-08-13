@@ -1,6 +1,6 @@
 # Current handoff
 
-## 2026-08-13 — Admin rebuilt around public play (local only)
+## 2026-08-13 — Admin rebuilt around public play, deployed as rc42
 
 - The admin interface was reorganized to match the public site the player side
   became in rc36–rc41. New **Games** screen with the full lifecycle (create with
@@ -12,27 +12,40 @@
   test roster. Progress stopped offering invitation controls on guests.
   Completion email gained an invited-only/everyone scope, defaulting to
   invited. Preflight now understands open, variable-length games.
-- **Status: source present locally only.** Nothing is committed, tagged,
-  deployed, or verified in production, and no email was sent at any point.
-- Verification so far: 55 tests, `npm run typecheck`, `git diff --check`, and a
-  local HTTP walkthrough of the whole game lifecycle against a seeded scratch
-  database (create → import → public → close → reopen → rename → archive), each
-  step confirmed in the chooser, the scoreboard, the admin table, and
-  `audit_events`. Guest and invited progress cards, the roster counts, the
-  accounts panel, the sign-in template round trip and its `{{link}}` rejection,
-  the completion scope control, the guest-labeled results CSV, and preflight's
-  new warning path were all exercised locally.
-- Not yet done: `.claude/launch.json` was added for the local preview server —
-  keep or drop it deliberately before committing. The in-app browser pane was
-  unreliable in this session, so the UI was verified from rendered HTML rather
-  than from screenshots of every screen; a visual pass on Games, Players, and
-  Progress is worth doing before deploying.
-- Next steps: review, commit, tag as the next rc, then follow the normal
-  deployment sequence — backup with gzip and SQLite integrity checks first,
-  then preflight, health, and a CASS availability check. On the production
-  database the legacy disclosure will appear for Games 1 and 2 (both have
-  invited rosters) and stay hidden for any purely public game created later.
-  Decide at that point whether completion email should move to `all`.
+- Commit `d1e2a27` and tag `timed-quiz-v0.1.0-rc42` are pushed and deployed.
+  Local gates pass: `npm ci`, 55 tests, `npm run typecheck`, `git diff --check`.
+  A local HTTP walkthrough exercised the whole game lifecycle against a seeded
+  scratch database (create → import → public → close → reopen → rename →
+  archive), each step confirmed in the chooser, the scoreboard, the admin
+  table, and `audit_events`, along with guest and invited progress cards, the
+  roster counts, the accounts panel, the sign-in template round trip and its
+  `{{link}}` rejection, the completion scope control, the guest-labeled results
+  CSV, and preflight's new warning path.
+- Backup `quiz-20260813T150847Z.sqlite.gz` passed gzip and SQLite integrity
+  checks and matched live row counts. The active timed-question count was zero
+  immediately before the restart. Production preflight passed with the
+  intentional existing-attempt override and reported both public games.
+  Post-deploy: health reports rc42, both games are on the chooser, all five
+  admin routes gate to sign-in, CASS is HTTP 200 with both PM2 services online,
+  every data count is unchanged, and the 243 email/notification audit events
+  did not move. **No email was sent at any point.**
+- Admin screens were verified by rendering the deployed view code against a
+  consistent copy of the production database, because the live admin password
+  is the scrypt hash in SQLite rather than `ADMIN_PASSWORD` in
+  `/etc/timed-quiz.env`, which now returns 403. That check confirmed Games 1
+  and 2 read `PUBLIC` and Game 3 reads `off (closed 8/11/2026)` — matching the
+  public chooser — plus 31 guests / 76 invited / 9 test / 4 linked accounts,
+  the legacy disclosure present with its anchors, guest cards without Rotate
+  link while all 85 non-public players keep theirs, and no `@players.invalid`
+  leak on any screen.
+- Open items: completion notification scope is deliberately left at `invited`,
+  so guest completions still send nothing — flip it to "Everyone, including
+  public players" on Progress if that volume is wanted. `.claude/launch.json`
+  was created locally for the preview server and is intentionally **not
+  committed**; add or delete it as preferred. The in-app browser pane was
+  unreliable this session, so only the Games screen was confirmed by
+  screenshot; a visual pass over Players and Progress in a real browser is
+  still worth doing.
 
 ## 2026-08-11 — Claude account-review findings fixed in rc41
 

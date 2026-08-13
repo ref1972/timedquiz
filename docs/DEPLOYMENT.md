@@ -14,7 +14,7 @@ by side for Timed Quiz; do not replace CASS's runtime or processes. Use a
 dedicated system user and systemd service plus a separate nginx virtual host
 and Certbot certificate.
 
-Current deployed release: `timed-quiz-v0.1.0-rc41`. Certbot manages
+Current deployed release: `timed-quiz-v0.1.0-rc42`. Certbot manages
 the live nginx TLS additions, so provisioning only installs the base nginx
 file when the site does not already exist.
 
@@ -30,7 +30,25 @@ all 104 attempt generations remain in the production database as historical
 backup. Pre-archive backup `quiz-20260812T000626Z.sqlite.gz` and post-archive
 backup `quiz-20260812T001036Z.sqlite.gz` both passed integrity checks.
 
-Player completion copy is editable on the admin Progress screen. A player can
+Admin is organized as five screens as of rc42: Games, Questions & Answers,
+Players, Progress, and Grading. Games is the public-availability control —
+create with an optional cutoff, rename, set the required question count, open,
+close, schedule a cutoff, and archive — and it reports chooser membership from
+`playableGames()`, so it cannot disagree with the home page. Closing and
+archiving change availability only; they delete no player, attempt, or answer.
+The `is_active` flag is labeled as what it still controls: the legacy
+invitation and reminder email boundary.
+
+The invitation console is collapsed behind one `legacy` disclosure on Players,
+rendered only for a game with an invited or test roster. Every invitation and
+reminder route, template, and issued `/invite/:token` link is unchanged, so
+Games 1 and 2 keep theirs and a private cohort remains possible. Completion
+notification scope is now a setting: `invited` (the default, and what
+production runs) or `all`. The admin password is stored as a salted scrypt hash
+in SQLite once changed through the UI, so `ADMIN_PASSWORD` in
+`/etc/timed-quiz.env` is no longer the live credential.
+
+Player completion copy moved to the admin Players screen in rc42. A player can
 return to the game chooser from completion and can open their private score and
 submitted-answer sheet only after every submitted answer has a final grading
 verdict. Backup `quiz-20260812T001916Z.sqlite.gz` passed integrity checks before
