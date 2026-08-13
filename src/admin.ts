@@ -1,7 +1,7 @@
 import type { Request, Response, Router as RouterType } from "express";
 import { Router } from "express";
 import { config } from "./config.ts";
-import { db, getAppSetting, logEvent, nowIso, setAppSetting } from "./db.ts";
+import { contactLabelSql, db, getAppSetting, logEvent, nowIso, setAppSetting } from "./db.ts";
 import { decryptInvitationToken, encryptInvitationToken, sha256, randomToken } from "./crypto.ts";
 import { normalize, applyReviewRuling } from "./grading.ts";
 import { relayConfigured, remainingEmailQuota, sendInvitationEmail, sendReminderEmail } from "./mail.ts";
@@ -15,7 +15,8 @@ import { getInvitationTemplate, setInvitationTemplate } from "./invitation-templ
 import { getCompletionNotificationSettings, setCompletionNotificationSettings } from "./completion-notification.ts";
 import { getCompletionCopy, setCompletionCopy, type CompletionCopy } from "./completion-copy.ts";
 import { getReminderTemplate, setReminderTemplate } from "./reminder-template.ts";
-import { activateGame, centralLocalToIso, createGame, games, selectGame, selectedGame } from "./games.ts";
+import { activateGame, archiveGame, centralLocalToIso, createGame, gameOverviews, selectGame, selectedGame, setGameCutoff, updateGame } from "./games.ts";
+import { getSigninTemplate, setSigninTemplate } from "./signin-template.ts";
 
 export interface ResultRow {
   id: number;
@@ -23,6 +24,8 @@ export interface ResultRow {
   email: string;
   display_name: string;
   is_test: number;
+  is_public: number;
+  account_id: number | null;
   status: string | null;
   score: number;
   answer_time_ms: number;
@@ -60,7 +63,7 @@ export interface PlayerAnswerRow {
 }
 
 export function playerAnswerHistory(playerId: number): { player: { id: number; email: string; display_name: string; is_test: number }; attempts: PlayerAnswerAttempt[]; answers: PlayerAnswerRow[] } | null {
-  const player = db.prepare(`SELECT p.id,CASE WHEN p.is_public=1 THEN COALESCE(a.email,'Guest — no email') ELSE p.email END email,p.display_name,p.is_test
+  const player = db.prepare(`SELECT p.id,${contactLabelSql("p", "a")} email,p.display_name,p.is_test
     FROM players p LEFT JOIN account_player_links l ON l.player_id=p.id LEFT JOIN accounts a ON a.id=l.account_id
     WHERE p.id=? AND p.game_id=?`).get(playerId, selectedGame().id) as { id: number; email: string; display_name: string; is_test: number } | undefined;
   if (!player) return null;
@@ -75,7 +78,7 @@ export function playerAnswerHistory(playerId: number): { player: { id: number; e
 export function results(): ResultRow[] {
   return db
     .prepare(
-      `SELECT p.id, p.game_id, CASE WHEN p.is_public=1 THEN COALESCE(ac.email,'Guest — no email') ELSE p.email END email, p.display_name, p.is_test, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
+      `SELECT p.id, p.game_id, ${contactLabelSql("p", "ac")} email, p.display_name, p.is_test, p.is_public, ac.id AS account_id, p.token_ciphertext, p.invite_sent_at, p.invite_last_error, p.invite_send_attempts, a.status,
         a.completion_notification_started_at, a.completion_notified_at, a.completion_notification_error,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.verdict = 'correct' THEN 1 ELSE 0 END), 0) AS score,
         COALESCE(SUM(CASE WHEN q.included_in_score = 1 AND e.submitted_at IS NOT NULL THEN e.elapsed_ms ELSE 0 END), 0) AS answer_time_ms
@@ -233,6 +236,51 @@ export function reminderStats(): ReminderStats {
   return { eligible, sent: row.sent ?? 0, needsAttention: row.needs_attention ?? 0 };
 }
 
+export interface RosterStats {
+  guests: number;
+  invited: number;
+  test: number;
+  linkedAccounts: number;
+}
+
+/** Who is in the selected game, by how they got there. */
+export function rosterStats(): RosterStats {
+  const row = db.prepare(`SELECT
+    COALESCE(SUM(CASE WHEN p.is_public = 1 THEN 1 ELSE 0 END), 0) AS guests,
+    COALESCE(SUM(CASE WHEN p.is_public = 0 AND p.is_test = 0 THEN 1 ELSE 0 END), 0) AS invited,
+    COALESCE(SUM(CASE WHEN p.is_test = 1 THEN 1 ELSE 0 END), 0) AS test,
+    COUNT(DISTINCT l.account_id) AS linkedAccounts
+    FROM players p LEFT JOIN account_player_links l ON l.player_id = p.id
+    WHERE p.game_id = ?`).get(selectedGame().id) as unknown as RosterStats;
+  return row;
+}
+
+export interface AdminAccountRow {
+  id: number;
+  email: string;
+  created_at: string;
+  last_login_at: string | null;
+  linked_players: number;
+  linked_games: string | null;
+}
+
+/**
+ * Read-only view of passwordless accounts. Admin never creates, edits, or
+ * deletes one -- an account exists only because somebody proved they can read
+ * that mailbox -- so this exists to answer "who is this scoreboard entry" and
+ * nothing more. Spans every game, unlike the rest of the admin screens.
+ */
+export function adminAccounts(): AdminAccountRow[] {
+  return db.prepare(`SELECT ac.id, ac.email, ac.created_at, ac.last_login_at,
+    COUNT(l.player_id) AS linked_players,
+    GROUP_CONCAT('Game ' || g.game_number, ', ') AS linked_games
+    FROM accounts ac
+    LEFT JOIN account_player_links l ON l.account_id = ac.id
+    LEFT JOIN players p ON p.id = l.player_id
+    LEFT JOIN games g ON g.id = p.game_id
+    GROUP BY ac.id ORDER BY COALESCE(ac.last_login_at, ac.created_at) DESC`).all() as unknown as AdminAccountRow[];
+}
+
 export function invitationStats(): InvitationStats {
   const row = db.prepare(`SELECT
     COUNT(*) AS real_players,
@@ -345,52 +393,135 @@ function renderAdmin(req: Request, res: Response, section: AdminSection): void {
   // admin, until that specific player happens to poll again.
   finalizeStaleSessions();
   const game = selectedGame();
-  res.send(adminPage({ questionCount: questionCountRow(), closesAt: game.closes_at ? Date.parse(game.closes_at) : null, results: results(), grading: section === "review" ? gradingReview() : [], unresolvedCount: unresolvedVariantCount(), questions: adminQuestions(), questionsLocked: questionEditingLocked(), questionTextEditingEnabled: questionTextEditingEnabled(), emailRelayConfigured: relayConfigured(), invitationStats: invitationStats(), reminderStats: reminderStats(), introCopy: getIntroCopy(), invitationTemplate: getInvitationTemplate(), reminderTemplate: getReminderTemplate(), completionNotifications: getCompletionNotificationSettings(), completionCopy: getCompletionCopy(), games: games(), selectedGame: game }, section));
+  const invitations = invitationStats();
+  const roster = rosterStats();
+  res.send(adminPage({
+    questionCount: questionCountRow(),
+    closesAt: game.closes_at ? Date.parse(game.closes_at) : null,
+    results: results(),
+    grading: section === "review" ? gradingReview() : [],
+    unresolvedCount: unresolvedVariantCount(),
+    questions: adminQuestions(),
+    questionsLocked: questionEditingLocked(),
+    questionTextEditingEnabled: questionTextEditingEnabled(),
+    emailRelayConfigured: relayConfigured(),
+    invitationStats: invitations,
+    reminderStats: reminderStats(),
+    rosterStats: roster,
+    accounts: section === "players" ? adminAccounts() : [],
+    // The invitation console is history for a public game. It stays one click
+    // away for any game that actually has an invited or test roster -- both
+    // arrive only through that CSV import -- and for a deliberate ?legacy=1
+    // visit when a private cohort is being prepared again.
+    showLegacyInvitations: invitations.realPlayers > 0 || roster.test > 0 || req.query.legacy === "1",
+    introCopy: getIntroCopy(),
+    invitationTemplate: getInvitationTemplate(),
+    reminderTemplate: getReminderTemplate(),
+    signinTemplate: getSigninTemplate(),
+    completionNotifications: getCompletionNotificationSettings(),
+    completionCopy: getCompletionCopy(),
+    games: gameOverviews(),
+    selectedGame: game,
+  }, section));
 }
 
 adminRouter.get("/admin", (req: Request, res: Response) => {
-  if (!isAdmin(req)) return renderAdmin(req, res, "questions");
-  res.redirect("/admin/questions");
+  if (!isAdmin(req)) return renderAdmin(req, res, "games");
+  res.redirect("/admin/games");
 });
 
-for (const section of ["questions", "players", "progress", "review"] as const) {
+for (const section of ["games", "questions", "players", "progress", "review"] as const) {
   adminRouter.get(`/admin/${section}`, (req: Request, res: Response) => renderAdmin(req, res, section));
+}
+
+function gameNotFound(res: Response): void {
+  res.status(404).send(page("Game not found", `<main class="card"><h1>Game not found</h1><a href="/admin/games">Return to games</a></main>`));
 }
 
 adminRouter.post("/admin/game/select", requireAdmin, (req: Request, res: Response) => {
   const id = Number(req.body.gameId);
-  if (!Number.isInteger(id) || !selectGame(id)) return void res.status(404).send(page("Game not found", `<main class="card"><h1>Game not found</h1><a href="/admin/players">Return</a></main>`));
-  res.redirect("/admin/players");
+  if (!Number.isInteger(id) || !selectGame(id)) return gameNotFound(res);
+  res.redirect("/admin/games");
 });
 
 adminRouter.post("/admin/game/create", requireAdmin, (req: Request, res: Response) => {
   const name = String(req.body.name ?? "").trim();
   const local = String(req.body.closesAt ?? "").trim();
   const expectedQuestionCount = Number(req.body.expectedQuestionCount ?? 50);
-  const closesAt = centralLocalToIso(local);
-  if (!name || name.length > 160 || !closesAt || !Number.isInteger(expectedQuestionCount) || expectedQuestionCount < 1 || expectedQuestionCount > 50) return void res.status(400).send(page("Game not created", `<main class="card"><h1>Enter a valid game name, Central cutoff, and question count from 1 to 50</h1><a href="/admin/players">Return</a></main>`));
+  // An empty cutoff is the normal case for a public game: it stays on the
+  // chooser until somebody deliberately closes it.
+  const closesAt = local ? centralLocalToIso(local) : null;
+  if (!name || name.length > 160 || (local && !closesAt) || !Number.isInteger(expectedQuestionCount) || expectedQuestionCount < 1 || expectedQuestionCount > 50) {
+    return void res.status(400).send(page("Game not created", `<main class="card"><h1>Enter a valid game name and question count from 1 to 50</h1><p>The Central cutoff is optional; leave it empty for a game that stays open until you close it.</p><a href="/admin/games">Return to games</a></main>`));
+  }
   const game = createGame(name, closesAt, expectedQuestionCount);
   selectGame(game.id);
-  logEvent(null, "game_created", { gameId: game.id, gameNumber: game.game_number });
-  res.redirect("/admin/players");
+  logEvent(null, "game_created", { gameId: game.id, gameNumber: game.game_number, closesAt, expectedQuestionCount });
+  res.redirect("/admin/games");
 });
 
 adminRouter.post("/admin/game/activate", requireAdmin, (req: Request, res: Response) => {
   const id = Number(req.body.gameId);
-  if (!Number.isInteger(id) || !activateGame(id)) return void res.status(404).send(page("Game not found", `<main class="card"><h1>Game not found</h1><a href="/admin/players">Return</a></main>`));
+  if (!Number.isInteger(id) || !activateGame(id)) return gameNotFound(res);
   logEvent(null, "game_activated", { gameId: id });
-  res.redirect("/admin/players");
+  res.redirect("/admin/games");
+});
+
+adminRouter.post("/admin/game/:id/settings", requireAdmin, (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const name = String(req.body.name ?? "");
+  const expectedQuestionCount = Number(req.body.expectedQuestionCount ?? 50);
+  if (!Number.isInteger(id)) return gameNotFound(res);
+  try {
+    if (!updateGame(id, name, expectedQuestionCount)) return gameNotFound(res);
+  } catch (error) {
+    return void res.status(400).send(page("Game not saved", `<main class="card"><h1>Game not saved</h1><p>${escapeHtml(error instanceof Error ? error.message : "The game could not be saved.")}</p><a href="/admin/games">Return to games</a></main>`));
+  }
+  logEvent(null, "game_settings_updated", { gameId: id, expectedQuestionCount });
+  res.redirect("/admin/games");
+});
+
+/**
+ * Open/close is the public-access switch. Closing sets the cutoff to now and
+ * reopening clears it entirely; neither touches a player, attempt, or answer,
+ * and an attempt already in progress still finishes (see quiz.ts).
+ */
+adminRouter.post("/admin/game/:id/cutoff", requireAdmin, (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const action = String(req.body.action ?? "");
+  const local = String(req.body.closesAt ?? "").trim();
+  if (!Number.isInteger(id)) return gameNotFound(res);
+  let closesAt: string | null;
+  if (action === "open") {
+    closesAt = null;
+  } else if (action === "close") {
+    closesAt = nowIso();
+  } else {
+    closesAt = centralLocalToIso(local);
+    if (!closesAt) return void res.status(400).send(page("Cutoff not saved", `<main class="card"><h1>Enter a valid Central cutoff</h1><a href="/admin/games">Return to games</a></main>`));
+  }
+  if (!setGameCutoff(id, closesAt)) return gameNotFound(res);
+  logEvent(null, "game_cutoff_updated", { gameId: id, closesAt });
+  res.redirect("/admin/games");
+});
+
+adminRouter.post("/admin/game/:id/archive", requireAdmin, (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || !archiveGame(id)) return gameNotFound(res);
+  logEvent(null, "game_archived", { gameId: id });
+  res.redirect("/admin/games");
 });
 
 adminRouter.post("/admin/completion-notifications", requireAdmin, (req: Request, res: Response) => {
   const recipient = String(req.body.recipient ?? "").trim().toLowerCase();
   const enabled = req.body.enabled === "1";
+  const scope = req.body.scope === "all" ? "all" : "invited";
   if (enabled && !/^\S+@\S+\.\S+$/.test(recipient)) {
     res.status(400).send(page("Notification settings not saved", `<main class="card"><h1>Enter a valid notification address</h1><a href="/admin/progress#completion-notifications">Return to settings</a></main>`));
     return;
   }
-  setCompletionNotificationSettings({ enabled, recipient });
-  logEvent(null, "completion_notification_settings_updated", { enabled });
+  setCompletionNotificationSettings({ enabled, recipient, scope });
+  logEvent(null, "completion_notification_settings_updated", { enabled, scope });
   res.redirect("/admin/progress#completion-notifications");
 });
 
@@ -403,18 +534,18 @@ adminRouter.post("/admin/completion-copy", requireAdmin, (req: Request, res: Res
     chooserButtonLabel: String(req.body.chooserButtonLabel ?? "").trim(),
   };
   if (Object.values(copy).some((value) => !value) || copy.title.length > 160 || copy.message.length > 1500 || copy.pendingMessage.length > 1500 || copy.resultsButtonLabel.length > 100 || copy.chooserButtonLabel.length > 100) {
-    return void res.status(400).send(page("Completion message not saved", '<main class="card"><h1>Completion message not saved</h1><p>Every field is required and must remain within its displayed character limit.</p><a href="/admin/progress#completion-copy">Return</a></main>'));
+    return void res.status(400).send(page("Completion message not saved", '<main class="card"><h1>Completion message not saved</h1><p>Every field is required and must remain within its displayed character limit.</p><a href="/admin/players#completion-copy">Return</a></main>'));
   }
   setCompletionCopy(copy);
   logEvent(null, "completion_copy_updated");
-  res.redirect("/admin/progress#completion-copy");
+  res.redirect("/admin/players#completion-copy");
 });
 
 adminRouter.post("/admin/login", (req: Request, res: Response) => {
   const requestedNext = String(req.body.next ?? "");
-  const next = /^\/admin\/(questions|players|progress|review)(#[A-Za-z0-9_-]+)?$/.test(requestedNext)
+  const next = /^\/admin\/(games|questions|players|progress|review)(#[A-Za-z0-9_-]+)?$/.test(requestedNext)
     ? requestedNext
-    : "/admin/questions";
+    : "/admin/games";
   if (loginRateLimited(req.ip || req.socket.remoteAddress || "unknown")) {
     res.status(429).send(page("Too many attempts", `<main class="card"><h1>Try again later</h1><p>Too many administrator sign-in attempts came from this address.</p></main>`));
     return;
@@ -491,6 +622,18 @@ adminRouter.post("/admin/reminder-template", requireAdmin, (req: Request, res: R
   setReminderTemplate({ subject, body });
   logEvent(null, "reminder_email_template_updated");
   res.redirect("/admin/players#reminder-template");
+});
+
+adminRouter.post("/admin/signin-template", requireAdmin, (req: Request, res: Response) => {
+  const subject = String(req.body.subject ?? "").trim();
+  const body = String(req.body.body ?? "").trim();
+  if (!subject || subject.length > 200 || !body || body.length > 10_000 || !body.includes("{{link}}")) {
+    res.status(400).send(page("Sign-in email not saved", `<main class="card"><h1>Sign-in email not saved</h1><p>Enter a subject and body within the displayed limits. The body must contain <code>{{link}}</code> or nobody can complete a sign-in.</p><a href="/admin/players#signin-template">Return to the sign-in email</a></main>`));
+    return;
+  }
+  setSigninTemplate({ subject, body });
+  logEvent(null, "signin_email_template_updated");
+  res.redirect("/admin/players#signin-template");
 });
 
 adminRouter.post("/admin/players", requireAdmin, (req: Request, res: Response) => {

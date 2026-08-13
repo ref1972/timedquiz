@@ -314,6 +314,21 @@ code { color: var(--cass-purple); }
 .restart-form { display: flex; flex: 1 1 360px; gap: 8px; }
 .restart-form input { min-width: 160px; padding: 9px 12px; }
 .question-number { align-self: center; color: var(--cass-purple); font-size: 1.35rem; font-weight: 900; text-align: center; }
+/* Games screen -- the game list is the public-availability control, so the
+   "is this game live to the public" column carries the emphasis. */
+.game-selector tr.selected-game { background: var(--panel-soft); }
+.on-chooser { color: var(--cass-purple); }
+.game-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; white-space: nowrap; }
+.game-row-actions form, .game-row-actions button, .game-row-actions .button { margin: 0; }
+.game-availability { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 12px 0; }
+.game-availability form { display: flex; align-items: flex-end; gap: 8px; margin: 0; }
+.game-availability label { margin-top: 0; }
+.game-availability button { margin: 0; }
+/* The invitation console is retired, not removed: collapsed by default and
+   visually set apart from the panels that still describe normal operation. */
+.legacy-invitations > details > summary { cursor: pointer; }
+.legacy-invitations > details > summary h2 { display: inline; }
+.legacy-invitations .panel { border-radius: 14px; margin-top: 18px; }
 @media (max-width: 900px) {
   .question-editor { grid-template-columns: 44px 1fr; }
   .question-editor label, .question-editor button { grid-column: 2; }

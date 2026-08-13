@@ -1,5 +1,39 @@
 # Current handoff
 
+## 2026-08-13 — Admin rebuilt around public play (local only)
+
+- The admin interface was reorganized to match the public site the player side
+  became in rc36–rc41. New **Games** screen with the full lifecycle (create with
+  an optional cutoff, rename, required question count, open, close, scheduled
+  cutoff, archive) and an explicit "is this on the public chooser, and why not"
+  column. Players became a roster/copy screen with a read-only accounts table
+  and an editable sign-in email. The invitation console is intact but collapsed
+  behind a `legacy` disclosure that only appears for a game with an invited or
+  test roster. Progress stopped offering invitation controls on guests.
+  Completion email gained an invited-only/everyone scope, defaulting to
+  invited. Preflight now understands open, variable-length games.
+- **Status: source present locally only.** Nothing is committed, tagged,
+  deployed, or verified in production, and no email was sent at any point.
+- Verification so far: 55 tests, `npm run typecheck`, `git diff --check`, and a
+  local HTTP walkthrough of the whole game lifecycle against a seeded scratch
+  database (create → import → public → close → reopen → rename → archive), each
+  step confirmed in the chooser, the scoreboard, the admin table, and
+  `audit_events`. Guest and invited progress cards, the roster counts, the
+  accounts panel, the sign-in template round trip and its `{{link}}` rejection,
+  the completion scope control, the guest-labeled results CSV, and preflight's
+  new warning path were all exercised locally.
+- Not yet done: `.claude/launch.json` was added for the local preview server —
+  keep or drop it deliberately before committing. The in-app browser pane was
+  unreliable in this session, so the UI was verified from rendered HTML rather
+  than from screenshots of every screen; a visual pass on Games, Players, and
+  Progress is worth doing before deploying.
+- Next steps: review, commit, tag as the next rc, then follow the normal
+  deployment sequence — backup with gzip and SQLite integrity checks first,
+  then preflight, health, and a CASS availability check. On the production
+  database the legacy disclosure will appear for Games 1 and 2 (both have
+  invited rosters) and stay hidden for any purely public game created later.
+  Decide at that point whether completion email should move to `all`.
+
 ## 2026-08-11 — Claude account-review findings fixed in rc41
 
 - Cookie signatures are now purpose-bound, closing account-cookie to

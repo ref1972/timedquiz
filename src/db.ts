@@ -289,6 +289,22 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+export const GUEST_LABEL = "Guest — no email";
+
+/**
+ * A public player's stored email is an internal `public-…@players.invalid`
+ * identifier, never something a person typed. Every admin and email surface
+ * shows the verified account address once one is linked, and a plain guest
+ * label otherwise. Built here, in one place, so the player list, answer sheets,
+ * CSV exports, and completion email cannot drift apart.
+ *
+ * Takes table aliases, not values: it composes into a larger query rather than
+ * being parameterized, and the only interpolated text is the constant above.
+ */
+export function contactLabelSql(player: string, account: string): string {
+  return `CASE WHEN ${player}.is_public = 1 THEN COALESCE(${account}.email, '${GUEST_LABEL}') ELSE ${player}.email END`;
+}
+
 export function logEvent(attemptId: number | null, kind: string, detail: unknown = {}): void {
   db.prepare("INSERT INTO audit_events (attempt_id, kind, detail_json, created_at) VALUES (?, ?, ?, ?)").run(
     attemptId,

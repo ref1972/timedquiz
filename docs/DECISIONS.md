@@ -1,5 +1,41 @@
 # Decisions
 
+## 2026-08-13 — Invitations are retired, not deleted
+
+At the owner's direction the admin interface was rebuilt around public play,
+and the invitation console was collapsed behind one "legacy" disclosure on the
+Players screen rather than removed.
+
+Deleting it was the other option considered, and it was rejected for two
+reasons. First, production Games 1 and 2 still hold invited players whose
+identity *is* their personalized token; their results, answer sheets, grading
+history, and `/invite/:token` links all have to keep working, so the redemption
+path and the token columns survive regardless. Once that much is staying,
+deleting the send side buys a smaller admin screen at the cost of making a
+private cohort impossible without restoring code. Second, the panels are inert
+when unused: every invitation and reminder query already filters
+`is_public = 0`, so on a public game they act on nothing.
+
+The disclosure is therefore rendered only when the selected game actually has
+an invited or test roster, or when `?legacy=1` is passed deliberately. A purely
+public game shows no invitation UI at all, and no route was changed.
+
+## 2026-08-13 — Guest completion email is opt-in
+
+`sendCompletionNotification` returned early for every public player, so opening
+the games silently ended the owner's completion email. Rather than simply
+including guests, the setting became a scope: invited and test players only, or
+everyone.
+
+It defaults to invited, which reproduces the behavior of every release through
+rc41 exactly. The reason is volume: on an open site, "everyone" means one
+message per stranger who finishes, drawn from the same Workspace relay quota
+that invitation batches preflight so carefully. That is a reasonable thing to
+want and a bad thing to acquire as a side effect of making the games public.
+
+A skipped attempt is left unclaimed rather than marked notified, so widening
+the scope later still mails future completions and never silently swallows one.
+
 ## 2026-08-02 — Per-question timer reduced to 25 seconds
 
 At the owner's direction, each question now receives a server-authoritative

@@ -1,9 +1,52 @@
 # Current state
 
-Last updated: 2026-08-11.
+Last updated: 2026-08-13.
 
 ## Source and verification
 
+- The admin interface now matches the public model. It is **present locally and
+  not yet committed, deployed, or verified in production.** Five screens:
+  **Games**, Questions & Answers, Players, Progress, and Grading.
+  - Games is the new landing screen and the public-availability control. It
+    lists every game with the counts, the cutoff, and whether the public
+    chooser is offering it — taken from `playableGames()` itself, so the admin
+    screen cannot disagree with `/` — plus the reason when it is not (`question
+    bank holds 1 of 2`, `closed <date>`). Per-game rename, required question
+    count, Open with no cutoff, Close now, scheduled cutoff, and Archive all
+    have routes and audit events (`game_settings_updated`,
+    `game_cutoff_updated`, `game_archived`). Create no longer demands a cutoff,
+    so an always-open game is finally makeable from the UI.
+  - Closing, archiving, and renaming change availability and labels only. No
+    player, attempt, answer, or scoreboard row is deleted, and archiving twice
+    does not stack the `ARCHIVED — ` marker.
+  - The `is_active` flag is relabeled throughout as the legacy invitation and
+    reminder email boundary, which is all it still controls.
+  - Players is now a roster screen: counts by how people joined, a read-only
+    accounts table spanning games, the editable sign-in email, the player intro,
+    and the completion-screen copy. The invitation console — CSV import,
+    invitation template, quota, test send, batch send, reminder template,
+    reminders — is collapsed into one `legacy` disclosure, rendered only when
+    the selected game has an invited or test roster or `?legacy=1` is passed.
+    Its anchors (`#invitations`, `#reminders`, …) are unchanged, so every
+    existing admin redirect still lands.
+  - Progress cards no longer offer an invitation status or Rotate link for a
+    public player; they show whether that player is a signed-in account or a
+    guest. Invited players are untouched.
+  - Completion notifications gained a scope: invited and test only (default,
+    matching rc41 behavior) or everyone including the public. The message now
+    names the player type and uses the guest-safe label.
+  - `scripts/preflight.mjs` checks every game against its own
+    `expected_question_count` instead of a hardcoded 50, reports the public
+    games, and downgrades unrotated invitation links from a failure to a
+    warning.
+  - No schema migration: the work is UI, routes, existing columns, and three
+    new `app_settings` keys (`signin_email_subject`, `signin_email_body`,
+    `completion_notification_scope`).
+- Local verification passes 55 tests, TypeScript, and `git diff --check`. A
+  local HTTP walkthrough created an always-open two-question game, watched it
+  reach the chooser only after its second question was imported, closed it (off
+  the chooser, scoreboard 404), reopened, renamed, and archived it, confirming
+  the questions survived and every step produced its audit event.
 - Account security fixes are deployed as rc41: signed
   cookies are bound to their player/account/admin purpose; magic links cannot
   attach an invited identity whose email was not verified; verification GETs

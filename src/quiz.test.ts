@@ -11,6 +11,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { rmSync } from "node:fs";
 import type { Player } from "./quiz.ts";
+import type { AdminPageData } from "./views.ts";
 
 process.env.DB_PATH = "data/test-quiz.db";
 // Scaled down together, same reasoning as the original suite: a full 2s
@@ -39,7 +40,42 @@ const gameStore = await import("./games.ts");
 const publicAccess = await import("./public-access.ts");
 const accounts = await import("./account.ts");
 
+const signinTemplate = await import("./signin-template.ts");
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Current admin state with room for the one or two fields a test actually
+ * cares about. Rendering the admin page needs every panel's data, and spelling
+ * all of it out at four call sites meant every new panel broke four tests.
+ */
+function adminPageData(overrides: Partial<AdminPageData> = {}): AdminPageData {
+  return {
+    questionCount: 50,
+    closesAt: null,
+    results: [],
+    grading: admin.gradingReview(),
+    unresolvedCount: admin.unresolvedVariantCount(),
+    questions: admin.adminQuestions(),
+    questionsLocked: false,
+    questionTextEditingEnabled: false,
+    emailRelayConfigured: false,
+    invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 },
+    reminderStats: { eligible: 0, sent: 0, needsAttention: 0 },
+    rosterStats: { guests: 0, invited: 0, test: 0, linkedAccounts: 0 },
+    accounts: [],
+    showLegacyInvitations: false,
+    introCopy: introCopy.defaultIntroCopy,
+    invitationTemplate: invitationTemplate.defaultInvitationTemplate,
+    reminderTemplate: reminderTemplate.defaultReminderTemplate,
+    signinTemplate: signinTemplate.defaultSigninTemplate,
+    completionNotifications: { enabled: false, recipient: "", scope: "invited" },
+    completionCopy: completionCopy.defaultCompletionCopy,
+    games: gameStore.gameOverviews(),
+    selectedGame: gameStore.selectedGame(),
+    ...overrides,
+  };
+}
 
 let nextEmail = 0;
 function freshPlayer(): Player {
@@ -392,7 +428,7 @@ test("grading review shows every answer, including the ones graded automatically
   // The panel renders it, in the collapsed "counted incorrect" tier, with the
   // opposite action available.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: admin.gradingReview(), unresolvedCount: admin.unresolvedVariantCount(), questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    adminPageData(),
     "review",
   );
   assert.match(html, /counted incorrect/);
@@ -664,7 +700,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   // The control must still be rendered and enabled on a frozen bank, and it
   // must post to its own route rather than the locked content editor.
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    adminPageData({ questionsLocked: true }),
     "questions",
   );
   assert.match(html, new RegExp(`action="/admin/question/${question.id}/grading"`));
@@ -676,7 +712,7 @@ test("the person flag stays settable after a real attempt freezes the question b
   admin.setQuestionTextEditingEnabled(true);
   assert.equal(admin.questionTextEditingEnabled(), true);
   const unlockedHtml = views.adminPage(
-    { questionCount: 50, closesAt: null, results: [], grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: true, questionTextEditingEnabled: true, emailRelayConfigured: false, invitationStats: { realPlayers: 1, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    adminPageData({ questionsLocked: true, questionTextEditingEnabled: true }),
     "questions",
   );
   assert.match(unlockedHtml, /Turn editing off/);
@@ -777,7 +813,7 @@ test("completion notifications include testers and claim each attempt before one
     config.emailRelayUrl = "https://relay.test/v1/mail";
     config.emailRelaySecret = "test-secret";
     config.emailRelayClientId = "timed_quiz";
-    completionNotification.setCompletionNotificationSettings({ enabled: true, recipient: "owner@example.com" });
+    completionNotification.setCompletionNotificationSettings({ enabled: true, recipient: "owner@example.com", scope: "invited" });
     globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
       payloads.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
       return new Response(JSON.stringify({ ok: true, remaining: 998 }), { status: 200 });
@@ -793,7 +829,7 @@ test("completion notifications include testers and claim each attempt before one
     assert.ok(stored.completion_notified_at);
     assert.equal(stored.completion_notification_error, null);
   } finally {
-    completionNotification.setCompletionNotificationSettings({ enabled: false, recipient: "" });
+    completionNotification.setCompletionNotificationSettings({ enabled: false, recipient: "", scope: "invited" });
     config.emailRelayUrl = originalUrl;
     config.emailRelaySecret = originalSecret;
     config.emailRelayClientId = originalClientId;
@@ -801,7 +837,10 @@ test("completion notifications include testers and claim each attempt before one
   }
 });
 
-test("public completions never call the configured mail relay", async () => {
+// Opening the games to the public must not, on its own, start mailing the
+// owner about strangers. Including them stays an explicit setting, and the
+// default keeps the pre-public behavior exactly.
+test("public completions notify only when the admin opts guests in", async () => {
   const player = publicAccess.registerPublicPlayer(gameStore.activeGame().id, "No Mail Player");
   assert.ok(player);
   const started = new Date().toISOString();
@@ -810,19 +849,34 @@ test("public completions never call the configured mail relay", async () => {
   const originalSecret = config.emailRelaySecret;
   const originalClientId = config.emailRelayClientId;
   const originalFetch = globalThis.fetch;
-  let calls = 0;
+  const sent: Array<Record<string, unknown>> = [];
   try {
     config.emailRelayUrl = "https://relay.test/v1/mail";
     config.emailRelaySecret = "test-secret";
     config.emailRelayClientId = "timed_quiz";
-    completionNotification.setCompletionNotificationSettings({ enabled: true, recipient: "owner@example.com" });
-    globalThis.fetch = (async () => { calls++; return new Response(JSON.stringify({ ok: true }), { status: 200 }); }) as typeof fetch;
+    globalThis.fetch = (async (_url: string, init: { body: string }) => {
+      sent.push(JSON.parse(init.body) as Record<string, unknown>);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    assert.equal(completionNotification.getCompletionNotificationSettings().scope, "invited", "guests are excluded until somebody says otherwise");
+    completionNotification.setCompletionNotificationSettings({ enabled: true, recipient: "owner@example.com", scope: "invited" });
     assert.equal(await completionNotification.sendCompletionNotification(attemptId), false);
-    assert.equal(calls, 0);
-    const stored = db.prepare("SELECT completion_notification_started_at FROM attempts WHERE id = ?").get(attemptId) as { completion_notification_started_at: string | null };
-    assert.equal(stored.completion_notification_started_at, null);
+    assert.equal(sent.length, 0);
+    const unclaimed = db.prepare("SELECT completion_notification_started_at FROM attempts WHERE id = ?").get(attemptId) as { completion_notification_started_at: string | null };
+    assert.equal(unclaimed.completion_notification_started_at, null, "a skipped attempt stays claimable if the scope later changes");
+
+    completionNotification.setCompletionNotificationSettings({ enabled: true, recipient: "owner@example.com", scope: "all" });
+    assert.equal(await completionNotification.sendCompletionNotification(attemptId), true);
+    assert.equal(sent.length, 1);
+    assert.match(String(sent[0]!.plain_body), /Public player/);
+    assert.match(String(sent[0]!.plain_body), /Guest — no email/, "the internal players.invalid identity never reaches the message");
+
+    // The claim still holds, so a refresh cannot produce a second message.
+    assert.equal(await completionNotification.sendCompletionNotification(attemptId), false);
+    assert.equal(sent.length, 1);
   } finally {
-    completionNotification.setCompletionNotificationSettings({ enabled: false, recipient: "" });
+    completionNotification.setCompletionNotificationSettings({ enabled: false, recipient: "", scope: "invited" });
     config.emailRelayUrl = originalUrl;
     config.emailRelaySecret = originalSecret;
     config.emailRelayClientId = originalClientId;
@@ -903,7 +957,7 @@ test("player import continuation forces a GET instead of a same-document hash ch
 test("Progress renders a persistent test-player visibility control", () => {
   const testPlayer = freshPlayer();
   const html = views.adminPage(
-    { questionCount: 50, closesAt: null, results: admin.results(), grading: [], unresolvedCount: 0, questions: admin.adminQuestions(), questionsLocked: false, questionTextEditingEnabled: false, emailRelayConfigured: false, invitationStats: { realPlayers: 0, sent: 0, ready: 0, needsAttention: 0 }, reminderStats: { eligible: 0, sent: 0, needsAttention: 0 }, introCopy: introCopy.defaultIntroCopy, invitationTemplate: invitationTemplate.defaultInvitationTemplate, reminderTemplate: reminderTemplate.defaultReminderTemplate, completionNotifications: { enabled: false, recipient: "" }, completionCopy: completionCopy.defaultCompletionCopy, games: gameStore.games(), selectedGame: gameStore.selectedGame() },
+    adminPageData({ results: admin.results() }),
     "progress",
   );
   assert.match(html, /id="showTestPlayers"/);
@@ -1096,4 +1150,103 @@ test("public players can choose and play each open game without entering invitat
   db.prepare("DELETE FROM players WHERE email = ?").run(player.email);
   db.prepare("DELETE FROM questions WHERE game_id = ?").run(secondGame.id);
   db.prepare("DELETE FROM games WHERE id = ?").run(secondGame.id);
+});
+
+test("the admin game list agrees with the public chooser as a game is completed, closed, and archived", () => {
+  const originalGameId = gameStore.selectedGame().id;
+  const game = gameStore.createGame("Chooser Agreement Test", null, 2);
+  try {
+    const overview = () => gameStore.gameOverviews().find((row) => row.id === game.id)!;
+    const onChooser = () => gameStore.playableGames().some((row) => row.id === game.id);
+
+    // An open game with an incomplete bank is deliberately withheld, and the
+    // admin row says why rather than simply reading "not public".
+    db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, 1, 'Chooser Q1?', 'one', '[]')").run(game.id);
+    assert.equal(onChooser(), false);
+    assert.equal(overview().onChooser, false);
+    assert.match(overview().chooserReason, /holds 1 of 2/);
+
+    db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, 2, 'Chooser Q2?', 'two', '[]')").run(game.id);
+    assert.equal(onChooser(), true, "a complete, open game reaches the public chooser");
+    assert.equal(overview().onChooser, true);
+    assert.equal(overview().questionCount, 2);
+
+    gameStore.setGameCutoff(game.id, new Date(Date.now() - 1000).toISOString());
+    assert.equal(onChooser(), false, "a past cutoff closes the game to the public");
+    assert.match(overview().chooserReason, /^closed /);
+
+    gameStore.setGameCutoff(game.id, null);
+    assert.equal(onChooser(), true, "clearing the cutoff reopens it");
+
+    gameStore.archiveGame(game.id);
+    assert.equal(onChooser(), false, "an archived game leaves the chooser");
+    assert.match(overview().name, /^ARCHIVED — Chooser Agreement Test$/);
+    assert.equal(gameStore.gameOverviews().some((row) => row.id === game.id), true, "archiving retires a game without deleting it");
+
+    gameStore.archiveGame(game.id);
+    assert.match(gameStore.gameById(game.id)!.name, /^ARCHIVED — Chooser Agreement Test$/, "archiving twice does not stack the marker");
+
+    gameStore.selectGame(game.id);
+    const html = views.adminPage(adminPageData({ games: gameStore.gameOverviews(), selectedGame: gameStore.selectedGame() }), "games");
+    assert.match(html, /Open with no cutoff/);
+    assert.match(html, /Archive game/);
+    assert.match(html, /Create a game/);
+  } finally {
+    gameStore.selectGame(originalGameId);
+    db.prepare("DELETE FROM questions WHERE game_id = ?").run(game.id);
+    db.prepare("DELETE FROM games WHERE id = ?").run(game.id);
+  }
+});
+
+test("a game can be created with no cutoff and renamed without touching its questions", () => {
+  const originalGameId = gameStore.selectedGame().id;
+  const game = gameStore.createGame("Always Open Test", null, 1);
+  try {
+    assert.equal(game.closes_at, null, "an always-open game is representable");
+    db.prepare("INSERT INTO questions (game_id, position, prompt, canonical_answer, aliases_json) VALUES (?, 1, 'Keep me?', 'yes', '[]')").run(game.id);
+    assert.equal(gameStore.updateGame(game.id, "Renamed Test", 1), true);
+    assert.equal(gameStore.gameById(game.id)!.name, "Renamed Test");
+    assert.equal(Number((db.prepare("SELECT COUNT(*) AS n FROM questions WHERE game_id = ?").get(game.id) as { n: number }).n), 1);
+    assert.throws(() => gameStore.updateGame(game.id, "Renamed Test", 51), /between 1 and 50/);
+    assert.throws(() => gameStore.updateGame(game.id, "   ", 1), /game name/);
+  } finally {
+    gameStore.selectGame(originalGameId);
+    db.prepare("DELETE FROM questions WHERE game_id = ?").run(game.id);
+    db.prepare("DELETE FROM games WHERE id = ?").run(game.id);
+  }
+});
+
+test("saved sign-in email templates substitute the one-time link and escape HTML", () => {
+  const original = signinTemplate.getSigninTemplate();
+  try {
+    const rendered = signinTemplate.renderSigninEmail("https://bee.example.com/account/verify/abc?a=1&b=2");
+    assert.match(rendered.plain, /https:\/\/bee\.example\.com\/account\/verify\/abc\?a=1&b=2/);
+    assert.match(rendered.html, /&amp;b=2/, "the link is HTML-escaped inside the anchor");
+    assert.doesNotMatch(rendered.plain, /\{\{link\}\}/);
+
+    signinTemplate.setSigninTemplate({ subject: "Your <b>link</b>", body: "Hi & welcome\n\n{{link}}" });
+    const custom = signinTemplate.renderSigninEmail("https://bee.example.com/x");
+    assert.equal(custom.subject, "Your <b>link</b>", "the subject is plain text and is not double-escaped");
+    assert.match(custom.html, /Hi &amp; welcome/);
+    assert.match(custom.html, /<a href="https:\/\/bee\.example\.com\/x"/);
+    assert.doesNotMatch(custom.html, /Hi & welcome/);
+    assert.equal(custom.plain, "Hi & welcome\n\nhttps://bee.example.com/x");
+  } finally {
+    signinTemplate.setSigninTemplate(original);
+  }
+});
+
+test("the legacy invitation console is hidden until a game actually has an invited roster", () => {
+  const publicOnly = views.adminPage(adminPageData({ showLegacyInvitations: false }), "players");
+  assert.doesNotMatch(publicOnly, /Send player invitations/);
+  assert.doesNotMatch(publicOnly, /Send quiz reminders/);
+  assert.match(publicOnly, /Who is playing/, "the roster replaces it as the lead panel");
+  assert.match(publicOnly, /Player accounts/);
+  assert.match(publicOnly, /Sign-in email/);
+
+  const invited = views.adminPage(adminPageData({ showLegacyInvitations: true }), "players");
+  assert.match(invited, /Invitations and reminders/);
+  assert.match(invited, /Send player invitations/);
+  assert.match(invited, /id="invitations"/, "the anchors admin redirects target still exist");
+  assert.match(invited, /id="reminders"/);
 });

@@ -1,9 +1,10 @@
-import type { AdminQuestionRow, GradingQuestion, GradingVariant, InvitationStats, ReminderStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow } from "./admin.ts";
+import type { AdminAccountRow, AdminQuestionRow, GradingQuestion, GradingVariant, InvitationStats, ReminderStats, PlayerAnswerAttempt, PlayerAnswerRow, ResultRow, RosterStats } from "./admin.ts";
 import type { IntroCopy } from "./intro-copy.ts";
 import type { InvitationTemplate } from "./invitation-template.ts";
 import type { CompletionNotificationSettings } from "./completion-notification.ts";
 import type { ReminderTemplate } from "./reminder-template.ts";
-import type { Game } from "./games.ts";
+import type { SigninTemplate } from "./signin-template.ts";
+import type { Game, GameOverview } from "./games.ts";
 import type { PlayerGameOption } from "./public-access.ts";
 import type { PlayerResults } from "./public-access.ts";
 import type { Player } from "./quiz.ts";
@@ -117,12 +118,16 @@ export interface AdminPageData {
   emailRelayConfigured: boolean;
   invitationStats: InvitationStats;
   reminderStats: ReminderStats;
+  rosterStats: RosterStats;
+  accounts: AdminAccountRow[];
+  showLegacyInvitations: boolean;
   reminderTemplate: ReminderTemplate;
   introCopy: IntroCopy;
   invitationTemplate: InvitationTemplate;
+  signinTemplate: SigninTemplate;
   completionNotifications: CompletionNotificationSettings;
   completionCopy: CompletionCopy;
-  games: Game[];
+  games: GameOverview[];
   selectedGame: Game;
 }
 
@@ -168,7 +173,7 @@ export function playerAnswersPage(player: { id: number; email: string; display_n
   return page("Answers for " + (player.display_name || player.email), `<main class="admin answer-sheet"><header><p class="eyebrow">Player answer sheet</p><h1>${esc(player.display_name || player.email)}</h1><p>${esc(player.email)}${player.is_test ? " &middot; test account" : ""}</p><a class="button secondary" href="/admin/progress">Back to Progress</a></header><div class="notice"><strong>Answer time:</strong> sum of elapsed question time for every finalized scored question, regardless of verdict. Ready screens and breaks are excluded.</div>${attemptSections}</main>`);
 }
 
-export type AdminSection = "questions" | "players" | "progress" | "review";
+export type AdminSection = "games" | "questions" | "players" | "progress" | "review";
 
 /**
  * One answer variant. Every player who typed the same thing shares one row and
@@ -237,17 +242,37 @@ function gradingQuestionSection(question: GradingQuestion): string {
 
 export function adminPage(data: AdminPageData, section: AdminSection): string {
   const closesLabel = data.closesAt
-    ? new Date(data.closesAt).toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })
-    : "not set";
+    ? `cutoff ${new Date(data.closesAt).toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })}`
+    : "always open";
+  const gameRows = data.games.map((game) => `<tr${game.id === data.selectedGame.id ? ' class="selected-game"' : ""}>
+      <td>${game.game_number}</td>
+      <td>${esc(game.name)}${game.is_active ? ' <span class="status-pill">email game</span>' : ""}</td>
+      <td>${game.onChooser ? '<strong class="on-chooser">Public</strong>' : `<span class="muted">Off chooser</span><br><span class="muted">${esc(game.chooserReason)}</span>`}</td>
+      <td>${game.questionCount}/${game.expected_question_count}</td>
+      <td>${game.closes_at ? esc(new Date(game.closes_at).toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })) : "always open"}</td>
+      <td>${game.playerCount} players<br>${game.attemptCount} attempts</td>
+      <td class="game-row-actions">
+        ${game.id === data.selectedGame.id ? '<span class="muted">Selected</span>' : `<form method="post" action="/admin/game/select"><input type="hidden" name="gameId" value="${game.id}"><button class="small secondary">Select</button></form>`}
+        <a class="button small secondary" href="/scoreboard/${game.id}" target="_blank" rel="noopener">Scoreboard</a>
+      </td>
+    </tr>`).join("");
+  const selected = data.games.find((game) => game.id === data.selectedGame.id);
   const progressCards = data.results
-    .map(
-      (p) => `<article class="progress-card" data-test-player="${p.is_test ? "1" : "0"}">
-        <header><div><h3>${esc(p.display_name || p.email)}</h3><p>${esc(p.email)}</p></div><span class="status-pill">${esc(p.status ?? "not started")}${p.is_test ? " · test" : ""}</span></header>
+    .map((p) => {
+      // A public player has no invitation to report and nothing to rotate --
+      // their session is the whole identity -- so that column becomes how they
+      // joined and whether an account now vouches for them.
+      const origin = p.is_public
+        ? `<p><strong>Joined</strong><br>${p.account_id ? "Public player · signed in" : "Public player · guest"}</p>`
+        : `<p><strong>Invitation</strong><br>${p.is_test ? "Test account — use the legacy test send" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</p>`;
+      const rotate = p.is_public ? "" : `<form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form>`;
+      return `<article class="progress-card" data-test-player="${p.is_test ? "1" : "0"}">
+        <header><div><h3>${esc(p.display_name || p.email)}</h3><p>${esc(p.email)}</p></div><span class="status-pill">${esc(p.status ?? "not started")}${p.is_test ? " · test" : p.is_public ? " · public" : ""}</span></header>
         <dl class="progress-stats"><div><dt>Score</dt><dd>${p.score}</dd></div><div><dt>Answer time</dt><dd>${(p.answer_time_ms / 1000).toFixed(1)}s</dd></div></dl>
-        <div class="progress-details"><p><strong>Completion email</strong><br>${p.completion_notified_at ? `sent ${esc(new Date(p.completion_notified_at).toLocaleString())}` : p.completion_notification_error ? `failed: ${esc(p.completion_notification_error)}` : p.status === "completed" && p.completion_notification_started_at ? "send outcome unknown" : "—"}</p><p><strong>Invitation</strong><br>${p.is_test ? "Test account — use Step 3" : p.invite_sent_at ? `sent ${esc(new Date(p.invite_sent_at).toLocaleString())}` : p.token_ciphertext ? (p.invite_last_error ? `paused: ${esc(p.invite_last_error)}` : "not sent") : "rotate required"}</p></div>
-        <div class="progress-actions"><a class="button small secondary" href="/admin/player/${p.id}/answers">View answers</a><form method="post" action="/admin/player/${p.id}/rotate-invitation"><button class="small secondary">Rotate link</button></form><form class="restart-form" method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}"><input name="reason" aria-label="Restart reason for ${esc(p.display_name || p.email)}" placeholder="Restart reason" required><button class="small">Grant restart</button></form></div>
-      </article>`,
-    )
+        <div class="progress-details"><p><strong>Completion email</strong><br>${p.completion_notified_at ? `sent ${esc(new Date(p.completion_notified_at).toLocaleString())}` : p.completion_notification_error ? `failed: ${esc(p.completion_notification_error)}` : p.status === "completed" && p.completion_notification_started_at ? "send outcome unknown" : "—"}</p>${origin}</div>
+        <div class="progress-actions"><a class="button small secondary" href="/admin/player/${p.id}/answers">View answers</a>${rotate}<form class="restart-form" method="post" action="/admin/restart"><input type="hidden" name="playerId" value="${p.id}"><input name="reason" aria-label="Restart reason for ${esc(p.display_name || p.email)}" placeholder="Restart reason" required><button class="small">Grant restart</button></form></div>
+      </article>`;
+    })
     .join("");
   const answeredQuestions = data.grading.filter((question) => question.answered > 0);
   const gradingSections = answeredQuestions.length
@@ -284,21 +309,93 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
       <header>
         <p class="eyebrow">Trivia Nationals</p>
         <h1>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</h1>
-        <p>${data.questionCount}/${data.selectedGame.expected_question_count} questions &middot; ${data.selectedGame.is_active ? "active game" : "inactive game"} &middot; cutoff ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
+        <p>${data.questionCount}/${data.selectedGame.expected_question_count} questions &middot; ${selected?.onChooser ? "public" : "not public"} &middot; ${esc(closesLabel)} &middot; release ${esc(process.env.RELEASE_ID ?? "local")}</p>
       </header>
       <nav class="admin-nav" aria-label="Quiz administration">
+        <a href="/admin/games" ${section === "games" ? 'aria-current="page"' : ""}>Games</a>
         <a href="/admin/questions" ${section === "questions" ? 'aria-current="page"' : ""}>Questions &amp; Answers</a>
         <a href="/admin/players" ${section === "players" ? 'aria-current="page"' : ""}>Players</a>
         <a href="/admin/progress" ${section === "progress" ? 'aria-current="page"' : ""}>Progress</a>
         <a href="/admin/review" ${section === "review" ? 'aria-current="page"' : ""}>Grading${data.unresolvedCount ? ` (${data.unresolvedCount})` : ""}</a>
       </nav>
 
-      <section class="panel game-selector">
+      <section class="panel game-selector" id="games" ${section === "games" ? "" : "hidden"}>
         <h2>Games</h2>
-        <p>Viewing <strong>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</strong>${data.selectedGame.is_active ? ' <span class="status-pill">active</span>' : ' <span class="status-pill">inactive</span>'}. Questions, players, progress, grading, and exports below belong only to this game.</p>
-        <div class="game-actions">${data.games.map((game) => `<form method="post" action="/admin/game/select"><input type="hidden" name="gameId" value="${game.id}"><button class="small ${game.id === data.selectedGame.id ? "" : "secondary"}">Game ${game.game_number}: ${esc(game.name)}${game.is_active ? " · active" : ""}</button></form>`).join("")}</div>
-        ${data.selectedGame.is_active ? "" : `<form method="post" action="/admin/game/activate" onsubmit="return confirm('Make Game ${data.selectedGame.game_number} the active admin game for invitation and reminder email operations?')"><input type="hidden" name="gameId" value="${data.selectedGame.id}"><button>Make this the active admin game</button></form>`}
-        <details><summary>Create a new game</summary><form method="post" action="/admin/game/create"><label>Game name<input name="name" maxlength="160" required></label><label>Questions required<input type="number" name="expectedQuestionCount" min="1" max="50" value="50" required></label><label>Cutoff (Central time)<input type="datetime-local" name="closesAt" required></label><button>Create inactive game</button></form></details>
+        <p>Anyone can play a game shown as <strong>Public</strong>: it appears on the home page chooser at <a href="/" target="_blank" rel="noopener">the public site</a>. A game is public when it is open — no cutoff, or a cutoff still in the future — and its question bank is complete. Questions, players, progress, grading, and exports on the other screens belong only to the <em>selected</em> game.</p>
+        <div class="table"><table>
+          <thead><tr><th>#</th><th>Name</th><th>Public</th><th>Questions</th><th>Cutoff</th><th>Activity</th><th></th></tr></thead>
+          <tbody>${gameRows}</tbody>
+        </table></div>
+      </section>
+
+      <section class="panel" id="game-settings" ${section === "games" ? "" : "hidden"}>
+        <h2>Game ${data.selectedGame.game_number}: ${esc(data.selectedGame.name)}</h2>
+        <p>${selected?.onChooser ? "This game is <strong>open to the public</strong> right now." : `This game is <strong>not on the public chooser</strong>${selected?.chooserReason ? ` — ${esc(selected.chooserReason)}` : ""}.`}</p>
+        <form method="post" action="/admin/game/${data.selectedGame.id}/settings" class="form-grid">
+          <label>Game name<input name="name" value="${esc(data.selectedGame.name)}" maxlength="160" required></label>
+          <label>Questions required<input type="number" name="expectedQuestionCount" min="1" max="50" value="${data.selectedGame.expected_question_count}" required></label>
+          <button>Save game details</button>
+        </form>
+        <p class="muted">A game reaches the public chooser only when its bank holds exactly this many questions, which is what keeps a half-imported game private.</p>
+
+        <h3>Public availability</h3>
+        <div class="game-availability">
+          <form method="post" action="/admin/game/${data.selectedGame.id}/cutoff" onsubmit="return confirm('Open Game ${data.selectedGame.game_number} to the public with no cutoff?')"><input type="hidden" name="action" value="open"><button ${data.selectedGame.closes_at ? "" : "disabled"}>Open with no cutoff</button></form>
+          <form method="post" action="/admin/game/${data.selectedGame.id}/cutoff" onsubmit="return confirm('Close Game ${data.selectedGame.game_number} now? It leaves the public chooser immediately; players already answering a question still finish.')"><input type="hidden" name="action" value="close"><button class="secondary" ${selected?.onChooser ? "" : "disabled"}>Close now</button></form>
+          <form method="post" action="/admin/game/${data.selectedGame.id}/cutoff"><input type="hidden" name="action" value="schedule"><label>Scheduled cutoff (Central time)<input type="datetime-local" name="closesAt" required></label><button class="secondary">Save cutoff</button></form>
+        </div>
+        <p class="muted">Closing changes nothing but availability: every player, attempt, answer, and scoreboard row is kept, and an attempt already in progress is allowed to finish.</p>
+
+        <h3>Retire this game</h3>
+        <form method="post" action="/admin/game/${data.selectedGame.id}/archive" onsubmit="return confirm('Archive Game ${data.selectedGame.game_number}? It is renamed and closed, leaving the public chooser. Nothing is deleted.')"><button class="secondary">Archive game</button></form>
+        <p class="muted">Archiving marks the name and closes the game. It never deletes an attempt or an answer.</p>
+
+        <h3>Legacy email game</h3>
+        <p>${data.selectedGame.is_active ? "This is the active game for legacy invitation and reminder email." : "Invitation and reminder batches are restricted to the active email game, which this is not."} This flag does <strong>not</strong> affect who can play — public access is the cutoff and question count above.</p>
+        ${data.selectedGame.is_active ? "" : `<form method="post" action="/admin/game/activate" onsubmit="return confirm('Make Game ${data.selectedGame.game_number} the active game for legacy invitation and reminder email? This does not change public access.')"><input type="hidden" name="gameId" value="${data.selectedGame.id}"><button class="secondary">Make this the legacy email game</button></form>`}
+      </section>
+
+      <section class="panel" id="new-game" ${section === "games" ? "" : "hidden"}>
+        <h2>Create a game</h2>
+        <form method="post" action="/admin/game/create" class="form-grid">
+          <label>Game name<input name="name" maxlength="160" required></label>
+          <label>Questions required<input type="number" name="expectedQuestionCount" min="1" max="50" value="50" required></label>
+          <label>Cutoff (Central time) <span class="muted">(optional)</span><input type="datetime-local" name="closesAt"></label>
+          <button>Create game</button>
+        </form>
+        <p class="muted">Leave the cutoff empty for a game that stays open until you close it. A new game is selected immediately but reaches the public chooser only once its question bank is complete.</p>
+      </section>
+
+      <section class="panel" id="roster" ${section === "players" ? "" : "hidden"}>
+        <h2>Who is playing</h2>
+        <p>Players in <strong>Game ${data.selectedGame.game_number}</strong>. Anyone can join a public game with a display name alone; an email account is optional and only links a person's history across games.</p>
+        <div class="invite-summary" aria-label="Player roster">
+          <div><strong>${data.rosterStats.guests}</strong><span>public players</span></div>
+          <div><strong>${data.rosterStats.linkedAccounts}</strong><span>linked to an account</span></div>
+          <div><strong>${data.rosterStats.invited}</strong><span>invited (legacy)</span></div>
+          <div><strong>${data.rosterStats.test}</strong><span>test</span></div>
+        </div>
+        <p><a class="button secondary" href="/admin/progress">See every player and score in Progress</a></p>
+      </section>
+
+      <section class="panel" id="accounts" ${section === "players" ? "" : "hidden"}>
+        <h2>Player accounts</h2>
+        <p>Passwordless accounts across every game. An account exists only because somebody proved they can read that mailbox, so this view is read-only — there is nothing here for an administrator to create or reset.</p>
+        <div class="table"><table>
+          <thead><tr><th>Email</th><th>Created</th><th>Last sign-in</th><th>Linked games</th></tr></thead>
+          <tbody>${data.accounts.map((account) => `<tr><td>${esc(account.email)}</td><td>${esc(new Date(account.created_at).toLocaleDateString())}</td><td>${account.last_login_at ? esc(new Date(account.last_login_at).toLocaleString()) : '<span class="muted">never</span>'}</td><td>${account.linked_players ? esc(account.linked_games ?? "") : '<span class="muted">none</span>'}</td></tr>`).join("") || '<tr><td colspan="4">No player has created an account yet.</td></tr>'}</tbody>
+        </table></div>
+      </section>
+
+      <section class="panel" id="signin-template" ${section === "players" ? "" : "hidden"}>
+        <h2>Sign-in email</h2>
+        <p>The message sent when a player asks for a sign-in link. Use <code>{{link}}</code> for their one-time link, which expires in 15 minutes and works once.</p>
+        <form method="post" action="/admin/signin-template">
+          <label>Subject<input name="subject" value="${esc(data.signinTemplate.subject)}" maxlength="200" required></label>
+          <label>Message body<textarea name="body" rows="8" maxlength="10000" required>${esc(data.signinTemplate.body)}</textarea></label>
+          <button>Save sign-in email</button>
+        </form>
+        <p class="muted"><code>{{link}}</code> is required. Saving this template does not send anything. There is deliberately no name placeholder: the person requesting a link has not proved who they are yet.</p>
       </section>
 
       <section class="panel" id="player-intro" ${section === "players" ? "" : "hidden"}>
@@ -333,7 +430,12 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <div class="question-list">${questionForms}</div>
       </section>
 
-      <section class="panel" id="players" ${section === "players" ? "" : "hidden"}>
+      ${data.showLegacyInvitations ? `<section class="panel legacy-invitations" ${section === "players" ? "" : "hidden"}>
+      <details>
+      <summary><h2>Invitations and reminders <span class="status-pill">legacy</span></h2></summary>
+      <p>Personalized invitation links predate public access and are no longer how players reach a game — anyone can now join an open game from the home page. These tools still work in full for a private cohort, and every invitation link ever issued still opens its game.</p>
+
+      <section class="panel" id="players">
         <p class="step-label">Step 1</p>
         <h2>Prepare the player list</h2>
         <p>Download the current list, edit it in Excel or Google Sheets, then upload the CSV. Required column: <code>email</code>. Optional columns: <code>name</code> and <code>test</code> (<code>yes</code> or <code>no</code>).</p>
@@ -346,7 +448,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <p class="muted">Importing adds new players and updates the name/test flag for matching email addresses. It never deletes players, resets attempts, or sends email.</p>
       </section>
 
-      <section class="panel" id="invitation-template" ${section === "players" ? "" : "hidden"}>
+      <section class="panel" id="invitation-template">
         <h2>Invitation email</h2>
         <p>Edit the subject and message used by both test sends and real invitation batches. Use <code>{{name}}</code> for the player’s name and <code>{{link}}</code> for their personalized link.</p>
         <form method="post" action="/admin/invitation-template">
@@ -357,7 +459,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <p class="muted"><code>{{link}}</code> is required. Test messages automatically add <code>[TEST]</code> to the subject. Always use Step 3 below after editing.</p>
       </section>
 
-      <section class="panel" id="invitations" ${section === "players" ? "" : "hidden"}>
+      <section class="panel" id="invitations">
         <h2>Send player invitations</h2>
         <div class="invite-summary" aria-label="Invitation status">
           <div><strong>${data.invitationStats.realPlayers}</strong><span>real players</span></div>
@@ -374,7 +476,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <p class="muted">Safety behavior: the batch stops at the first failure or quota pause. That recipient remains unsent for retry, and there is no unreliable fallback mailer.</p>
       </section>
 
-      <section class="panel" id="reminder-template" ${section === "players" ? "" : "hidden"}>
+      <section class="panel" id="reminder-template">
         <h2>Reminder email</h2>
         <p>Edit the subject and message used for incomplete-player reminders. Use <code>{{name}}</code> for the player’s name and <code>{{link}}</code> for their personalized link.</p>
         <form method="post" action="/admin/reminder-template">
@@ -385,7 +487,7 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
         <p class="muted"><code>{{link}}</code> is required. Saving this template does not send email.</p>
       </section>
 
-      <section class="panel" id="reminders" ${section === "players" ? "" : "hidden"}>
+      <section class="panel" id="reminders">
         <h2>Send quiz reminders</h2>
         <p>Send one reminder to each invited real player who has not completed the quiz. Each recipient receives the saved reminder template above with their own personalized link.</p>
         <div class="invite-summary" aria-label="Reminder status">
@@ -394,8 +496,10 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
           <div><strong>${data.reminderStats.needsAttention}</strong><span>need attention</span></div>
         </div>
         <form method="post" action="/admin/reminders/send" onsubmit="return confirm('Send reminder email to ${data.reminderStats.eligible} incomplete real player${data.reminderStats.eligible === 1 ? "" : "s"} now?')"><button class="send-real" ${data.emailRelayConfigured && data.selectedGame.is_active && data.reminderStats.eligible ? "" : "disabled"}>Send ${data.reminderStats.eligible} reminder${data.reminderStats.eligible === 1 ? "" : "s"}</button></form>
-        <p class="muted">Test players, completed players, players who were never invited, and players already sent this reminder are skipped. The send starts only if relay capacity covers the entire group and stops at the first failure.</p>
+        <p class="muted">Test players, completed players, players who were never invited, and players already sent this reminder are skipped. The send starts only if relay capacity covers the entire group and stops at the first failure. Public players are never included.</p>
       </section>
+      </details>
+      </section>` : ""}
 
       <section class="panel" ${section === "progress" ? "" : "hidden"}>
         <h2>Progress and results</h2>
@@ -407,16 +511,20 @@ export function adminPage(data: AdminPageData, section: AdminSection): string {
 
       <section class="panel" id="completion-notifications" ${section === "progress" ? "" : "hidden"}>
         <h2>Completion notifications</h2>
-        <p>Send one admin email when any player—including a test player—submits all answers. Each attempt is claimed before sending so completion-page refreshes cannot create duplicates.</p>
+        <p>Send one admin email when a player submits all answers. Each attempt is claimed before sending so completion-page refreshes cannot create duplicates.</p>
         <form method="post" action="/admin/completion-notifications">
           <label>Notification email<input type="email" name="recipient" value="${esc(data.completionNotifications.recipient)}" placeholder="you@example.com"></label>
           <label><input type="checkbox" name="enabled" value="1" ${data.completionNotifications.enabled ? "checked" : ""}> Email me when an attempt is completed</label>
+          <label>Who counts<select name="scope">
+            <option value="invited" ${data.completionNotifications.scope === "invited" ? "selected" : ""}>Invited and test players only</option>
+            <option value="all" ${data.completionNotifications.scope === "all" ? "selected" : ""}>Everyone, including public players</option>
+          </select></label>
           <button>Save completion notifications</button>
         </form>
-        <p class="muted">The message includes test/real status, score, answer time, completion time, and a link to the player’s admin answer sheet.</p>
+        <p class="muted">The message includes the player’s type, score, answer time, completion time, and a link to their admin answer sheet. <strong>Everyone</strong> means one email per completion on an open game, so it is limited by the same Workspace relay quota as any other send — leave it on invited players unless you want that volume.</p>
       </section>
 
-      <section class="panel" id="completion-copy" ${section === "progress" ? "" : "hidden"}>
+      <section class="panel" id="completion-copy" ${section === "players" ? "" : "hidden"}>
         <h2>Player completion screen</h2>
         <p>Edit the text players see after finishing. Scores and submitted answers remain unavailable until every answer in that attempt has a final correct or incorrect verdict.</p>
         <form method="post" action="/admin/completion-copy">

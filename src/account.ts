@@ -2,6 +2,7 @@ import { config } from "./config.ts";
 import { randomToken, sha256 } from "./crypto.ts";
 import { db, nowIso } from "./db.ts";
 import { sendRelayEmail, type MailResult } from "./mail.ts";
+import { renderSigninEmail } from "./signin-template.ts";
 import type { Player } from "./quiz.ts";
 
 export interface Account { id: number; email: string; display_name: string; created_at: string; last_login_at: string | null }
@@ -19,7 +20,8 @@ export async function requestAccountLogin(emailInput: string, player: Player | n
   const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
   db.prepare("INSERT INTO account_login_tokens (account_id, token_hash, requested_player_id, expires_at, created_at) VALUES (?, ?, ?, ?, ?)").run(account.id, sha256(token), player?.id ?? null, expiresAt, nowIso());
   const url = `${config.appOrigin}/account/verify/${token}`;
-  const result = await sendRelayEmail(email, "Sign in to Pop Culture Bee", `<p>Use this secure link to sign in to your Pop Culture Bee account:</p><p><a href="${url}">Sign in to my account</a></p><p>This link expires in 15 minutes and can be used once.</p>`, `Sign in to your Pop Culture Bee account:\n\n${url}\n\nThis link expires in 15 minutes and can be used once.`);
+  const { subject, html, plain } = renderSigninEmail(url);
+  const result = await sendRelayEmail(email, subject, html, plain);
   if (!result.ok) db.prepare("DELETE FROM account_login_tokens WHERE token_hash = ?").run(sha256(token));
   return result;
 }
